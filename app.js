@@ -3,9 +3,7 @@ import { h, clear } from './lib/dom.js';
 import { engineSupport, loadEngine, nodeGuard, walletFiles } from './lib/engine.js';
 import { getPrefs, setPrefs, getWalletRecord } from './lib/store.js';
 import { wallet } from './lib/wallet.js';
-import { updates } from './lib/update.js';
-import { swSupported, isControlled, clearReloadFlag, installedButBypassed, watchLoader } from './lib/loader.js';
-import { refreshPersistence } from './lib/storage.js';
+import { ensureVerifiedCopy, updates } from './lib/update.js';
 import { BUILT } from './lib/version.js';
 
 import welcome from './screens/welcome.js';
@@ -29,11 +27,10 @@ import changePassword from './screens/change_password.js';
 import about from './screens/about.js';
 import deleteWallet from './screens/delete_wallet.js';
 import problem from './screens/problem.js';
-import install from './screens/install.js';
 
 const SCREENS = {
   welcome, backup, confirmWords, restore, importWallet, setPassword, passkeySetup, ipNotice, fastStart, unlock,
-  home, send, review, txStatus, receive, activity, settings, changePassword, about, deleteWallet, problem, install,
+  home, send, review, txStatus, receive, activity, settings, changePassword, about, deleteWallet, problem,
 };
 // Screens that need an unlocked, running wallet.
 const NEEDS_WALLET = new Set(['home', 'send', 'review', 'txStatus', 'receive', 'activity', 'settings', 'changePassword', 'about']);
@@ -56,11 +53,6 @@ export const app = {
 
   go(name, params = {}) {
     if (!SCREENS[name]) throw new Error(`no screen ${name}`);
-    // After the tripwire nothing else opens in this page: no unlock, no password field.
-    if (this.intrusion) {
-      name = 'problem';
-      params = { kind: 'tripwire', detail: this.intrusion };
-    }
     if (NEEDS_WALLET.has(name) && !this.dbPass) name = this.record ? 'unlock' : 'welcome';
     if (this.current && this.current.destroy) {
       try {
@@ -96,21 +88,6 @@ export const app = {
     if (wasOpen || this.currentName !== 'unlock') this.go('unlock', { reason });
   },
 
-  /**
-   * The tripwire (lib/loader.js): the web address now serves code BEAM Campfire did not
-   * sign. Stop the engine, forget the database password, and say so. Never reload: a
-   * reload would run the new code.
-   */
-  async intruded(reason) {
-    if (this.intrusion) return;
-    this.intrusion = reason || 'unsigned code';
-    console.warn('[campfire] tripwire:', this.intrusion);
-    this.dbPass = null;
-    this.setup = null;
-    this.go('problem', { kind: 'tripwire', detail: this.intrusion });
-    await wallet.stop().catch(() => {});
-  },
-
   touch() {
     this.lastActivity = Date.now();
   },
@@ -141,28 +118,31 @@ setInterval(() => {
 }, 15000);
 
 async function boot() {
+  // Cross-origin isolation (and with it SharedArrayBuffer) can come from our
+  // own service worker: on a host that sends no COOP/COEP headers (a plain
+  // static host such as GitHub Pages) the first load, before the verified
+  // copy serves the page, is never isolated. So install the verified copy
+  // first and judge the browser once the page is served by it.
+  const pre = engineSupport();
+  const isolationOnly = pre.problems.every((p) => p === 'cross-origin isolation' || p === 'SharedArrayBuffer');
+  const canInstallFirst = isolationOnly && 'serviceWorker' in navigator && !navigator.serviceWorker.controller;
+  if (!pre.ok && !canInstallFirst) return app.go('problem', { kind: 'unsupported', detail: pre.problems });
+
+  const copy = await ensureVerifiedCopy();
+  if (copy === 'reloading') return;
+  if (copy && copy.failed) return app.go('problem', { kind: 'integrity', detail: copy.failed });
   const sup = engineSupport();
   if (!sup.ok) return app.go('problem', { kind: 'unsupported', detail: sup.problems });
+  app.copyState = copy;
 
-  if (BUILT && swSupported()) {
-    if (isControlled()) {
-      clearReloadFlag();
-      // Watches for code BEAM Campfire did not sign. Nothing here contacts the web address.
-      watchLoader({ onIntrusion: (why) => app.intruded(why) }).catch((e) => console.warn('[campfire] loader watch', e.message));
-    } else if (!(await installedButBypassed())) {
-      // First open on this device (or the browser cleared it): set up the verified copy, with progress.
-      return app.go('install');
-    }
-  }
-  return app.continueBoot();
-}
-
-/** Everything after the verified copy is in place. No update check, no request to the web address. */
-app.continueBoot = async function continueBoot() {
   app.prefs = await getPrefs();
   app.record = (await getWalletRecord()) || null;
   loadEngine().catch((e) => console.warn('[campfire] engine', e.message)); // warm up
-  refreshPersistence(app, { request: Boolean(app.record) });
+
+  if (BUILT && navigator.serviceWorker && navigator.serviceWorker.controller) {
+    // Look for a signed update once per start; applying it is always the user's choice.
+    setTimeout(() => updates.check().catch(() => {}), 4000);
+  }
 
   const qs = new URLSearchParams(location.search);
   const selftestMode = qs.get('selftest');
@@ -181,7 +161,7 @@ app.continueBoot = async function continueBoot() {
   }
 
   app.go(app.record ? 'unlock' : 'welcome');
-};
+}
 
 boot().catch((e) => {
   console.error(e);
@@ -204,9 +184,6 @@ window.__campfire = Object.freeze({
   connection: () => wallet.state.connEvent,
   createAddress: (type) => wallet.session.call('create_address', { type }).then((r) => ({ ok: true, r }), (e) => ({ ok: false, code: e.rpc && e.rpc.code, data: e.rpc && e.rpc.data })),
   version: () => (updates.available ? { available: updates.available.version } : null),
-  intrusion: () => app.intrusion || null,
-  running: () => Boolean(wallet.session),
-  persisted: () => app.persisted,
   go: (name, params) => app.go(name, params),
   validate: (address) => wallet.validateAddress(address),
   addresses: async () => ((await wallet.session.call('addr_list', { own: true })) || []).map((a) => a.address).sort(),

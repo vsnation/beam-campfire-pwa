@@ -5,16 +5,12 @@
  * Exit-intent reasons and answers:
  *   - "Can I verify this build?" -> version, engine SHA-256s, consensus rules, release status.
  *   - "Who made this?" -> project and licences named, with the public repository.
- *   - "Will my wallet survive?" -> whether the browser keeps this app's storage, and when updates were
- *     last checked. Opening this screen contacts nothing: no web address, no explorer.
  */
 import { h, put } from '../lib/dom.js';
 import { screen, notice } from '../lib/ui.js';
 import { APP_VERSION, BUILT, ENGINE_LOCK } from '../lib/version.js';
 import { engineLog, nodeGuard } from '../lib/engine.js';
 import { wallet } from '../lib/wallet.js';
-import { lastCheckText } from '../lib/update.js';
-import { refreshPersistence, persistenceText } from '../lib/storage.js';
 
 export default function about(app) {
   const kv = (k, v, testid, mono = false) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), h('span', { class: `v${mono ? ' mono' : ''}`, 'data-testid': testid || null, text: v }));
@@ -23,19 +19,14 @@ export default function about(app) {
   const hf6 = ENGINE_LOCK && rules.includes(ENGINE_LOCK.rules_signature_contains);
   const guardState = nodeGuard.state;
 
-  const storageKv = kv('Storage', persistenceText(app.persisted), 'about-storage');
-  refreshPersistence(app, { request: Boolean(app.record) }).then((v) => {
-    storageKv.querySelector('.v').textContent = persistenceText(v);
-  });
-
   (async () => {
     try {
       const st = await app.updates.status();
-      put(sw,
+      const lc = await app.updates.loaderCheck();
+      put(sw, 
         kv('Installed release', st.current || '—', 'about-release'),
         kv('Staged update', st.pending || 'none'),
-        kv('Loader', st.loader || '—', 'about-loader', true),
-        kv('Updates', lastCheckText(app.updates.lastCheck), 'about-last-check'),
+        kv('Loader (sw.js) matches signed release', lc.ok === true ? 'yes' : lc.ok === false ? 'NO' : 'not checked (offline)', 'about-loader'),
         st.lastRefusal ? kv('Last refused update', st.lastRefusal.reason) : null,
       );
     } catch {
@@ -56,7 +47,7 @@ export default function about(app) {
       kv('Node connection', wallet.state.connEvent ? (wallet.state.connEvent.node_connected ? 'connected' : `not connected${wallet.state.connEvent.last_connect_error ? `: ${wallet.state.connEvent.last_connect_error}` : ''}`) : wallet.state.nodeConnected ? 'connected' : 'not connected', 'about-connection'),
       kv('Connections refused by the node guard', String(Object.values(guardState.blocked).reduce((a, b) => a + b, 0))),
       kv('Cross-origin isolated', String(self.crossOriginIsolated)),
-      storageKv,
+      kv('Storage kept by the browser', app.persisted == null ? 'unknown' : app.persisted ? 'yes' : 'not guaranteed'),
     ),
     h('p', { class: 'section-title', text: 'Release' }),
     h('div', { class: 'card' }, sw),

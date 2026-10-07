@@ -307,13 +307,3 @@ label.btn.disabled { pointer-events: none; opacity: 0.5; }
 .file-card .main .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-card .main .s { font-size: 13px; color: var(--muted); }
 .file-card .btn-text { flex: none; padding: 6px 8px; }
-
-/* Static splash in index.html: on screen from the first paint, before any script runs. */
-.splash { justify-content: center; align-items: center; gap: 18px; }
-.splash .spinner { margin: 0 auto; }
-/* First-run setup */
-.install .title { font-size: 20px; }
-.tripwire .notice.error { font-size: 16px; }
-[data-testid="check-updates"] .main .s { white-space: normal; }
-.prompt-actions { margin-top: 10px; justify-content: flex-start; }
-.prompt-actions .btn { flex: none; }
