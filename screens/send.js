@@ -83,7 +83,7 @@ export default function send(app) {
     amount.classList.toggle('bad', Boolean(amtErr));
 
     const sync = wallet.state.sync;
-    put(syncMsg, sync.canSend ? (sync.verified ? null : notice('info', "The wallet is up to date, but its height can't be double-checked with the network right now.")) : notice('warn', `${sync.title}. ${sync.detail}`));
+    put(syncMsg, sync.canSend ? null : notice('warn', `${sync.title}. ${sync.detail}`));
     const ok = check.state === 'ok' && amt != null && !amtErr && sync.canSend;
     cta.disabled = !ok;
     return ok ? { amount: amt, fee, assetId: id } : null;

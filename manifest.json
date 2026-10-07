@@ -1,16 +1,16 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.1.3",
+ "version": "0.1.4",
  "files": [
   {
    "path": "app.js",
-   "sha256": "3f37638e490a4e325bf8e2db9c9f15bac2825ec95321d5c04a65d1d9b9a4c48d",
-   "size": 8601
+   "sha256": "ae1dd569f604fa56678e58a9ec91f5906a078aac44459b75a1f8a2bbe34ea94a",
+   "size": 9676
   },
   {
    "path": "css/app.css",
-   "sha256": "beab1e73dcf7726a1827a047a7d7efb108d76b57ceeeb56327eefaac4f441b20",
-   "size": 16849
+   "sha256": "5a66ad4156ef88b8b0bf73d9675cc28c2cf0b752e983d6dd6a6f29f69a6952ea",
+   "size": 17319
   },
   {
    "path": "fonts/Inter-Bold.ttf",
@@ -64,8 +64,8 @@
   },
   {
    "path": "index.html",
-   "sha256": "88567fb8a6092425214ffa0897cc67364a29508b0b6c2ec63130c4be6d7760fc",
-   "size": 1319
+   "sha256": "7daa3d27e385a5c5926147d44c973f443e7aeb15919d3ba75bfbfbbc608b89a6",
+   "size": 1548
   },
   {
    "path": "lib/amount.js",
@@ -84,8 +84,8 @@
   },
   {
    "path": "lib/engine.js",
-   "sha256": "d3b9678eef2fde65255ec2987d26320df30677fc6faaac947e10cb8526adf7e9",
-   "size": 17223
+   "sha256": "f46105d3a0cdbe6377e71f3348fd0b04a6e980ee09f82308d172db119938fbb7",
+   "size": 19420
   },
   {
    "path": "lib/envelope.js",
@@ -93,9 +93,19 @@
    "size": 5542
   },
   {
+   "path": "lib/export.js",
+   "sha256": "8ece73124e6ae0f1287535d75a6b73dfb009e22448d3476ba82f1b9c20a90a9f",
+   "size": 2600
+  },
+  {
    "path": "lib/icons.js",
    "sha256": "766358a4ba065d307cad28c4ee6b54c3aaecabfff79333abc21fdfdeccbe9b6d",
    "size": 2602
+  },
+  {
+   "path": "lib/loader.js",
+   "sha256": "2037b57b95670fc0c700acf04cb07205daa1c6596aa5fede97f89a1c1c77a63c",
+   "size": 4916
   },
   {
    "path": "lib/meta.js",
@@ -119,8 +129,8 @@
   },
   {
    "path": "lib/recovery.js",
-   "sha256": "aa4ee4ad2a4de2f74eeaa67b6acf39814175a96e2dd7f6ae91ef782b22682933",
-   "size": 3237
+   "sha256": "cc5560e67e0bac569ca42dc65d4bb12d1017d1db0c2d0a2520ad1dc73f5a0ac9",
+   "size": 4653
   },
   {
    "path": "lib/release.js",
@@ -129,13 +139,18 @@
   },
   {
    "path": "lib/selftest.js",
-   "sha256": "bf7064c9fb3df25449555ddf73808abb8259ea8edc7312a531a6a4832d580ea7",
-   "size": 16100
+   "sha256": "1cd8b36d4d2aab170b25bae1305e7702835985cf6821159f97dd95ac251dcf0a",
+   "size": 16599
   },
   {
    "path": "lib/session.js",
-   "sha256": "c719ce61ddf515a0b535005aa36a14c31f80954493f77a58ffcd840657a78f56",
-   "size": 6531
+   "sha256": "b1a7336a044e87158bb0b8320e761f28ce6ee8634020ec6d02e33f1e305d72ab",
+   "size": 6911
+  },
+  {
+   "path": "lib/storage.js",
+   "sha256": "8212d3f6fe50bd5d371af81ee079dea7f7013de7bc39a042e3fcc73640f83d70",
+   "size": 860
   },
   {
    "path": "lib/store.js",
@@ -144,8 +159,8 @@
   },
   {
    "path": "lib/sync.js",
-   "sha256": "86edeac4f8706e7869d00481255ae4742cb610faca4085f96b6b3c596cb3759e",
-   "size": 5450
+   "sha256": "4b5dd0670ab0de27a991e88ef988fd82a3f84e247c6adeae5c742db5a1e6bf13",
+   "size": 5824
   },
   {
    "path": "lib/ui.js",
@@ -154,18 +169,18 @@
   },
   {
    "path": "lib/update.js",
-   "sha256": "bca8a0a492dd9801b71f2c4b3a4024045bfedbf58de522080b1306fe344f7282",
-   "size": 4127
+   "sha256": "992913104e94cc4eebdb7d6a0598f209f08e5fdd915b888d4fd7ad4ca10b9f30",
+   "size": 3565
   },
   {
    "path": "lib/version.js",
-   "sha256": "a83ab2ba073bc1f5a51673b7ca4968d4b1b5686262e58a15f47c89b3c347a180",
-   "size": 789
+   "sha256": "1f53aa7374a45d1e686632190af8233b78c02595fe733f27c219be7cbd3d87cc",
+   "size": 994
   },
   {
    "path": "lib/wallet.js",
-   "sha256": "1507abec237f9e87294d96a049c1aa7d06738c56dd0154dd5ac7c2c4b13e4152",
-   "size": 13306
+   "sha256": "a1cf551d88c53d1d88549093a25bdd9f2da9d420414128a4ab136712ab469102",
+   "size": 12730
   },
   {
    "path": "lib/wallet_file.js",
@@ -179,8 +194,8 @@
   },
   {
    "path": "screens/about.js",
-   "sha256": "63bb23085994777ff53cc4cbc88c101d49fbf1e4d5f5bdd4e1031ebf780ad2be",
-   "size": 3988
+   "sha256": "6d059ffdb2773d39b414dab21cf3c30df9a0c4a4ca56dd3ef5ec70fa385b7dd9",
+   "size": 4384
   },
   {
    "path": "screens/activity.js",
@@ -189,8 +204,8 @@
   },
   {
    "path": "screens/backup.js",
-   "sha256": "885c3a4adbd3762e350acb51385eb97dc4b0f9e3b0a4fa3975b46410887cecd5",
-   "size": 5015
+   "sha256": "45d71a875797591aaca34bf19e73eeb1805b22132b6966c8e332e3f9d2fbef89",
+   "size": 9185
   },
   {
    "path": "screens/change_password.js",
@@ -209,18 +224,23 @@
   },
   {
    "path": "screens/fast_start.js",
-   "sha256": "180aa9f269c852a50742330b03e419e94cb58f41b8de6f283a732f56f98ea181",
-   "size": 7245
+   "sha256": "ee7a284622f946f14960b5f8aaa2cfb9688ca42fe0a468616cb75802f5d501ad",
+   "size": 9880
   },
   {
    "path": "screens/home.js",
-   "sha256": "19ab6c2d0a4557b31d08ffc75d9dd17e255d16edd85ead307df5a99d03c12937",
-   "size": 7148
+   "sha256": "897d22381da83c9f862c178241c2324ef6bd933e29f2c72ee5d8c88f0ae1d584",
+   "size": 8080
   },
   {
    "path": "screens/import_wallet.js",
    "sha256": "f979d13b06cb8876297044862e235d2b744735e264eb1ff554d2879555a6a869",
    "size": 9159
+  },
+  {
+   "path": "screens/install.js",
+   "sha256": "3893d20f3f3d18197d4608101d20e40f24279b4cbdb304545c704436a86ba92f",
+   "size": 8569
   },
   {
    "path": "screens/ip_notice.js",
@@ -234,8 +254,8 @@
   },
   {
    "path": "screens/problem.js",
-   "sha256": "04f7f6f4f9305ad2e0c38ef0d1dcb68f721c3e30305efa3d1e40a7a1509bf943",
-   "size": 1367
+   "sha256": "cdfbe23492e888c0ab9056d4663249390ad8968aec928feecacb567f06c6bff6",
+   "size": 2954
   },
   {
    "path": "screens/receive.js",
@@ -254,8 +274,8 @@
   },
   {
    "path": "screens/send.js",
-   "sha256": "0525cc09884e9612b14d115b12b1b2a60179e6e9c0019f0100648a9e9d6583d4",
-   "size": 8469
+   "sha256": "72e5799a2c35c8894e93dede939c91bea4cc7cc3b7a6c1a91efc55a8c286d9c4",
+   "size": 8338
   },
   {
    "path": "screens/set_password.js",
@@ -264,8 +284,8 @@
   },
   {
    "path": "screens/settings.js",
-   "sha256": "d37f72ca52cf2bc82832ae3c9dc00bfde4e0ef7e05633883cd40511017a25656",
-   "size": 6770
+   "sha256": "24f7f8bb0c6e04115961408dcfe97f05f70a7c2c86140bd6051eba33a1eab47a",
+   "size": 7498
   },
   {
    "path": "screens/tx_status.js",
@@ -283,9 +303,9 @@
    "size": 3318
   },
   {
-   "path": "sw.js",
-   "sha256": "64700f30cc191400ab39507705fec0587e1407bbc42bc8e446a37f6d1617ece4",
-   "size": 15397
+   "path": "sw-1f03190f6a23cc9d.js",
+   "sha256": "1f03190f6a23cc9d71388980fd4ab079b713bffbd9a2f76d66048efa457e7c03",
+   "size": 21585
   },
   {
    "path": "vendor/engine/wasm-client.js",

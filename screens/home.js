@@ -8,12 +8,16 @@
  *   - "Why can't I send?" -> the reason is written under the button, never a silent grey button.
  *   - "Where did my payment go?" -> recent payments with plain status right below.
  *   - "Empty wallet, now what?" -> the primary button becomes Receive.
+ *   - "What if this phone or this app's web address is gone?" -> a wallet imported from wallet.db has
+ *     no 12 words: until it is exported once, a banner asks for a copy outside this device (one tap
+ *     to Backup; "Later" for a week).
  */
 import { h, fmtDate, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, notice, primary, secondary } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
 import { wallet, txStatusText, isPendingTx } from '../lib/wallet.js';
+import { needsBackupPrompt } from '../lib/session.js';
 
 export function syncLine(sync) {
   const cls = sync.state === 'synced' ? 'ok' : sync.state === 'offline' || sync.state === 'stalled' || sync.state === 'behind' ? 'bad' : 'wait';
@@ -103,8 +107,31 @@ export default function home(app) {
         h('div', { class: 'notice info', 'data-testid': 'update-banner' }, icon('download'), h('div', { class: 'grow', text: `BEAM Campfire ${app.updates.available.version} is ready. It was checked against the release signature.` }), h('button', { class: 'btn btn-primary btn-small', onclick: () => app.updates.apply(), 'data-testid': 'update-apply' }, 'Update')),
       );
     }
+    if (needsBackupPrompt(app)) {
+      parts.push(
+        h(
+          'div',
+          { class: 'notice warn', 'data-testid': 'backup-prompt' },
+          icon('alert'),
+          h(
+            'div',
+            { class: 'grow' },
+            h('strong', { text: 'Keep a copy of this wallet outside this phone. ' }),
+            "It has no 12 words: if this phone is lost or this app's web address stops working, only a wallet.db copy brings it back.",
+            h(
+              'div',
+              { class: 'btn-row prompt-actions' },
+              h('button', { class: 'btn btn-primary btn-small', onclick: () => app.go('backup'), 'data-testid': 'backup-prompt-export' }, 'Export wallet.db'),
+              h('button', { class: 'btn btn-text btn-small', 'data-testid': 'backup-prompt-later', onclick: async () => {
+                await app.setPrefs({ backupPromptSnoozedUntil: Date.now() + 7 * 86400000 });
+                renderBanner();
+              } }, 'Later'),
+            ),
+          ),
+        ),
+      );
+    }
     if (app.updates.refused) parts.push(notice('error', `An update was refused: ${app.updates.refused.reason} You are still on the version you had.`));
-    if (app.loaderWarning) parts.push(notice('error', 'The server is offering app code that does not match the signed release. Don\'t enter your 12 words anywhere until this is explained.'));
     put(bannerBox, ...parts);
   }
 
@@ -112,15 +139,6 @@ export default function home(app) {
   const offU = app.updates.onChange(renderBanner);
   render(wallet.state);
   renderBanner();
-  if (!app.loaderChecked) {
-    app.loaderChecked = true;
-    app.updates.loaderCheck().then((r) => {
-      if (r.ok === false) {
-        app.loaderWarning = true;
-        renderBanner();
-      }
-    });
-  }
 
   const el = screen(
     { brand: true, tabs: 'home', app, right: h('button', { class: 'icon-btn', 'aria-label': 'Lock', onclick: () => app.lock('manual'), 'data-testid': 'lock' }, icon('lock')) },

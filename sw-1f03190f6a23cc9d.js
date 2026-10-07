@@ -1,21 +1,39 @@
-/* BEAM Campfire service worker.
+/* BEAM Campfire service worker (the "loader").
  *
  * It serves the app only from a release it verified itself:
  *   - release.json is signed (ECDSA P-256 / SHA-256) by the BEAM Campfire
  *     release key, whose public half is built into this file;
  *   - manifest.json must hash to the value in release.json;
  *   - every file must match its size and SHA-256 in manifest.json.
- * The first install caches the release only if all of that holds. Later
- * releases are downloaded and verified on request ("check-update") into a
- * separate cache, and become the served copy only on "apply-update", which
- * only the Update button sends. A tampered file or bad signature leaves the
- * current copy in place. Every response gets the security headers (COOP/COEP
- * for the engine's SharedArrayBuffer, CSP, CORP) because a response from the
- * cache would otherwise carry none.
  *
- * Not served from the cache (go to the network as they are): the release
- * files themselves, sw.js, the recovery snapshot, the explorer status and
- * dev-server paths. The BEAM node is a WebSocket, which never passes here.
+ * First install: files are downloaded (6 at a time, largest first) into a staging cache and
+ * each is kept only after its hash matched. The install can be interrupted
+ * (app closed, connection lost) and continues where it stopped: files already
+ * staged are re-checked and kept. Nothing is served until the whole signed
+ * release verified. Progress is written to the meta cache, where the page
+ * reads it to show "x of y files checked".
+ *
+ * Installed: every app file comes from the verified copy and nothing else.
+ * A path that is not in the release gets a 404 from here, never a network
+ * request, so the app keeps working when its web address is down, returns 404
+ * everywhere or serves a parking page. Later releases are downloaded and
+ * verified only on request ("check-update": the Check for updates button)
+ * into a separate cache, and become the served copy only on "apply-update",
+ * which only the Update button sends.
+ *
+ * Every response gets the security headers (COOP/COEP for the engine's
+ * SharedArrayBuffer, CSP, CORP): a response from the cache would carry none.
+ *
+ * Not intercepted (they go to the network, and only when the app asks):
+ * release.json/.sig, manifest.json, the loader script, the recovery snapshot,
+ * the explorer status and dev-server paths. The BEAM node is a WebSocket,
+ * which never passes here.
+ *
+ * This file carries nothing release-specific (no version), so its bytes - and
+ * its content-addressed name, sw-<hash>.js - stay the same across releases
+ * unless the loader itself changes. A legitimate deployment therefore never
+ * changes the bytes at a loader URL a phone has registered, which is what
+ * lets the page treat any such change as a warning sign (lib/loader.js).
  *
  * The build (tools/build.mjs) fills in the placeholders and inlines
  * lib/release.js where marked.
@@ -23,7 +41,6 @@
 'use strict';
 
 const RELEASE_PUBLIC_JWK = {"kty":"EC","crv":"P-256","x":"nHc0TAS1zffyZvN4tSmEyelt5vpEB-QDUEgHSNztzpc","y":"hHBISFLKDalMgMsjuW78PAMirodfcnlZ5N3-9A9Pa9A"};
-const SW_VERSION = "0.1.3";
 const SECURITY_HEADERS = {"Cross-Origin-Opener-Policy":"same-origin","Cross-Origin-Embedder-Policy":"require-corp","Cross-Origin-Resource-Policy":"same-origin","Content-Security-Policy":"default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self' wss://eu-nodes.mainnet.beam.mw:8200 wss://eu-node01.mainnet.beam.mw:8200 wss://eu-node02.mainnet.beam.mw:8200; img-src 'self' data: blob:; style-src 'self'; font-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'","Referrer-Policy":"no-referrer","X-Content-Type-Options":"nosniff","Permissions-Policy":"camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()"};
 const MIME = {".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".mjs":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".json":"application/json",".webmanifest":"application/manifest+json",".wasm":"application/wasm",".svg":"image/svg+xml",".png":"image/png",".ttf":"font/ttf",".woff2":"font/woff2",".txt":"text/plain; charset=utf-8",".sig":"text/plain; charset=utf-8",".jwk":"application/json"};
 
@@ -146,10 +163,14 @@ async function verifyFile(entry, bytes) {
 const META_CACHE = 'campfire-meta';
 const scopeUrl = new URL(self.registration.scope);
 const STATE_KEY = new URL('__campfire_state', scopeUrl).href;
-const PASSTHROUGH = [/^release\.json$/, /^release\.sig$/, /^manifest\.json$/, /^sw\.js$/, /^recovery\//, /^explorer\//, /^__dev\//, /^_headers$/];
+const PROGRESS_KEY = new URL('__campfire_install', scopeUrl).href;
+const PASSTHROUGH = [/^release\.json$/, /^release\.sig$/, /^manifest\.json$/, /^sw(-[0-9a-f]+)?\.js$/, /^recovery\//, /^explorer\//, /^__dev\//, /^_headers$/];
+const PARALLEL = 6;
+const FILE_TIMEOUT_MS = 90000; // per file: a stalled connection fails the run, which can then resume
 
 let stateCache = null;
 let updateRun = null;
+let installAbort = null;
 
 function mimeFor(path) {
   const i = path.lastIndexOf('.');
@@ -170,6 +191,16 @@ async function writeState(st) {
   stateCache = st;
 }
 
+/** What the first-run screen shows. The page reads it from the meta cache. */
+async function writeProgress(p) {
+  try {
+    const c = await caches.open(META_CACHE);
+    await c.put(PROGRESS_KEY, new Response(JSON.stringify({ ...p, at: Date.now() }), { headers: { 'Content-Type': 'application/json' } }));
+  } catch {
+    /* progress is only for the screen */
+  }
+}
+
 function relPath(url) {
   let p = url.pathname;
   if (!p.startsWith(scopeUrl.pathname)) return null;
@@ -182,46 +213,125 @@ function relPath(url) {
   }
 }
 
-async function fetchBytes(path) {
-  let r;
-  try {
-    r = await fetch(new URL(path, scopeUrl).href, { cache: 'no-store', credentials: 'same-origin' });
-  } catch {
-    throw new ReleaseError('unreachable', `Could not download ${path}.`);
+async function fetchBytes(path, signal) {
+  const ctl = new AbortController();
+  const onAbort = () => ctl.abort();
+  if (signal) {
+    if (signal.aborted) ctl.abort();
+    else signal.addEventListener('abort', onAbort);
   }
-  if (!r.ok) throw new ReleaseError('unreachable', `${path}: HTTP ${r.status}`);
-  return new Uint8Array(await r.arrayBuffer());
+  const timer = setTimeout(() => ctl.abort(), FILE_TIMEOUT_MS);
+  try {
+    let r;
+    try {
+      r = await fetch(new URL(path, scopeUrl).href, { cache: 'no-store', credentials: 'same-origin', signal: ctl.signal });
+    } catch {
+      throw new ReleaseError('unreachable', `Could not download ${path}.`);
+    }
+    if (!r.ok) throw new ReleaseError('unreachable', `${path}: HTTP ${r.status}`);
+    try {
+      return new Uint8Array(await r.arrayBuffer());
+    } catch {
+      throw new ReleaseError('unreachable', `The download of ${path} was interrupted.`);
+    }
+  } finally {
+    clearTimeout(timer);
+    if (signal) signal.removeEventListener('abort', onAbort);
+  }
 }
 
-async function fetchVerifiedRelease() {
-  const relBytes = await fetchBytes('release.json');
-  const sig = new TextDecoder().decode(await fetchBytes('release.sig'));
+/**
+ * release.json + its signature + manifest.json. Something that is not a
+ * release.json at all (a parking page, an error page) means there is no update
+ * source at this address: "unreachable", not "refused". A release.json that
+ * names this app but fails the signature is refused.
+ */
+async function fetchVerifiedRelease(signal) {
+  const relBytes = await fetchBytes('release.json', signal);
+  let claimed = null;
+  try {
+    claimed = JSON.parse(new TextDecoder().decode(relBytes));
+  } catch {
+    claimed = null;
+  }
+  if (!claimed || claimed.app !== RELEASE_APP_ID) throw new ReleaseError('unreachable', 'No BEAM Campfire release is published at this address.');
+  const sig = new TextDecoder().decode(await fetchBytes('release.sig', signal));
   const release = await verifyReleaseSignature(relBytes, sig, RELEASE_PUBLIC_JWK);
-  const manifest = await verifyManifest(release, await fetchBytes('manifest.json'));
+  const manifest = await verifyManifest(release, await fetchBytes('manifest.json', signal));
   return { release, manifest };
 }
 
-async function stageRelease({ release, manifest }) {
-  const cacheName = `campfire-${release.version}-${release.manifest_sha256.slice(0, 16)}`;
-  await caches.delete(cacheName);
+const cacheNameFor = (release) => `campfire-${release.version}-${release.manifest_sha256.slice(0, 16)}`;
+
+/**
+ * Downloads and verifies every file of a release into its own cache.
+ * Resumable: entries already in that cache are re-checked against the manifest
+ * and kept. The cache is recorded as state.staging so cleanup keeps it, and it
+ * is never served until it has become state.current (first install, every
+ * file verified) or state.pending and then current (Update button).
+ */
+async function stageRelease({ release, manifest }, { signal = null, report = null } = {}) {
+  const cacheName = cacheNameFor(release);
+  const st = await readState();
+  if (st.staging !== cacheName) await writeState({ ...st, staging: cacheName });
   const cache = await caches.open(cacheName);
-  try {
-    for (const f of manifest.files) {
-      const bytes = await fetchBytes(f.path);
-      await verifyFile(f, bytes);
-      await cache.put(new URL(f.path, scopeUrl).href, new Response(bytes, { headers: { 'Content-Type': mimeFor(f.path) } }));
+  const files = manifest.files;
+  const totalBytes = files.reduce((a, f) => a + f.size, 0);
+  const prog = { state: 'downloading', version: release.version, total: files.length, totalBytes, done: 0, doneBytes: 0, resumed: 0, error: null };
+  const todo = [];
+  for (const f of files) {
+    const key = new URL(f.path, scopeUrl).href;
+    const hit = await cache.match(key);
+    if (hit) {
+      try {
+        await verifyFile(f, new Uint8Array(await hit.arrayBuffer()));
+        prog.done++;
+        prog.doneBytes += f.size;
+        prog.resumed++;
+        continue;
+      } catch {
+        await cache.delete(key);
+      }
     }
-  } catch (e) {
-    await caches.delete(cacheName);
-    throw e;
+    todo.push(f);
   }
-  const files = {};
-  for (const f of manifest.files) files[f.path] = f.sha256;
-  return { version: release.version, cache: cacheName, files, manifestSha: release.manifest_sha256, verifiedAt: Date.now() };
+  if (report) await report(prog);
+  // Biggest first, so the engine (5.8 MB) is not the last thing left on a slow line.
+  todo.sort((a, b) => b.size - a.size);
+  let next = 0;
+  let failure = null;
+  const run = new AbortController();
+  const onOuterAbort = () => run.abort();
+  if (signal) signal.addEventListener('abort', onOuterAbort);
+  const worker = async () => {
+    while (!failure && next < todo.length) {
+      const f = todo[next++];
+      try {
+        const bytes = await fetchBytes(f.path, run.signal);
+        await verifyFile(f, bytes);
+        await cache.put(new URL(f.path, scopeUrl).href, new Response(bytes, { headers: { 'Content-Type': mimeFor(f.path) } }));
+        prog.done++;
+        prog.doneBytes += f.size;
+        if (report) await report(prog);
+      } catch (e) {
+        if (!failure) failure = e;
+        run.abort();
+      }
+    }
+  };
+  try {
+    await Promise.all(Array.from({ length: Math.min(PARALLEL, todo.length) }, worker));
+  } finally {
+    if (signal) signal.removeEventListener('abort', onOuterAbort);
+  }
+  if (failure) throw failure;
+  const map = {};
+  for (const f of files) map[f.path] = f.sha256;
+  return { version: release.version, cache: cacheName, files: map, manifestSha: release.manifest_sha256, verifiedAt: Date.now() };
 }
 
 async function cleanup(st) {
-  const keep = new Set([META_CACHE, st.current && st.current.cache, st.pending && st.pending.cache].filter(Boolean));
+  const keep = new Set([META_CACHE, st.current && st.current.cache, st.pending && st.pending.cache, st.staging].filter(Boolean));
   for (const name of await caches.keys()) if (name.startsWith('campfire-') && !keep.has(name)) await caches.delete(name);
 }
 
@@ -231,11 +341,27 @@ self.addEventListener('install', (event) => {
       const st = await readState();
       if (!st.current) {
         // First install: nothing is served until a signed release verified.
-        const current = await stageRelease(await fetchVerifiedRelease());
-        await writeState({ current, pending: null, lastRefusal: null });
+        installAbort = new AbortController();
+        const signal = installAbort.signal;
+        try {
+          await writeProgress({ state: 'checking', done: 0, total: 0, doneBytes: 0, totalBytes: 0, error: null });
+          const rel = await fetchVerifiedRelease(signal);
+          let last = null;
+          const current = await stageRelease(rel, { signal, report: (p) => writeProgress((last = p)) });
+          const now = await readState();
+          await writeState({ ...now, current, pending: null, staging: null, lastRefusal: null });
+          await writeProgress({ ...(last || {}), state: 'done', version: current.version, error: null });
+        } catch (e) {
+          const code = signal.aborted ? 'stopped' : (e && e.code) || 'error';
+          await writeProgress({ state: 'failed', error: { code, message: String((e && e.message) || e) } });
+          throw e;
+        } finally {
+          installAbort = null;
+        }
       }
-      // A later sw.js (the browser re-downloads it on its own) changes how
-      // files are served, never which files: it keeps the verified copy.
+      // Another loader (the page registers one only after an Update the person
+      // approved) changes how files are served, never which files: it keeps
+      // the verified copy.
       await self.skipWaiting();
     })(),
   );
@@ -260,12 +386,14 @@ function withHeaders(resp, path) {
 
 async function serve(request, path) {
   const st = await readState();
-  if (st.current && Object.prototype.hasOwnProperty.call(st.current.files, path)) {
+  if (!st.current) return fetch(request); // not installed yet: no page is controlled by this worker then
+  if (Object.prototype.hasOwnProperty.call(st.current.files, path)) {
     const cache = await caches.open(st.current.cache);
     const hit = await cache.match(new URL(path, scopeUrl).href);
     if (hit) return withHeaders(hit, path);
   }
-  return fetch(request);
+  // Installed: only the verified copy is served; nothing is fetched from the web address.
+  return new Response('Not part of this BEAM Campfire release.', { status: 404, headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' } });
 }
 
 self.addEventListener('fetch', (event) => {
@@ -300,15 +428,15 @@ async function checkUpdate() {
   if (st.pending && st.pending.version === v && st.pending.manifestSha === rel.release.manifest_sha256) return { result: 'ready', version: v };
   try {
     const staged = await stageRelease(rel);
-    st.pending = staged;
-    st.lastRefusal = null;
-    await writeState(st);
-    await cleanup(st);
+    const now = await readState();
+    const next = { ...now, pending: staged, staging: null, lastRefusal: null };
+    await writeState(next);
+    await cleanup(next);
     return { result: 'ready', version: v };
   } catch (e) {
     if (e && e.code === 'unreachable') return { result: 'unreachable', reason: e.message };
-    st.lastRefusal = { at: Date.now(), reason: e.message, version: v };
-    await writeState(st);
+    const now = await readState();
+    await writeState({ ...now, lastRefusal: { at: Date.now(), reason: e.message, version: v } });
     return { result: 'refused', version: v, reason: e.message };
   }
 }
@@ -316,27 +444,32 @@ async function checkUpdate() {
 async function applyUpdate() {
   const st = await readState();
   if (!st.pending) return { result: 'none' };
-  const next = { current: st.pending, pending: null, lastRefusal: null, previous: st.current && st.current.version };
+  const next = { current: st.pending, pending: null, staging: null, lastRefusal: null, previous: st.current && st.current.version };
   await writeState(next);
   await cleanup(next);
   return { result: 'applied', version: next.current.version };
 }
 
 self.addEventListener('message', (event) => {
+  const type = event.data && event.data.type;
+  if (type === 'abort-install') {
+    // The first-run screen saw no progress for a while: end this run now. The
+    // page registers again, and the next run resumes from what was verified.
+    if (installAbort) installAbort.abort();
+    return;
+  }
   const port = event.ports && event.ports[0];
   if (!port) return;
-  const type = event.data && event.data.type;
   event.waitUntil(
     (async () => {
       try {
         if (type === 'status') {
           const st = await readState();
           port.postMessage({
-            swVersion: SW_VERSION,
+            loader: self.location.pathname.split('/').pop(),
             current: st.current && st.current.version,
             pending: st.pending && st.pending.version,
-            currentSw: st.current && st.current.files['sw.js'],
-            pendingSw: st.pending && st.pending.files['sw.js'],
+            currentFiles: st.current ? Object.keys(st.current.files).length : 0,
             lastRefusal: st.lastRefusal || null,
           });
         } else if (type === 'check-update') {

@@ -17,6 +17,7 @@ import { hasPasskey, removePasskey, scanEnabled, isImported } from '../lib/sessi
 import { passkeyAvailable } from '../lib/passkey.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
 import { wallet } from '../lib/wallet.js';
+import { lastCheckText } from '../lib/update.js';
 
 export default function settings(app) {
   const row = (ico, title, sub, onclick, extra = {}) =>
@@ -62,11 +63,17 @@ export default function settings(app) {
     );
   })();
 
-  const updRow = row('download', 'Check for updates', 'Updates are signed and only install when you tap Update.', checkUpdates, { 'data-testid': 'check-updates' });
+  // The only way this app contacts its web address: when this row is tapped.
+  const updRow = row('download', 'Check for updates', lastCheckText(app.updates.lastCheck), checkUpdates, { 'data-testid': 'check-updates' });
+  const setUpdSub = () => {
+    const sub = updRow.querySelector('.s');
+    if (sub) sub.textContent = lastCheckText(app.updates.lastCheck);
+  };
   async function checkUpdates() {
     toast('Checking for a signed update…');
     try {
       const r = await app.updates.check();
+      setUpdSub();
       if (r.result === 'ready') {
         openSheet((close) => [
           h('h2', { text: `Update to ${r.version}` }),
@@ -76,8 +83,14 @@ export default function settings(app) {
         ]);
       } else if (r.result === 'refused') {
         openSheet((close) => [h('h2', { text: 'Update refused' }), notice('error', `${r.reason} You are still on the version you had, which is unchanged.`), h('button', { class: 'btn btn-primary', onclick: () => close() }, 'OK')]);
-      } else if (r.result === 'unreachable') toast("Couldn't reach the update server. Try again later.");
-      else toast('You have the latest version.');
+      } else if (r.result === 'unreachable') {
+        openSheet((close) => [
+          h('h2', { text: 'No update source reachable' }),
+          h('div', { 'data-testid': 'no-update-source' }, notice('info', 'No update source reachable. Your app keeps working.')),
+          h('p', { class: 'lead', text: 'BEAM Campfire runs from the copy on this device. It does not need its web address to open, unlock, sync, send or receive.' }),
+          h('button', { class: 'btn btn-primary', onclick: () => close(), 'data-testid': 'no-update-ok' }, 'OK'),
+        ]);
+      } else toast('You have the latest version.');
     } catch (e) {
       toast(e.message);
     }

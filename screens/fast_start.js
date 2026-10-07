@@ -10,11 +10,14 @@
  *   - "Is it stuck?" -> live MB / percent, then the reading step with its own percent.
  *   - "I left the app and it stopped" -> said up front: keep it open; Try again starts over.
  *   - "Something failed" -> what happened, and the way on: try again (or skip and scan on restore).
+ *   - "The BEAM Campfire site is gone" -> the snapshot can come from BEAM directly: download
+ *     mainnet_recovery.bin yourself (the exact address is shown) and choose the file; it is read on
+ *     this device and checked by the engine exactly like the downloaded one.
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { primary, secondary, textButton, notice, progressBar } from '../lib/ui.js';
-import { downloadRecovery, recoverySize, RECOVERY_APPROX_MB } from '../lib/recovery.js';
+import { downloadRecovery, recoverySize, readRecoveryFile, RECOVERY_APPROX_MB, RECOVERY_OFFICIAL } from '../lib/recovery.js';
 import { markSetupDone, scanEnabled, setScan, isImported } from '../lib/session.js';
 import { wallet } from '../lib/wallet.js';
 
@@ -34,6 +37,7 @@ export default function fastStart(app, params = {}) {
   const restoring = Boolean(app.record && app.record.restored);
   const newWallet = !rescan && !restoring;
   let sizeBytes = null;
+  let sizeChecked = false;
   let abort = null;
   let destroyed = false;
   let phase = 'choose';
@@ -49,6 +53,14 @@ export default function fastStart(app, params = {}) {
     body,
     actions,
   );
+  // BEAM's own recovery file, downloaded by hand: the way to restore without this app's web address.
+  const fileInput = h('input', { type: 'file', id: 'recovery-file-input', class: 'file-input', tabindex: '-1', 'aria-hidden': 'true', 'data-testid': 'recovery-file' });
+  fileInput.addEventListener('change', () => {
+    const f = fileInput.files && fileInput.files[0];
+    fileInput.value = '';
+    if (f && phase === 'choose') useFile(f);
+  });
+  el.appendChild(fileInput);
 
   function view(content, buttons) {
     if (destroyed) return;
@@ -60,9 +72,15 @@ export default function fastStart(app, params = {}) {
     phase = 'choose';
     lastError = errorText || null;
     const size = sizeBytes ? `${MB(sizeBytes)} MB` : `about ${RECOVERY_APPROX_MB} MB`;
+    // Offered when the snapshot cannot come through this app's web address.
+    const noRelay = sizeChecked && !sizeBytes;
+    const offerFile = Boolean(errorText) || noRelay;
+    const fileButton = (cls) => h('label', { class: `btn ${cls}`, for: 'recovery-file-input', role: 'button', tabindex: '0', 'data-testid': 'recovery-file-choose' }, icon('file'), h('span', { text: 'Use a recovery file I downloaded' }));
     const lead = rescan
       ? 'This wallet sees the payments it makes and receives itself. If its 12 words were also used in another wallet app, BEAM Campfire can find those coins by reading a snapshot of the BEAM blockchain once.'
-      : 'To find your coins, BEAM Campfire downloads a snapshot of the BEAM blockchain once.';
+      : noRelay
+        ? "To find your coins, BEAM Campfire reads a snapshot of the BEAM blockchain once. This site has no copy of it, so download BEAM's recovery file and choose it below."
+        : 'To find your coins, BEAM Campfire downloads a snapshot of the BEAM blockchain once.';
     view(
       [
         h('div', { class: 'status-icon wait' }, icon('download')),
@@ -72,11 +90,29 @@ export default function fastStart(app, params = {}) {
         errorText ? notice('error', errorText) : null,
       ],
       [
-        primary(`Download ${size} and start`, startDownload, { 'data-testid': 'fast-download' }),
+        // No snapshot behind this address (a plain static host, or the site is down): the file the
+        // person downloads from BEAM becomes the main way; the download stays as a second try.
+        noRelay ? fileButton('btn-primary') : primary(`Download ${size} and start`, startDownload, { 'data-testid': 'fast-download' }),
+        noRelay ? secondary('Try the download anyway', startDownload, { 'data-testid': 'fast-download' }) : offerFile ? fileButton('btn-secondary') : null,
+        offerFile
+          ? h('p', { class: 'small', 'data-testid': 'recovery-file-help' }, "If the download does not work here, download BEAM's recovery file yourself from ", h('span', { class: 'mono', text: RECOVERY_OFFICIAL }), ' (about 330 MB; on iPhone, Safari saves it to Files → Downloads), then choose it here. It is read on this device only.')
+          : null,
         restoring ? textButton('Skip and scan instead (an hour or more)', () => runWallet(null, true), { 'data-testid': 'fast-skip' }) : null,
         rescan ? textButton('Not now', () => app.go('settings'), { 'data-testid': 'fast-cancel' }) : null,
       ],
     );
+  }
+
+  async function useFile(f) {
+    phase = 'reading';
+    view([h('div', { class: 'status-icon wait' }, icon('file')), h('p', { class: 'lead', text: 'Reading the recovery file…' }), progressBar(null), notice('info', 'Keep BEAM Campfire open until this finishes.')], []);
+    let buf;
+    try {
+      buf = await readRecoveryFile(f);
+    } catch (e) {
+      return choose(e.message);
+    }
+    await runWallet(buf, true);
   }
 
   async function startDownload() {
@@ -148,7 +184,8 @@ export default function fastStart(app, params = {}) {
   } else {
     recoverySize().then((n) => {
       sizeBytes = n;
-      if (phase === 'choose' && !lastError && n) choose();
+      sizeChecked = true;
+      if (phase === 'choose' && !lastError) choose();
     });
     choose();
   }
