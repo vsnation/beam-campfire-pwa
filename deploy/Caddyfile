@@ -1,0 +1,65 @@
+# BEAM Campfire (PWA) on Caddy. Replace wallet.example.org with your own address
+# (used only for this app). Caddy gets and renews the HTTPS certificate itself.
+# Files: git clone --depth 1 https://github.com/vsnation/beam-campfire-pwa /srv/beam-campfire
+
+wallet.example.org {
+	root * /srv/beam-campfire
+	encode gzip
+
+	header {
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Embedder-Policy "require-corp"
+		Cross-Origin-Resource-Policy "same-origin"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self' wss://eu-nodes.mainnet.beam.mw:8200 wss://eu-node01.mainnet.beam.mw:8200 wss://eu-node02.mainnet.beam.mw:8200; img-src 'self' data: blob:; style-src 'self'; font-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'"
+		Referrer-Policy "no-referrer"
+		X-Content-Type-Options "nosniff"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()"
+		Cache-Control "no-cache"
+		-Server
+	}
+
+	# Never serve the repository's own files.
+	@private path /.git /.git/* /deploy/* /README.md /_headers /.nojekyll
+	handle @private {
+		respond 404
+	}
+
+	# BEAM's daily recovery snapshot (~330 MB) for "Restore with 12 words", relayed as-is.
+	handle /recovery/mainnet_recovery.bin {
+		rewrite * /mainnet/mainnet_recovery.bin
+		reverse_proxy https://mobile-restore.beam.mw {
+			header_up Host {upstream_hostport}
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Proto
+			header_up -X-Forwarded-Host
+			header_up -Cookie
+			header_down -Set-Cookie
+			header_down -Access-Control-Allow-Origin
+			flush_interval -1
+		}
+	}
+
+	# An independent chain height for the honest "synced" check (height and time only).
+	handle /explorer/status {
+		rewrite * /api/status
+		reverse_proxy https://explorer.0xmx.net {
+			header_up Host {upstream_hostport}
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Proto
+			header_up -X-Forwarded-Host
+			header_up -Cookie
+			header_down -Set-Cookie
+			header_down -Access-Control-Allow-Origin
+			header_down -Access-Control-Allow-Headers
+		}
+	}
+
+	handle {
+		file_server
+	}
+
+	# No access log: a privacy wallet's host should not keep visitors' IP addresses.
+	log {
+		output discard
+	}
+}
