@@ -6,7 +6,9 @@
  *       (secondary on restore: "Skip and scan instead").
  *       Taps from app open: the last setup screen (once per device); Settings -> 2.
  * Exit-intent reasons and answers:
- *   - "330 MB?!" -> only for restoring or finding coins, said before it starts, with why and "use Wi-Fi".
+ *   - "330 MB?!" -> only for restoring or finding coins, said before it starts, with why. "Wi-Fi is
+ *     better" only when the browser says this is mobile data (it never says "use Wi-Fi" to someone
+ *     who is on Wi-Fi: iPhone and desktop browsers do not tell, so they get the plain size).
  *   - "Is it stuck?" -> live MB / percent, then the reading step with its own percent.
  *   - "I left the app and it stopped" -> said up front: keep it open; Try again starts over.
  *   - "Something failed" -> what happened, and the way on: try again (or skip and scan on restore).
@@ -20,6 +22,7 @@ import { primary, secondary, textButton, notice, progressBar } from '../lib/ui.j
 import { downloadRecovery, recoverySize, readRecoveryFile, RECOVERY_APPROX_MB, RECOVERY_OFFICIAL } from '../lib/recovery.js';
 import { markSetupDone, scanEnabled, setScan, isImported } from '../lib/session.js';
 import { wallet } from '../lib/wallet.js';
+import { onMobileData } from '../lib/network.js';
 
 const MB = (n) => Math.round(n / 1e6);
 
@@ -85,7 +88,12 @@ export default function fastStart(app, params = {}) {
       [
         h('div', { class: 'status-icon wait' }, icon('download')),
         h('p', { class: 'lead', text: lead }),
-        notice('warn', h('strong', { text: `${size} - use Wi-Fi. ` }), 'It takes a few minutes. Keep BEAM Campfire open until it finishes; leaving the app stops the download.'),
+        noRelay
+          ? // The person downloads it in the browser, outside this app.
+            notice('info', h('strong', { text: `The file is ${size}. ` }), 'Download it once, then come back and choose it here.')
+          : onMobileData()
+            ? notice('warn', h('strong', { text: `This is mobile data: the download is ${size}. ` }), 'Wi-Fi is better. Keep BEAM Campfire open until it finishes; leaving the app stops the download.')
+            : notice('info', h('strong', { text: `A one-time download of ${size}. ` }), 'It takes a few minutes. Keep BEAM Campfire open until it finishes; leaving the app stops the download.'),
         h('p', { class: 'small', text: "The snapshot is BEAM's own daily file, checked by the wallet engine against the blockchain's proof of work. It is not stored on your phone after it's read." }),
         errorText ? notice('error', errorText) : null,
       ],
