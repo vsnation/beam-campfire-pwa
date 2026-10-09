@@ -162,7 +162,14 @@ app.continueBoot = async function continueBoot() {
   // Served by the verified copy (or no service worker at all): now the engine must be able to run.
   // Only here is "this browser can't run it" the truth.
   const sup = engineSupport();
-  if (!sup.ok) return app.go('problem', { kind: 'unsupported', detail: sup.problems });
+  if (!sup.ok) {
+    // Installed, but this load went around the installed copy: say so, not "can't run".
+    if (BUILT && swSupported() && !isControlled()) {
+      const reg = await navigator.serviceWorker.getRegistration().catch(() => null);
+      if (reg && reg.active) return app.go('problem', { kind: 'bypassed' });
+    }
+    return app.go('problem', { kind: 'unsupported', detail: sup.problems });
+  }
   app.prefs = await getPrefs();
   app.record = (await getWalletRecord()) || null;
   loadEngine().catch((e) => console.warn('[campfire] engine', e.message)); // warm up

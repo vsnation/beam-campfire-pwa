@@ -19,6 +19,7 @@ export const TRIPWIRE_TEXT =
 
 export default function problem(app, p = {}) {
   if (p.kind === 'tripwire') return tripwire(app);
+  if (p.kind === 'bypassed') return bypassed();
   const integrity = p.kind === 'integrity';
   const el = screen(
     { title: integrity ? 'Security check failed' : "This browser can't run BEAM Campfire", actions: [primary('Try again', () => location.reload())] },
@@ -44,6 +45,17 @@ function tripwire(app) {
       h('ul', { class: 'steps-list' }, h('li', { text: 'with your 12 words (Restore), or' }), h('li', { text: 'with your exported wallet.db file and its password (Import wallet.db).' })),
     ),
     h('p', { class: 'small', text: 'Close this app now. Do not reopen it from the same address or enter any password or words in it. This check is a best effort: code that has already taken over can show anything.' }),
+  );
+  return { el };
+}
+
+/* Installed, but this load skipped the installed copy (a hard reload, or a browser set to bypass
+ * installed web apps): not "this browser can't run it". One tap opens it normally. */
+function bypassed() {
+  const el = screen(
+    { title: 'BEAM Campfire is installed', actions: [primary('Open BEAM Campfire', () => location.reload(), { 'data-testid': 'bypassed-open' })] },
+    notice('info', 'This load skipped the installed copy (a hard reload does that). Open it again to continue.'),
+    h('p', { class: 'small', text: 'If this screen keeps coming back, your browser is set to skip installed web apps: in its developer tools, turn off "Bypass for network" (Application, Service workers).' }),
   );
   return { el };
 }

@@ -1,11 +1,11 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.1.5",
+ "version": "0.1.6",
  "files": [
   {
    "path": "app.js",
-   "sha256": "ae1dd569f604fa56678e58a9ec91f5906a078aac44459b75a1f8a2bbe34ea94a",
-   "size": 9676
+   "sha256": "439f6a5d8c76606400f89d20d51fdcd107e7514e92eff4d40c5009b510b9ad46",
+   "size": 9996
   },
   {
    "path": "css/app.css",
@@ -179,7 +179,7 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "4ac0e1a91a8caa07f282c608de89a03f116ea3ba7ded7739aaa39b9bfa185be1",
+   "sha256": "0622aeb0173de668522013bbb2cb2ef933d90aecedfbe62ab8fe171a02ebeb2e",
    "size": 994
   },
   {
@@ -244,8 +244,8 @@
   },
   {
    "path": "screens/install.js",
-   "sha256": "3893d20f3f3d18197d4608101d20e40f24279b4cbdb304545c704436a86ba92f",
-   "size": 8569
+   "sha256": "d4c02ef626bdf699a388956f8727cda0d3150bf28747e612ea2191e18ed41906",
+   "size": 9185
   },
   {
    "path": "screens/ip_notice.js",
@@ -259,8 +259,8 @@
   },
   {
    "path": "screens/problem.js",
-   "sha256": "cdfbe23492e888c0ab9056d4663249390ad8968aec928feecacb567f06c6bff6",
-   "size": 2954
+   "sha256": "ba55d7ad691b209151cbc6f97fcbb7d849c0f4f583baf94c5ccb901aeb1e79c8",
+   "size": 3726
   },
   {
    "path": "screens/receive.js",

@@ -24,6 +24,8 @@ export const STALL_MS = 30000; // no bytes for this long, once downloading: stal
 export const SLOW_START_MS = 45000; // the browser has not started setup yet: say it is normal
 export const NO_START_MS = 150000; // ...and only then offer Try again
 const POLL_MS = 500;
+// How long "Opening BEAM Campfire" may show before a way on is offered.
+const OPEN_TIMEOUT_MS = 8000;
 const MB = (n) => (n / 1e6).toFixed(1);
 
 /** The line under the progress bar. Pure (unit-tested). */
@@ -186,6 +188,15 @@ export default function install(app) {
     line.textContent = 'Checked. Opening BEAM Campfire…';
     bar.classList.remove('indeterminate');
     bar.firstChild.style.width = '100%';
+    // Opening takes a second; if this screen is still here, never leave the person waiting.
+    setTimeout(() => {
+      if (destroyed) return;
+      put(
+        actions,
+        primary('Open BEAM Campfire', () => location.reload(), { 'data-testid': 'install-open' }),
+        h('p', { class: 'small', text: 'Still here? If your browser\'s developer tools are open, turn off "Update on reload" and "Bypass for network" (Application, Service workers), then open it again.' }),
+      );
+    }, OPEN_TIMEOUT_MS);
     if (!reloadOnceIntoVerifiedCopy()) app.continueBoot();
   }
 
