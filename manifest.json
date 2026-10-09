@@ -1,6 +1,6 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.1.6",
+ "version": "0.1.7",
  "files": [
   {
    "path": "app.js",
@@ -179,7 +179,7 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "0622aeb0173de668522013bbb2cb2ef933d90aecedfbe62ab8fe171a02ebeb2e",
+   "sha256": "6e07ad93794407db0cf51248ec45919895e5a01fe51aa1440e2a9d1c92122513",
    "size": 994
   },
   {
@@ -229,8 +229,8 @@
   },
   {
    "path": "screens/fast_start.js",
-   "sha256": "bb0b3530e3d112ef92a1dcda26a837007e1bdf2b120c8f8907573ced3cb8961e",
-   "size": 10583
+   "sha256": "b49d89b6dde61c4a9a7c249eb6d1e39636d6623ee656570e7586f5fc64eb8c08",
+   "size": 10726
   },
   {
    "path": "screens/home.js",

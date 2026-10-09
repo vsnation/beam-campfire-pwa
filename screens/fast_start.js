@@ -103,7 +103,7 @@ export default function fastStart(app, params = {}) {
         noRelay ? fileButton('btn-primary') : primary(`Download ${size} and start`, startDownload, { 'data-testid': 'fast-download' }),
         noRelay ? secondary('Try the download anyway', startDownload, { 'data-testid': 'fast-download' }) : offerFile ? fileButton('btn-secondary') : null,
         offerFile
-          ? h('p', { class: 'small', 'data-testid': 'recovery-file-help' }, "If the download does not work here, download BEAM's recovery file yourself from ", h('span', { class: 'mono', text: RECOVERY_OFFICIAL }), ' (about 330 MB; on iPhone, Safari saves it to Files → Downloads), then choose it here. It is read on this device only.')
+          ? h('p', { class: 'small', 'data-testid': 'recovery-file-help' }, "If the download does not work here, download BEAM's recovery file yourself from ", h('a', { class: 'mono', href: `https://${RECOVERY_OFFICIAL}`, target: '_blank', rel: 'noopener noreferrer', 'data-testid': 'recovery-file-link', text: RECOVERY_OFFICIAL }), ' (about 330 MB; tap it, and on iPhone Safari saves it to Files → Downloads), then come back and choose it here. It is read on this device only.')
           : null,
         restoring ? textButton('Skip and scan instead (an hour or more)', () => runWallet(null, true), { 'data-testid': 'fast-skip' }) : null,
         rescan ? textButton('Not now', () => app.go('settings'), { 'data-testid': 'fast-cancel' }) : null,
