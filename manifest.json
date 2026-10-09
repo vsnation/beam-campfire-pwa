@@ -1,6 +1,6 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.1.7",
+ "version": "0.1.8",
  "files": [
   {
    "path": "app.js",
@@ -39,13 +39,13 @@
   },
   {
    "path": "icons/apple-touch-icon.png",
-   "sha256": "9a3d92fbdda272f059d9307acd97b3664b16c760f4ea7a768c9c996d7336a4b7",
-   "size": 3288
+   "sha256": "241f2ebb5a9d6404a6b23e149b25c5a4bff8513cf7ef03b1cc32acd917549c33",
+   "size": 3795
   },
   {
    "path": "icons/icon-192.png",
-   "sha256": "8ccd5e200761af872da6da567fcb94401c92d4daed79cce1e43e5fb903f74dcc",
-   "size": 3603
+   "sha256": "5f89501f8eac5a38c90a3fe860bbcafd4f3b4ecd93c46d8b2abd2da8b76f4c1d",
+   "size": 4057
   },
   {
    "path": "icons/icon-512.png",
@@ -179,7 +179,7 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "6e07ad93794407db0cf51248ec45919895e5a01fe51aa1440e2a9d1c92122513",
+   "sha256": "7e9b7ce1637dd88fe680a6bc133a556f4108a68b40909f520e9c7ebe8d892a6e",
    "size": 994
   },
   {
