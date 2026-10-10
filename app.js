@@ -4,7 +4,7 @@ import { engineSupport, loadEngine, nodeGuard, walletFiles } from './lib/engine.
 import { getPrefs, setPrefs, getWalletRecord } from './lib/store.js';
 import { wallet } from './lib/wallet.js';
 import { updates } from './lib/update.js';
-import { swSupported, isControlled, clearReloadFlag, installedButBypassed, watchLoader } from './lib/loader.js';
+import { swSupported, isControlled, clearReloadFlag, installedButBypassed, watchLoader, loaderBehind } from './lib/loader.js';
 import { refreshPersistence } from './lib/storage.js';
 import { BUILT } from './lib/version.js';
 
@@ -179,7 +179,9 @@ async function boot() {
     if (isControlled()) {
       clearReloadFlag();
       // Watches for code BEAM Campfire did not sign. Nothing here contacts the web address.
-      watchLoader({ onIntrusion: (why) => app.intruded(why) }).catch((e) => console.warn('[campfire] loader watch', e.message));
+      // After an Update that brought a new loader, the page reloads under it as soon
+      // as it has taken over, when nothing is unlocked; otherwise Home offers it.
+      watchLoader({ onIntrusion: (why) => app.intruded(why), onMoved: () => (app.dbPass ? app.updates.emit() : location.reload()) }).catch((e) => console.warn('[campfire] loader watch', e.message));
     } else if (!(await installedButBypassed())) {
       // First open on this device (or the browser cleared it): set up the verified copy, with
       // progress. This comes BEFORE the engine check: on a static host that sends no headers
@@ -211,13 +213,14 @@ app.continueBoot = async function continueBoot() {
 
   const qs = new URLSearchParams(location.search);
   const selftestMode = qs.get('selftest');
-  if ((selftestMode === '1' || selftestMode === 'import') && (location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+  if ((selftestMode === '1' || selftestMode === 'import' || selftestMode === 'buy') && (location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
     try {
       const r = await fetch('__dev/flags', { cache: 'no-store' });
       const flags = r.ok ? await r.json() : null;
       if (flags && flags.selftest === true) {
-        const { runSelfTest, runImportSelfTest } = await import('./lib/selftest.js');
+        const { runSelfTest, runImportSelfTest, runBuySelfTest } = await import('./lib/selftest.js');
         if (selftestMode === 'import' && flags.importTest === true) return runImportSelfTest(app);
+        if (selftestMode === 'buy') return runBuySelfTest();
         if (selftestMode === '1') return runSelfTest(app);
       }
     } catch {
@@ -252,6 +255,7 @@ window.__campfire = Object.freeze({
   intrusion: () => app.intrusion || null,
   running: () => Boolean(wallet.session),
   persisted: () => app.persisted,
+  loaderBehind: () => loaderBehind(),
   go: (name, params) => app.go(name, params),
   validate: (address) => wallet.validateAddress(address),
   addresses: async () => ((await wallet.session.call('addr_list', { own: true })) || []).map((a) => a.address).sort(),

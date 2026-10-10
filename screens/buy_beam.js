@@ -19,12 +19,13 @@ import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, notice, openSheet, assetBadge } from '../lib/ui.js';
 import { BuyBeamAmount, BuyBeamError, isDefaultCoin, isPopular } from '../lib/buy/buybeam.js';
-import { usd, beamText, etaText, minimumAmount, problemText } from '../lib/buy/words.js';
+import { usd, beamText, etaText, minimumAmount, problemText, whyUnreachable } from '../lib/buy/words.js';
 import { compactUnits } from '../lib/compact.js';
 import { buyBeam, newBuyAddress, WalletNotReady } from '../lib/buy/wiring.js';
 import { hasEthWallet } from '../lib/eth/record.js';
 import { coinBadge } from './buy_screens.js';
 import { buySiteUrl } from '../lib/buy/hosts.js';
+import { loaderBehind } from '../lib/loader.js';
 
 const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 
@@ -42,6 +43,7 @@ export default function buyBeamScreen(app, params = {}) {
   const draft = (app.buyDraft = app.buyDraft || { assetId: null, amount: '', refund: '', prefilled: null });
   let assets = null;
   let assetsFailed = false;
+  let assetsError = null;
   let coin = null;
   let value = null;
   let amountError = null;
@@ -73,9 +75,10 @@ export default function buyBeamScreen(app, params = {}) {
       assets = list;
       assetsFailed = false;
       if (!coin && list.length) await setCoin(list.find((a) => a.assetId === draft.assetId) || list.find(isDefaultCoin) || list[0]);
-    } catch {
+    } catch (e) {
       if (!alive) return;
       assetsFailed = true;
+      assetsError = e;
     }
     render();
   }
@@ -260,9 +263,11 @@ export default function buyBeamScreen(app, params = {}) {
             h('span', { class: 'chev' }, icon('chevron')),
           )
         : null,
-      assetsFailed
-        ? notice('error', h('strong', { text: "Couldn't reach buybeam.my. " }), 'This is not something you did. Nothing was sent.', h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'buy-assets-retry', onclick: () => ((assetsFailed = false), render(), load(true)) }, 'Try again')))
-        : null,
+      assetsFailed && loaderBehind()
+        ? notice('warn', h('strong', { text: 'Finish the update first. ' }), 'Until it is finished this version cannot reach buybeam.my. Nothing was sent.', h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-primary btn-small', 'data-testid': 'buy-update-finish', onclick: () => location.reload() }, 'Finish now')))
+        : assetsFailed
+          ? notice('error', h('strong', { text: "Couldn't reach buybeam.my. " }), 'This is not something you did. Nothing was sent.', h('div', { class: 'hint', 'data-testid': 'buy-assets-why', text: whyUnreachable(assetsError) }), h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'buy-assets-retry', onclick: () => ((assetsFailed = false), render(), load(true)) }, 'Try again')))
+          : null,
     );
 
     put(coinBtn, ...(coin ? [coinBadge(coin.assetId, coin.symbol, 'small'), h('span', { class: 'coin-chip' }, h('span', { text: coin.symbol }), h('span', { class: 'chain', text: coin.chainName }))] : [h('span', { text: assets ? 'Choose' : '…' })]), icon('down'));

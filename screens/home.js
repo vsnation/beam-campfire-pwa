@@ -23,6 +23,7 @@ import { wallet, txStatusText, isPendingTx, isContractTx, contractMoves } from '
 import { needsBackupPrompt } from '../lib/session.js';
 import { chainSwitch } from './eth_screens.js';
 import { openBuyChooser } from './buy_screens.js';
+import { loaderBehind } from '../lib/loader.js';
 
 export function syncLine(sync) {
   const cls = sync.state === 'synced' ? 'ok' : sync.state === 'offline' || sync.state === 'stalled' || sync.state === 'behind' ? 'bad' : 'wait';
@@ -178,8 +179,29 @@ export default function home(app) {
       );
     }
     if (app.updates.refused) parts.push(notice('error', `An update was refused: ${app.updates.refused.reason} You are still on the version you had.`));
+    // Normally the move to a new loader takes seconds after an Update; only a
+    // move still pending after that is worth a word.
+    if (loaderBehind() && performance.now() > 10000) {
+      parts.push(
+        h(
+          'div',
+          { class: 'notice warn', 'data-testid': 'update-finishing' },
+          icon('alert'),
+          h(
+            'div',
+            { class: 'grow' },
+            h('strong', { text: 'One step left to finish the update. ' }),
+            'Until then Buy, Ethereum and dApps cannot connect. You unlock again after it.',
+            h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-primary btn-small', 'data-testid': 'update-finish', onclick: () => location.reload() }, 'Finish now')),
+          ),
+        ),
+      );
+    }
     put(bannerBox, ...parts);
   }
+  const bannerLater = setTimeout(() => renderBanner(), 11000);
+  const onController = () => renderBanner();
+  if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('controllerchange', onController);
 
   const off = wallet.onChange(render);
   const offU = app.updates.onChange(renderBanner);
@@ -215,6 +237,8 @@ export default function home(app) {
     destroy() {
       off();
       offU();
+      clearTimeout(bannerLater);
+      if (navigator.serviceWorker) navigator.serviceWorker.removeEventListener('controllerchange', onController);
     },
   };
 }

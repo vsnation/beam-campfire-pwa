@@ -1,11 +1,11 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.2.1",
+ "version": "0.2.2",
  "files": [
   {
    "path": "app.js",
-   "sha256": "81970decbc7af290cf8a4be6003c2d03be222d73d263e9fe74123c3d54ff8392",
-   "size": 11657
+   "sha256": "8e8f7904ecf8cd08d5da6083fcbaad6b0ded1406135b39ef3a4954aadeabe29f",
+   "size": 12051
   },
   {
    "path": "css/app.css",
@@ -194,8 +194,8 @@
   },
   {
    "path": "lib/buy/buybeam.js",
-   "sha256": "be9bb903cbba443549baa6eb1ad7987ed2a3085903f263dea4e4c59724ae1043",
-   "size": 20216
+   "sha256": "1ac91065213c5e75262fc1536e6ca8c4e40af587b451ab9047bab32af63cc9c5",
+   "size": 20456
   },
   {
    "path": "lib/buy/controller.js",
@@ -219,8 +219,8 @@
   },
   {
    "path": "lib/buy/words.js",
-   "sha256": "c9ec07fc193c8fea75e662bc0325289a771f83d40c058bea9f28ff6c00aa4383",
-   "size": 9014
+   "sha256": "a506e86d3db4d9bf8d91a0ad14efd57bbc108f104e214e0711beae9a14c33e0c",
+   "size": 9592
   },
   {
    "path": "lib/compact.js",
@@ -464,8 +464,8 @@
   },
   {
    "path": "lib/loader.js",
-   "sha256": "0979372dbdb014db71bdfa697644c86deca510ac002d3913f21430624ccd3c5f",
-   "size": 5685
+   "sha256": "6d65535c7f3f090c5a7770a0c0de6cc1643442c0c8d3444443e49b9f6da39d88",
+   "size": 6409
   },
   {
    "path": "lib/meta.js",
@@ -504,8 +504,8 @@
   },
   {
    "path": "lib/selftest.js",
-   "sha256": "1cd8b36d4d2aab170b25bae1305e7702835985cf6821159f97dd95ac251dcf0a",
-   "size": 16599
+   "sha256": "deb8284648d750fa1007f55029e1cf08e0001cd078bf88f0c117341825368748",
+   "size": 19412
   },
   {
    "path": "lib/session.js",
@@ -544,7 +544,7 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "e6cf135ec694888427832127a4f6f266295812a5e74672c20f0fb0ccc23713a1",
+   "sha256": "6690a96b717b2497b551c687ef7bb834cff0eb37107090d0d0e860cea7d1a3b1",
    "size": 994
   },
   {
@@ -634,8 +634,8 @@
   },
   {
    "path": "screens/buy_beam.js",
-   "sha256": "3304eb6d9f0b0fb5401e13dfaea05988130245099ea09fb7864a62c83c767282",
-   "size": 17597
+   "sha256": "e37d76d3e0f8397089e4aeec78885d3de313cc364e8a21fda66df83888d6d75f",
+   "size": 18198
   },
   {
    "path": "screens/buy_order.js",
@@ -764,8 +764,8 @@
   },
   {
    "path": "screens/home.js",
-   "sha256": "f182ff6f1c34338c6df86873da086c68d095ffcb9ac3452510b9fc4fcadef7a0",
-   "size": 11821
+   "sha256": "11cb97c4d12b1dc77f965f86d09bb240aa631d13c10da25ef6a64a4eb1b6cd6c",
+   "size": 13024
   },
   {
    "path": "screens/import_wallet.js",
