@@ -15,9 +15,11 @@ async function ensureEthLockHook(app) {
   if (lockHookInstalled) return;
   lockHookInstalled = true;
   const { forgetEthWallet } = await import('../lib/eth/wallet.js');
+  // On lock: forget the address, the derived data keys and any words or typed key still in memory.
   app.lockHooks.add(() => {
     forgetEthWallet();
     if (app.ethSetup && Array.isArray(app.ethSetup.words)) app.ethSetup.words.fill('');
+    if (app.ethSetup && app.ethSetup.sk instanceof Uint8Array) app.ethSetup.sk.fill(0);
     app.ethSetup = null;
   });
 }

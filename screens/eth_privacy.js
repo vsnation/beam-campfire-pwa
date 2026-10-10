@@ -2,7 +2,7 @@
  * Spec: ONE job: say, before anything connects, what Ethereum and its server can see.
  *       Primary CTA: "Connect" (secondary: "How to hide my IP"). From Settings: "Done".
  *       Taps from app open: 6 + 3 word taps when creating (Ethereum, Create, I wrote them down,
- *       3 words, Confirm words, Connect), 4 + paste when importing.
+ *       3 words, Confirm words, Connect), 4 + paste when importing words or a private key.
  * Exit-intent reasons and answers:
  *   - "A privacy wallet on a public chain?" -> said first and plainly: everything on Ethereum is public;
  *     the BEAM wallet stays private.
@@ -23,7 +23,7 @@ export function ethPrivacyLead(app) {
 }
 
 export default function ethPrivacy(app, params = {}) {
-  const setup = Boolean(params.setup) && app.ethSetup && Array.isArray(app.ethSetup.words);
+  const setup = Boolean(params.setup) && app.ethSetup && (Array.isArray(app.ethSetup.words) || app.ethSetup.sk instanceof Uint8Array);
   const msg = h('div', { 'aria-live': 'polite' });
   const details = h(
     'div',
@@ -48,9 +48,14 @@ export default function ethPrivacy(app, params = {}) {
     const s = app.ethSetup;
     let key = null;
     try {
-      key = await ethKeyFromMnemonic(s.words.join(' '), s.mode === 'import' ? s.passphrase || '' : '');
-      await saveEthKey(app, { sk: key.sk, address: key.address, words: s.words.length, passphrase: Boolean(s.passphrase) });
-      s.words.fill('');
+      if (s.kind === 'key') {
+        await saveEthKey(app, { sk: s.sk, address: s.address, kind: 'key' });
+        wipe(s.sk);
+      } else {
+        key = await ethKeyFromMnemonic(s.words.join(' '), s.mode === 'import' ? s.passphrase || '' : '');
+        await saveEthKey(app, { sk: key.sk, address: key.address, words: s.words.length, passphrase: Boolean(s.passphrase) });
+        s.words.fill('');
+      }
       app.ethSetup = null;
       // Started from Move coins: back there, the bridge now has both wallets.
       app.go(s.from === 'bridge' ? 'bridgeMove' : 'ethHome', { created: s.mode });

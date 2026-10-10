@@ -14,6 +14,7 @@ import { screen, primary, textButton, notice } from '../lib/ui.js';
 import { hasPasskey, openWithPasswordFor, openWithPasskeyFor, scanEnabled } from '../lib/session.js';
 import { wallet } from '../lib/wallet.js';
 import { resumeBridgeIfAny } from './eth_screens.js';
+import { takeSwitchNote } from '../lib/own_node.js';
 
 export default function unlock(app, params = {}) {
   if (!app.record) {
@@ -24,6 +25,9 @@ export default function unlock(app, params = {}) {
   const msg = h('div', { 'aria-live': 'polite' });
   if (params.reason === 'timeout') put(msg, notice('info', `Locked after ${app.prefs.autoLockMin} minute${app.prefs.autoLockMin === 1 ? '' : 's'} without use.`));
   else if (params.reason === 'manual') put(msg, notice('info', 'Locked.'));
+  else if (params.updated) put(msg, h('div', { 'data-testid': 'updated-notice' }, notice('success', params.updated)));
+  const switched = takeSwitchNote();
+  if (switched) put(msg, notice('info', `Unlock to connect through your node, ${switched}.`));
   // A bridge screen was open when it locked: say where its move was, and go back to it after unlock.
   const follow = app.afterUnlock ? h('div', { 'data-testid': 'unlock-follow' }, notice('info', h('strong', { text: 'Unlock to follow your move. ' }), app.afterUnlock.note || 'BEAM Campfire goes back to it once the wallet is open.')) : null;
 

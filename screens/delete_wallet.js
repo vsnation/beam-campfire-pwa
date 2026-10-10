@@ -12,17 +12,22 @@ import { screen, primary, notice } from '../lib/ui.js';
 import { wipeWallet, isImported } from '../lib/session.js';
 import { wallet } from '../lib/wallet.js';
 import { getPrefs } from '../lib/store.js';
-import { hasEthWallet } from '../lib/eth/record.js';
+import { hasEthWallet, ethWalletKind } from '../lib/eth/record.js';
 
 export default function deleteWallet(app, params = {}) {
   const forgot = Boolean(params.forgot);
   const imported = isImported(app);
   const input = h('input', { class: 'input', type: 'text', autocomplete: 'off', autocapitalize: 'characters', autocorrect: 'off', spellcheck: 'false', 'aria-label': 'Type DELETE', 'data-testid': 'delete-confirm', placeholder: 'DELETE' });
   const msg = h('div');
-  // With an Ethereum wallet beside it, both sets of words are needed: it goes too.
+  // With an Ethereum wallet beside it, its own words (or private key) are needed too: it goes with it.
   const ethBox = h('div');
-  hasEthWallet().then((has) => {
-    if (has) put(ethBox, h('div', { 'data-testid': 'delete-eth-words' }, notice('warn', h('strong', { text: 'Your Ethereum wallet is removed too. ' }), 'Its own words bring it back; your BEAM words do not. Keep both sets of words before you delete.')));
+  Promise.all([hasEthWallet(), ethWalletKind()]).then(([has, known]) => {
+    const kind = has ? known || 'words' : null;
+    const text =
+      kind === 'key'
+        ? 'Its private key brings it back; your BEAM words do not. Save the key (Settings → Ethereum wallet → Backup) and keep your BEAM words before you delete.'
+        : 'Its own words bring it back; your BEAM words do not. Keep both sets of words before you delete.';
+    if (kind) put(ethBox, h('div', { 'data-testid': 'delete-eth-words', 'data-kind': kind }, notice('warn', h('strong', { text: 'Your Ethereum wallet is removed too. ' }), text)));
   }, () => {});
   const cta = primary('Delete from this device', run, { disabled: true, 'data-testid': 'delete-submit' });
   cta.classList.replace('btn-primary', 'btn-danger');

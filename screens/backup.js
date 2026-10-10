@@ -17,6 +17,8 @@
  *   - "Where are my 12 words?" (imported) -> there are none here; the file and its password are the backup.
  *   - "What if this website disappears?" -> Export wallet.db: the file and the password open the wallet
  *     anywhere BEAM runs. Said plainly: file + password = the wallet, keep it private.
+ *   - "I run my own node" -> Show owner key (secondary, last): the key a node needs to find every
+ *     payment, offline and max-privacy ones too; it sees, it cannot spend.
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
@@ -25,6 +27,7 @@ import { generatePhrase } from '../lib/engine.js';
 import { isImported, openWithPasswordFor, markExported } from '../lib/session.js';
 import { prepareExport, deliverExport } from '../lib/export.js';
 import { NO_PHRASE_NOTICE, formatFileSize } from '../lib/wallet_file.js';
+import { OWNER_KEY_TEXT } from '../lib/owner_key.js';
 
 /**
  * Recovery words in a grid that stays blurred until tapped (no shoulder
@@ -118,6 +121,13 @@ function existingBackup(app) {
         ],
     exportCard,
     notice('warn', h('strong', { text: 'The file and your password are your wallet. ' }), 'Anyone who has both can take your money. Keep the file somewhere private.'),
+    h(
+      'div',
+      { class: 'card', 'data-testid': 'owner-key-card' },
+      h('h3', { text: OWNER_KEY_TEXT.backupTitle }),
+      h('p', { text: OWNER_KEY_TEXT.backupText }),
+      h('button', { class: 'btn btn-secondary card-btn', onclick: () => app.go('ownerKey'), 'data-testid': 'owner-key-start' }, icon('key'), OWNER_KEY_TEXT.backupCta),
+    ),
   );
   return { el };
 }

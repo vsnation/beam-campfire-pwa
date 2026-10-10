@@ -19,7 +19,7 @@
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { primary, secondary, textButton, notice, progressBar } from '../lib/ui.js';
-import { downloadRecovery, recoverySize, readRecoveryFile, RECOVERY_APPROX_MB, RECOVERY_OFFICIAL } from '../lib/recovery.js';
+import { downloadRecovery, recoverySource, readRecoveryFile, RECOVERY_APPROX_MB, RECOVERY_OFFICIAL, RECOVERY_FALLBACK_HOST } from '../lib/recovery.js';
 import { markSetupDone, scanEnabled, setScan, isImported } from '../lib/session.js';
 import { wallet } from '../lib/wallet.js';
 import { onMobileData } from '../lib/network.js';
@@ -41,6 +41,8 @@ export default function fastStart(app, params = {}) {
   const newWallet = !rescan && !restoring;
   let sizeBytes = null;
   let sizeChecked = false;
+  let fromFallback = false; // this address has no snapshot: it comes from BEAM Campfire's server
+  let releaseAwake = null;
   let abort = null;
   let destroyed = false;
   let phase = 'choose';
@@ -83,7 +85,9 @@ export default function fastStart(app, params = {}) {
       ? 'This wallet sees the payments it makes and receives itself. If its 12 words were also used in another wallet app, BEAM Campfire can find those coins by reading a snapshot of the BEAM blockchain once.'
       : noRelay
         ? "To find your coins, BEAM Campfire reads a snapshot of the BEAM blockchain once. This site has no copy of it, so download BEAM's recovery file and choose it below."
-        : 'To find your coins, BEAM Campfire downloads a snapshot of the BEAM blockchain once.';
+        : fromFallback
+          ? `To find your coins, BEAM Campfire downloads a snapshot of the BEAM blockchain once, from ${RECOVERY_FALLBACK_HOST} (this site has no copy of it).`
+          : 'To find your coins, BEAM Campfire downloads a snapshot of the BEAM blockchain once.';
     view(
       [
         h('div', { class: 'status-icon wait' }, icon('download')),
@@ -92,9 +96,9 @@ export default function fastStart(app, params = {}) {
           ? // The person downloads it in the browser, outside this app.
             notice('info', h('strong', { text: `The file is ${size}. ` }), 'Download it once, then come back and choose it here.')
           : onMobileData()
-            ? notice('warn', h('strong', { text: `This is mobile data: the download is ${size}. ` }), 'Wi-Fi is better. Keep BEAM Campfire open until it finishes; leaving the app stops the download.')
-            : notice('info', h('strong', { text: `A one-time download of ${size}. ` }), 'It takes a few minutes. Keep BEAM Campfire open until it finishes; leaving the app stops the download.'),
-        h('p', { class: 'small', text: "The snapshot is BEAM's own daily file, checked by the wallet engine against the blockchain's proof of work. It is not stored on your phone after it's read." }),
+            ? notice('warn', h('strong', { text: `This is mobile data: the download is ${size}. ` }), 'Wi-Fi is better. Keep BEAM Campfire open until it finishes; leaving the app pauses it.')
+            : notice('info', h('strong', { text: `A one-time download of ${size}. ` }), 'It takes a few minutes. Keep BEAM Campfire open until it finishes: the screen stays on meanwhile, and if it is interrupted it carries on where it stopped.'),
+        h('p', { class: 'small', text: `The snapshot is BEAM's own daily file, checked by the wallet engine against the blockchain's proof of work. It is not stored on your phone after it's read.${fromFallback ? ` ${RECOVERY_FALLBACK_HOST} sees your IP address while it downloads.` : ''}` }),
         errorText ? notice('error', errorText) : null,
       ],
       [
@@ -111,13 +115,40 @@ export default function fastStart(app, params = {}) {
     );
   }
 
+  // A locked phone pauses the page: keep the screen on while the snapshot is
+  // downloaded and read (Screen Wake Lock, where the browser has it).
+  function keepAwake() {
+    if (releaseAwake || !('wakeLock' in navigator)) return;
+    let lock = null;
+    let on = true;
+    const get = async () => {
+      if (!on || document.visibilityState !== 'visible') return;
+      try {
+        lock = await navigator.wakeLock.request('screen');
+      } catch {
+        lock = null;
+      }
+    };
+    const onVisible = () => document.visibilityState === 'visible' && get();
+    document.addEventListener('visibilitychange', onVisible);
+    get();
+    releaseAwake = () => {
+      on = false;
+      releaseAwake = null;
+      document.removeEventListener('visibilitychange', onVisible);
+      if (lock) lock.release().catch(() => {});
+    };
+  }
+
   async function useFile(f) {
     phase = 'reading';
+    keepAwake();
     view([h('div', { class: 'status-icon wait' }, icon('file')), h('p', { class: 'lead', text: 'Reading the recovery file…' }), progressBar(null), notice('info', 'Keep BEAM Campfire open until this finishes.')], []);
     let buf;
     try {
       buf = await readRecoveryFile(f);
     } catch (e) {
+      if (releaseAwake) releaseAwake();
       return choose(e.message);
     }
     await runWallet(buf, true);
@@ -125,6 +156,7 @@ export default function fastStart(app, params = {}) {
 
   async function startDownload() {
     phase = 'download';
+    keepAwake();
     const ctl = new AbortController();
     abort = ctl;
     const bar = progressBar(0);
@@ -141,6 +173,7 @@ export default function fastStart(app, params = {}) {
       }, ctl.signal);
     } catch (e) {
       abort = null;
+      if (releaseAwake) releaseAwake();
       if (e.code === 'aborted') return choose();
       return choose(e.message);
     }
@@ -168,10 +201,12 @@ export default function fastStart(app, params = {}) {
       off();
       if (scan !== scanEnabled(app)) await setScan(app, scan);
       if (!app.record.setupDone) await markSetupDone(app);
+      if (releaseAwake) releaseAwake();
       app.go('home');
     } catch (e) {
       off();
       buf = null;
+      if (releaseAwake) releaseAwake();
       await wallet.stop().catch(() => {});
       if (newWallet) {
         view(
@@ -190,8 +225,9 @@ export default function fastStart(app, params = {}) {
     // A new seed has no history: start at the network's tip, no download, no scan.
     runWallet(null, false);
   } else {
-    recoverySize().then((n) => {
-      sizeBytes = n;
+    recoverySource().then((src) => {
+      sizeBytes = src ? src.bytes : null;
+      fromFallback = Boolean(src && !src.own);
       sizeChecked = true;
       if (phase === 'choose' && !lastError) choose();
     });
@@ -203,6 +239,7 @@ export default function fastStart(app, params = {}) {
     destroy() {
       destroyed = true;
       if (abort) abort.abort();
+      if (releaseAwake) releaseAwake();
     },
   };
 }

@@ -1,6 +1,6 @@
 /* Ethereum wallet: start (Home's switcher -> Ethereum, or Settings -> Ethereum wallet, when there is none)
- * Spec: ONE job: start an Ethereum wallet next to the BEAM one - a new one, or one from its words.
- *       Primary CTA: "Create an Ethereum wallet" (secondary: "Import Ethereum words").
+ * Spec: ONE job: start an Ethereum wallet next to the BEAM one - a new one, or one from its words or key.
+ *       Primary CTA: "Create an Ethereum wallet" (secondary: "Import words or private key").
  *       Taps from app open: 1 (Home -> Ethereum); each choice is 1 more.
  * Exit-intent reasons and answers:
  *   - "Why another set of words?" -> said first: the Ethereum wallet has its own words, as in the
@@ -8,7 +8,7 @@
  *   - "Is this a scam?" -> no account, no sign-up; the key stays on this device, locked with this
  *     wallet's password.
  *   - "Ethereum isn't private" -> said before anything connects (step 3 is the privacy screen).
- *   - "I already have Ethereum words" -> its own button, 12 or 24 words.
+ *   - "I already have an Ethereum wallet" -> its own button: its words (12 to 24) or its private key.
  */
 import { h } from '../lib/dom.js';
 import { screen, primary, secondary } from '../lib/ui.js';
@@ -29,7 +29,7 @@ export default function ethStart(app, params = {}) {
           app.ethSetup = { mode: 'create', from: params.from || 'home' };
           app.go('ethWords');
         }, { 'data-testid': 'eth-create' }),
-        secondary('Import Ethereum words', () => {
+        secondary('Import words or private key', () => {
           app.ethSetup = { mode: 'import', from: params.from || 'home' };
           app.go('ethImport');
         }, { 'data-testid': 'eth-import' }),

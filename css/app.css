@@ -221,6 +221,9 @@ textarea.input { resize: none; min-height: 84px; }
 .qr { background: #fff; border-radius: var(--radius); padding: 12px; display: flex; justify-content: center; align-self: center; width: min(78vw, 300px); }
 .qr svg { width: 100%; height: auto; display: block; }
 .address-box { background: var(--surface); border-radius: var(--radius); padding: 12px 14px; }
+/* The owner key: one tap selects all of it, for pasting by hand if copying is refused. */
+.owner-key { font-size: 14px; line-height: 1.55; -webkit-user-select: all; user-select: all; }
+.okey-msg { scroll-margin-bottom: 100px; }
 
 .kv { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
 .kv:last-child { border-bottom: 0; }
@@ -280,6 +283,7 @@ details.more[open] summary { margin-bottom: 6px; }
 .grow { flex: 1; }
 
 .card p + p, .card .steps-list + p, .card h3 + p { margin-top: 8px; }
+.card .card-btn { margin-top: 12px; }
 @media (max-height: 700px) { .qr { width: min(56vw, 230px); padding: 8px; } }
 
 .asset-row { cursor: default; }
@@ -428,9 +432,18 @@ body.dapp-open { overflow: hidden; }
 .eth-hero img { width: 56px; height: 56px; }
 .addr-chip { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 4px 10px; border-radius: 999px; border: 0; background: var(--surface-2); color: var(--text-2); cursor: pointer; }
 .addr-chip svg { width: 14px; height: 14px; }
+/* Settings -> Ethereum wallet: the private key, blurred dots until it is opened. */
+.key-box { background: var(--surface-2); border-radius: 10px; padding: 12px 14px; margin-top: 10px; }
+.key-box .mono { font-size: 14px; line-height: 1.5; word-break: normal; overflow-wrap: anywhere; font-feature-settings: 'calt' 0; }
+.key-box.masked .mono { filter: blur(5px); user-select: none; }
+.key-actions { margin-top: 10px; justify-content: flex-start; }
+.key-actions .btn { flex: none; }
+.addr-inline { font-feature-settings: 'calt' 0; white-space: nowrap; }
 .addr-chip .mono { font-size: 13px; }
 .kv.kv-stack { flex-direction: column; gap: 4px; }
 .kv.kv-stack .v { text-align: left; font-weight: 500; }
+.kv .v.list { word-break: normal; overflow-wrap: anywhere; }
+.kv .v.list > span { display: block; }
 .stack { display: flex; flex-direction: column; gap: 14px; }
 .row .main .s.wrap { white-space: normal; }
 input.switch { appearance: none; -webkit-appearance: none; width: 46px; height: 28px; border-radius: 14px; background: var(--border); position: relative; flex: none; cursor: pointer; margin: 0; transition: background 0.2s; }
@@ -611,3 +624,15 @@ details.more.card { padding: 12px 16px; }
 .notice .pre { white-space: pre-line; margin-top: 4px; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .card.empty h3 { margin: 0; }
+/* BEAM node (screens/node.js, own_node.js) */
+.node-screen .row .main .t { display: flex; align-items: center; gap: 8px; }
+.node-tag { font-size: 11px; padding: 2px 8px; }
+.node-screen .notice .node-inline-btn { margin-top: 8px; }
+.node-screen .card .mono { margin-top: 2px; }
+.own-node .row .main .t.wrap-t { white-space: normal; }
+.own-node .row { cursor: pointer; }
+.btn.link-line { display: inline; width: auto; min-height: 0; padding: 0; text-align: left; white-space: normal; font-size: 14px; font-weight: 500; line-height: 1.4; text-decoration: underline; text-underline-offset: 2px; }
+.node-status-box { display: flex; flex-direction: column; gap: 14px; }
+.node-status-box:empty { display: none; }
+.own-node .key-card { padding: 4px 16px; }
+.balance .sync-action { margin-top: 10px; }

@@ -13,7 +13,7 @@ import { screen, notice } from '../lib/ui.js';
 import { APP_VERSION, BUILT, ENGINE_LOCK } from '../lib/version.js';
 import { engineLog, nodeGuard } from '../lib/engine.js';
 import { wallet } from '../lib/wallet.js';
-import { lastCheckText } from '../lib/update.js';
+import { lastCheckText, copyAt } from '../lib/update.js';
 import { refreshPersistence, persistenceText } from '../lib/storage.js';
 
 export default function about(app) {
@@ -31,11 +31,16 @@ export default function about(app) {
   (async () => {
     try {
       const st = await app.updates.status();
+      const added = app.updates.addedSource();
+      // A loader from before the copies (no api in its answer) asks only this app's address.
+      const copies = st.api >= 2 ? [...(st.sources || []).filter((x) => x.kind !== 'own').map((x) => x.host), ...(added ? [new URL(added).host] : [])] : [];
       put(sw,
-        kv('Installed release', st.current || '—', 'about-release'),
+        kv('Installed release', st.current ? `${st.current}${copyAt(st.currentFrom) ? ` (from ${copyAt(st.currentFrom)})` : ''}` : '—', 'about-release'),
         kv('Staged update', st.pending || 'none'),
         kv('Loader', st.loader || '—', 'about-loader', true),
         kv('Updates', lastCheckText(app.updates.lastCheck), 'about-last-check'),
+        // Where a tapped check looks, in order (an older loader reports no list: it asks only this address).
+        h('div', { class: 'kv kv-stack' }, h('span', { class: 'k', text: 'Update sources, in this order' }), h('span', { class: 'v list', 'data-testid': 'about-sources' }, ...["This app's address", ...copies].map((t) => h('span', { text: t })))),
         st.lastRefusal ? kv('Last refused update', st.lastRefusal.reason) : null,
       );
     } catch {

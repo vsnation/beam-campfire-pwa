@@ -1,7 +1,7 @@
 {
   "id": "./",
   "name": "BEAM Campfire",
-  "short_name": "BEAM Campfire",
+  "short_name": "Beam PWA",
   "description": "A private BEAM wallet that runs on your phone. Your keys never leave the device.",
   "start_url": "./",
   "scope": "./",
