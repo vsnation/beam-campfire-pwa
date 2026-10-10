@@ -370,7 +370,7 @@ export default function swap(app) {
       app.swapDraft = null;
       wallet.refreshTxs();
       wallet.refreshStatus();
-      app.go('txStatus', { txId, kind: 'swap', pay: { assetId: q.payAsset, amount: q.pay }, receive: { assetId: q.receiveAsset, amount: q.receive }, fee: DEX_CALL_FEE });
+      app.go('txStatus', { txId, kind: 'swap', pay: { assetId: q.payAsset, amount: q.pay }, receive: { assetId: q.receiveAsset, amount: q.receive }, fee: DEX_CALL_FEE }, { replace: true });
       return;
     } catch (e) {
       if (!alive) return;
@@ -401,7 +401,7 @@ export default function swap(app) {
       title: 'Swap',
       back: () => {
         app.swapDraft = null;
-        app.go('home');
+        app.back('home');
       },
       actions: [reason, cta],
       cls: 'swap',

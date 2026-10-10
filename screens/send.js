@@ -239,7 +239,7 @@ export default function send(app) {
       title: 'Send',
       back: () => {
         app.sendDraft = null;
-        app.go('home');
+        app.back('home');
       },
       actions: [cta],
       cls: 'plain',

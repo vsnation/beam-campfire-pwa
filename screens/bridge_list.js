@@ -21,7 +21,7 @@ export default function bridgeList(app, params = {}) {
   let openError = null;
   let alive = true;
   let off = null;
-  const back = () => app.go(params.back === 'bridgeMove' ? 'bridgeMove' : 'home');
+  const back = () => app.back(params.back === 'bridgeMove' ? 'bridgeMove' : 'home');
 
   function render() {
     if (!alive) return;
@@ -74,7 +74,7 @@ export default function bridgeList(app, params = {}) {
       return render();
     }
     if (!alive) return;
-    if (!s) return app.go('bridgeMove');
+    if (!s) return app.go('bridgeMove', {}, { replace: true });
     off = s.ctl.onChange(render);
     render();
   }

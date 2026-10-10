@@ -30,7 +30,7 @@ function lazyScreen(load) {
       .catch((e) => {
         if (dead) return;
         console.error(e);
-        holder.replaceWith(screen({ title: 'Buy BEAM', back: () => app.go('home') }, notice('error', `This screen could not be opened: ${e.message}. Go back and try again.`)));
+        holder.replaceWith(screen({ title: 'Buy BEAM', back: () => app.back('home') }, notice('error', `This screen could not be opened: ${e.message}. Go back and try again.`)));
       });
     return {
       el: holder,
@@ -117,7 +117,7 @@ export function openBuyChooser(app) {
         action: hasEth === false ? 'Create an Ethereum wallet first' : 'Buy WBEAM',
         onclick: () => {
           close(true);
-          if (hasEth === false) app.go('ethStart');
+          if (hasEth === false) app.go('ethStart', { from: 'buy' });
           else app.go('ethSwap');
         },
       }),

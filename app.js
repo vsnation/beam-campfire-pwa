@@ -5,6 +5,7 @@ import { getPrefs, setPrefs, getWalletRecord } from './lib/store.js';
 import { wallet } from './lib/wallet.js';
 import { updates, takeJustUpdated } from './lib/update.js';
 import { installBack } from './lib/back.js';
+import { navHistory } from './lib/nav.js';
 import { swSupported, isControlled, clearReloadFlag, installedButBypassed, watchLoader, loaderBehind } from './lib/loader.js';
 import { refreshPersistence } from './lib/storage.js';
 import { reconcileOwnNode } from './lib/own_node.js';
@@ -75,6 +76,8 @@ export const app = {
   persisted: null,
   // Run on lock and on the tripwire, to forget what a feature kept in memory (the Ethereum screens add one).
   lockHooks: new Set(),
+  // Where Back goes (lib/nav.js); cleared on lock.
+  nav: navHistory(),
 
   runLockHooks() {
     for (const f of this.lockHooks) {
@@ -86,7 +89,11 @@ export const app = {
     }
   },
 
-  go(name, params = {}) {
+  /**
+   * Opens a screen. The one being left becomes Back's target, unless
+   * opts.replace (move on without it) or opts.reset (forget all before).
+   */
+  go(name, params = {}, opts = {}) {
     if (!SCREENS[name]) throw new Error(`no screen ${name}`);
     // After the tripwire nothing else opens in this page: no unlock, no password field.
     if (this.intrusion) {
@@ -94,6 +101,7 @@ export const app = {
       params = { kind: 'tripwire', detail: this.intrusion };
     }
     if (NEEDS_WALLET.has(name) && !this.dbPass) name = this.record ? 'unlock' : 'welcome';
+    this.nav.move(this.currentName ? { name: this.currentName, params: this.params } : null, { name, params }, opts);
     if (this.current && this.current.destroy) {
       try {
         this.current.destroy();
@@ -117,6 +125,12 @@ export const app = {
     if (focus) focus.focus();
   },
 
+  /** Back to the screen the person came from, or to `fallback` when there is none (after a reload or an unlock). */
+  back(fallback = 'home', fallbackParams = {}) {
+    const t = this.nav.backTarget(fallback, fallbackParams);
+    return this.go(t.name, t.params, t.opts);
+  },
+
   async setPrefs(patch) {
     this.prefs = await setPrefs(patch);
     return this.prefs;
@@ -127,6 +141,7 @@ export const app = {
     const wasOpen = Boolean(this.dbPass);
     this.dbPass = null;
     if (this.setup) this.setup = null;
+    this.nav.clear();
     this.runLockHooks();
     await wallet.stop();
     if (wasOpen || this.currentName !== 'unlock') this.go('unlock', { reason });
@@ -143,6 +158,7 @@ export const app = {
     console.warn('[campfire] tripwire:', this.intrusion);
     this.dbPass = null;
     this.setup = null;
+    this.nav.clear();
     this.runLockHooks();
     this.go('problem', { kind: 'tripwire', detail: this.intrusion });
     await wallet.stop().catch(() => {});
@@ -253,6 +269,8 @@ boot().catch((e) => {
 // Read-only view for the e2e harness and the in-page self-test. No secrets on it.
 window.__campfire = Object.freeze({
   screen: () => app.currentName,
+  // Back's targets, screen names only, oldest first.
+  backStack: () => app.nav.names(),
   sync: () => wallet.state.sync,
   height: () => (wallet.state.status ? wallet.state.status.current_height : null),
   inSync: () => (wallet.state.status ? wallet.state.status.is_in_sync === true : null),

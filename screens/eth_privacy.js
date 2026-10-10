@@ -57,8 +57,8 @@ export default function ethPrivacy(app, params = {}) {
         s.words.fill('');
       }
       app.ethSetup = null;
-      // Started from Move coins: back there, the bridge now has both wallets.
-      app.go(s.from === 'bridge' ? 'bridgeMove' : 'ethHome', { created: s.mode });
+      // Started from Move coins: back there, the bridge now has both wallets. The setup steps are behind it.
+      app.go(s.from === 'bridge' ? 'bridgeMove' : 'ethHome', { created: s.mode }, { replace: true });
     } catch (e) {
       cta.disabled = false;
       cta.textContent = 'Connect';
@@ -72,10 +72,10 @@ export default function ethPrivacy(app, params = {}) {
     }
   }
 
-  const cta = setup ? primary('Connect', connect, { 'data-testid': 'eth-connect' }) : primary('Done', () => app.go('ethSettings'), { 'data-testid': 'eth-privacy-done' });
+  const cta = setup ? primary('Connect', connect, { 'data-testid': 'eth-connect' }) : primary('Done', () => app.back('ethSettings'), { 'data-testid': 'eth-privacy-done' });
   const step = setup ? (app.ethSetup.mode === 'create' ? 'Step 3 of 3' : 'Step 2 of 2') : null;
   const el = screen(
-    { title: 'Ethereum privacy', back: () => app.go(setup ? (app.ethSetup.mode === 'create' ? 'ethConfirm' : 'ethImport') : 'ethSettings'), actions: [cta, toggle] },
+    { title: 'Ethereum privacy', back: () => (setup ? app.go(app.ethSetup.mode === 'create' ? 'ethConfirm' : 'ethImport') : app.back('ethSettings')), actions: [cta, toggle] },
     step ? h('p', { class: 'step', text: step }) : null,
     h('div', { class: 'status-icon wait' }, icon('globe')),
     h('p', { class: 'lead', 'data-testid': 'eth-privacy-text', text: ethPrivacyLead(app) }),

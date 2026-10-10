@@ -380,7 +380,7 @@ export default function ethSwap(app, params = {}) {
       if (!alive) return;
       if (hash) {
         app.uniDraft = { ...draft, amount: '' };
-        app.go('ethSwapTx', { hash });
+        app.go('ethSwapTx', { hash }, { replace: true });
         return;
       }
       // Back without swapping: the price is minutes old by now.
@@ -443,7 +443,7 @@ export default function ethSwap(app, params = {}) {
       title: 'Buy WBEAM',
       back: () => {
         app.uniDraft = null;
-        app.go('ethHome');
+        app.back('ethHome');
       },
       right: poolsBtn,
       cls: 'swap uni sticky-actions',

@@ -133,7 +133,7 @@ export default function ethImport(app) {
         const from = app.ethSetup && app.ethSetup.from;
         forgetTyped(app.ethSetup);
         app.ethSetup = null;
-        app.go('ethStart', { from });
+        app.back('ethStart', { from });
       },
       actions: [cta],
     },

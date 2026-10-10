@@ -153,7 +153,7 @@ export default function airdropBatches(app) {
   });
   load();
   const el = screen(
-    { title: 'My batches', back: () => app.go('airdrop'), cls: 'airdrop-batches feature', actions: [primary('Create new codes', () => app.go('airdropCreate'), { 'data-testid': 'batches-create' })] },
+    { title: 'My batches', back: () => app.back('airdrop'), cls: 'airdrop-batches feature', actions: [primary('Create new codes', () => app.go('airdropCreate'), { 'data-testid': 'batches-create' })] },
     body,
   );
   return {

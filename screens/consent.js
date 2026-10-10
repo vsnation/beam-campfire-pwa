@@ -191,6 +191,7 @@ function showConsent(app, req, bridge, t) {
             native ? h('img', { src: 'img/logo.svg', alt: '' }) : h('span', { class: 'app-dot' }, icon('globe')),
             h('span', { text: native ? 'BEAM Campfire, this wallet' : `${req.appName} asks you to approve` }),
           ),
+          !native && req.unchecked ? h('p', { class: 'tag unchecked', 'data-testid': 'consent-unchecked', text: 'Installed from a file · not checked by BEAM Campfire' }) : null,
           bridge
             ? bridgeCard(req, bridge, t)
             : h(

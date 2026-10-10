@@ -99,7 +99,7 @@ function existingBackup(app) {
     h('p', { class: 'small', 'data-testid': 'export-last', text: app.record.exportedAt ? `Last exported ${new Date(app.record.exportedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}.` : 'Not exported yet.' }),
   );
   const el = screen(
-    { title: 'Backup', back: () => app.go('settings'), actions: [primary('Export wallet.db', () => exportSheet(app), { 'data-testid': 'export-start' })] },
+    { title: 'Backup', back: () => app.back('settings'), actions: [primary('Export wallet.db', () => exportSheet(app), { 'data-testid': 'export-start' })] },
     imported
       ? [
           h('div', { 'data-testid': 'no-recovery-phrase' }, notice('warn', NO_PHRASE_NOTICE)),

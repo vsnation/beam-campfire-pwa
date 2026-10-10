@@ -1,4 +1,4 @@
-/* Ethereum wallet: start (Home's switcher -> Ethereum, or Settings -> Ethereum wallet, when there is none)
+/* Ethereum wallet: start (Home's switcher -> Ethereum, or Settings -> Ethereum wallet, Move coins or Buy, when there is none)
  * Spec: ONE job: start an Ethereum wallet next to the BEAM one - a new one, or one from its words or key.
  *       Primary CTA: "Create an Ethereum wallet" (secondary: "Import words or private key").
  *       Taps from app open: 1 (Home -> Ethereum); each choice is 1 more.
@@ -14,15 +14,18 @@ import { h } from '../lib/dom.js';
 import { screen, primary, secondary } from '../lib/ui.js';
 import { chainSwitch } from './eth_screens.js';
 
+// Opened for a task, it is a step of that task with a Back to it; otherwise it is the Ethereum side itself.
+const OPENED_FROM = { settings: 'settings', bridge: 'bridgeMove', buy: 'home' };
+
 export default function ethStart(app, params = {}) {
-  const fromSettings = params.from === 'settings';
-  const back = () => app.go(fromSettings ? 'settings' : 'home');
+  const step = Object.hasOwn(OPENED_FROM, params.from);
+  const back = () => app.back(OPENED_FROM[params.from]);
   const el = screen(
     {
-      title: fromSettings ? 'Ethereum wallet' : null,
-      brand: !fromSettings,
-      back: fromSettings ? back : null,
-      tabs: fromSettings ? null : 'home',
+      title: step ? 'Ethereum wallet' : null,
+      brand: !step,
+      back: step ? back : null,
+      tabs: step ? null : 'home',
       app,
       actions: [
         primary('Create an Ethereum wallet', () => {
@@ -36,7 +39,7 @@ export default function ethStart(app, params = {}) {
         h('p', { class: 'small center', text: 'No sign-up. The key stays on this device, locked with your BEAM Campfire password.' }),
       ],
     },
-    fromSettings ? null : chainSwitch(app, 'eth'),
+    step ? null : chainSwitch(app, 'eth'),
     h(
       'div',
       { class: 'hero eth-hero' },

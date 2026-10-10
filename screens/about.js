@@ -49,7 +49,7 @@ export default function about(app) {
   })();
 
   const el = screen(
-    { title: 'About', back: () => app.go('settings') },
+    { title: 'About', back: () => app.back('settings') },
     h(
       'div',
       { class: 'card' },

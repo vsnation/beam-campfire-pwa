@@ -14,7 +14,7 @@ import { addPasskey } from '../lib/session.js';
 export default function passkeySetup(app, params = {}) {
   const first = Boolean(params.first);
   const msg = h('div', { 'aria-live': 'polite' });
-  const next = () => (first ? app.go(app.prefs.ipAck ? 'fastStart' : 'ipNotice', { first: true }) : app.go('settings'));
+  const next = () => (first ? app.go(app.prefs.ipAck ? 'fastStart' : 'ipNotice', { first: true }, { replace: true }) : app.go('settings'));
   const cta = primary(h('span', {}, 'Turn on Face ID'), turnOn, { 'data-testid': 'passkey-on' });
   cta.prepend(icon('face'));
 

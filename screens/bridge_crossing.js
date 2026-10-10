@@ -35,7 +35,7 @@ export default function bridgeCrossing(app, params = {}) {
   let off = null;
   let busy = false;
   let error = null;
-  const back = () => app.go(params.back === 'bridgeMove' ? 'bridgeMove' : 'bridgeList', params.back === 'bridgeMove' ? {} : { back: 'home' });
+  const back = () => app.back(params.back === 'bridgeMove' ? 'bridgeMove' : 'bridgeList', params.back === 'bridgeMove' ? {} : { back: 'home' });
 
   function render() {
     if (!alive) return;
@@ -53,7 +53,7 @@ export default function bridgeCrossing(app, params = {}) {
     const c = ctl.crossing(params.id);
     if (!c) {
       put(body, h('div', { 'data-testid': 'bridge-crossing-missing' }, notice('info', h('strong', { text: 'This move is not on this device. ' }), 'It may belong to another pair of wallets. Your moves are under History.')));
-      put(actions, primary('See your moves', () => app.go('bridgeList', { back: 'home' }), { 'data-testid': 'bridge-crossing-done' }));
+      put(actions, primary('See your moves', () => app.go('bridgeList', { back: 'home' }, { replace: true }), { 'data-testid': 'bridge-crossing-done' }));
       return;
     }
     const r = routeById(c.route);
@@ -134,7 +134,7 @@ export default function bridgeCrossing(app, params = {}) {
       return render();
     }
     if (!alive) return;
-    if (!s) return app.go('bridgeMove');
+    if (!s) return app.go('bridgeMove', {}, { replace: true });
     off = s.ctl.onChange(render);
     render();
     // Where it is right now, not at the next tick.

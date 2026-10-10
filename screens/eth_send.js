@@ -167,7 +167,7 @@ export default function ethSend(app) {
       title: 'Send on Ethereum',
       back: () => {
         app.ethSendDraft = null;
-        app.go('ethHome');
+        app.back('ethHome');
       },
       actions: [cta],
     },

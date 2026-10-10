@@ -49,7 +49,7 @@ export default function ethReceive(app) {
   })();
 
   const el = screen(
-    { title: 'Receive on Ethereum', back: () => app.go('ethHome'), actions: [shareBtn, copyBtn] },
+    { title: 'Receive on Ethereum', back: () => app.back('ethHome'), actions: [shareBtn, copyBtn] },
     qrBox,
     h('div', { class: 'address-box' }, addrText),
     notice('info', h('strong', { text: 'Ethereum mainnet only: ' }), 'ETH and Ethereum tokens such as WBEAM, USDT or USDC. Payments arrive even while this app is closed.'),

@@ -21,12 +21,14 @@ export default function airdropCodes(app, p = {}) {
   let alive = true;
   const body = h('div', { class: 'content' });
   const actions = h('div', { class: 'actions' });
+  // Just created: the batch's "sent" note is not shown again by Back.
+  const toBatches = () => app.go('airdropBatches', {}, { replace: Boolean(p.justCreated) });
 
   function render() {
     if (!alive) return;
     if (error) {
       put(body, notice('error', `The saved codes could not be opened: ${error.message} They stay saved on this device. `, h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: load }, 'Try again')));
-      put(actions, secondary('My batches', () => app.go('airdropBatches')));
+      put(actions, secondary('My batches', toBatches));
       return;
     }
     if (!batch) {
@@ -66,7 +68,7 @@ export default function airdropCodes(app, p = {}) {
         ),
       ),
     );
-    put(actions, h('button', { class: 'btn btn-text', onclick: () => app.go('airdropBatches') }, 'My batches'));
+    put(actions, h('button', { class: 'btn btn-text', onclick: toBatches }, 'My batches'));
   }
 
   async function load() {
@@ -83,7 +85,7 @@ export default function airdropCodes(app, p = {}) {
   }
 
   load();
-  const el = screen({ title: p.justCreated ? 'Your airdrop codes' : 'Airdrop codes', back: () => app.go(p.justCreated ? 'airdrop' : 'airdropBatches'), cls: 'airdrop-codes feature' }, body);
+  const el = screen({ title: p.justCreated ? 'Your airdrop codes' : 'Airdrop codes', back: () => app.back(p.justCreated ? 'airdrop' : 'airdropBatches'), cls: 'airdrop-codes feature' }, body);
   el.appendChild(actions);
   return {
     el,

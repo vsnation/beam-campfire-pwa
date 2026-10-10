@@ -528,7 +528,7 @@ export default function bridgeMove(app, params = {}) {
   render();
   start();
 
-  const el = screen({ title: 'Move coins', back: () => app.go(back), right: history, cls: 'swap bridge' }, body);
+  const el = screen({ title: 'Move coins', back: () => app.back(back), right: history, cls: 'swap bridge' }, body);
   el.appendChild(actions);
   return {
     el,

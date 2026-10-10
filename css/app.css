@@ -390,6 +390,26 @@ label.btn.disabled { pointer-events: none; opacity: 0.5; }
 .check-row input { width: 20px; height: 20px; margin: 1px 0 0; flex: none; accent-color: var(--primary); }
 .dapp-progress { display: flex; flex-direction: column; gap: 10px; }
 .dapp-message { white-space: pre-wrap; max-height: 40vh; overflow: auto; }
+/* dApps from a file: an installed row with its Remove beside it, the file block, the servers a dApp may reach. */
+.dapp-item { display: flex; align-items: center; border-bottom: 1px solid var(--border); }
+.dapp-item:last-child { border-bottom: 0; }
+.dapp-list .dapp-item .dapp-row { border-bottom: 0; flex: 1; min-width: 0; }
+.dapp-item .dapp-remove { flex: none; margin: 0 -4px 0 2px; color: var(--muted); }
+.dapp-item .dapp-remove svg { width: 20px; height: 20px; }
+.dapp-icon.none, .dapp-bar-icon.none { background: var(--surface-2); color: var(--muted); }
+.dapp-icon.none svg { width: 22px; height: 22px; }
+.dapp-bar-icon.none svg { width: 16px; height: 16px; }
+.dapp-loading { display: flex; align-items: center; gap: 10px; }
+.dapp-file-block { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.dapp-file-block .small { margin: 0 4px; }
+label.btn.disabled { opacity: 0.55; pointer-events: none; }
+.dapp-list .dapp-row .s.meta.wrap { white-space: normal; }
+.dapp-hosts { padding: 0 12px; }
+.dapp-host { cursor: default; align-items: flex-start; }
+.dapp-host .main .t { overflow-wrap: anywhere; }
+.dapp-host .main .btn-small { margin: 4px 0 0 -12px; min-height: 32px; }
+.btn-text.danger { color: var(--error); }
+.tag.unchecked { align-self: flex-start; margin: 0; background: var(--warn-bg); color: var(--warn); }
 
 /* A running dApp fills the window, above the wallet's own screen. */
 .dapp-layer { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; background: #042548; }

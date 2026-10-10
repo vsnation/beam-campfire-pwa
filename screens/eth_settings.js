@@ -219,11 +219,11 @@ export default function ethSettings(app) {
 
   (async () => {
     const record = await getEthRecord();
-    if (!record) return app.go('ethStart', { from: 'settings' });
+    if (!record) return app.go('ethStart', { from: 'settings' }, { replace: true });
     render(record);
   })();
 
-  const el = screen({ title: 'Ethereum wallet', back: () => app.go('settings'), cls: 'settings' }, body);
+  const el = screen({ title: 'Ethereum wallet', back: () => app.back('settings'), cls: 'settings' }, body);
   return {
     el,
     destroy() {

@@ -120,7 +120,7 @@ export default function ownNode(app, params = {}) {
   }
 
   const el = screen(
-    { title: 'Your own node', back: () => app.go('nodeSettings'), cls: 'settings own-node', actions: [cta, h('p', { class: 'small center', text: 'Switching reopens the wallet: you unlock it once more.' })] },
+    { title: 'Your own node', back: () => app.back('nodeSettings'), cls: 'settings own-node', actions: [cta, h('p', { class: 'small center', text: 'Switching reopens the wallet: you unlock it once more.' })] },
     h('p', { class: 'lead', text: 'Connect through a BEAM node you run. It becomes the only node this wallet uses.' }),
     h('label', { class: 'field' }, 'Node address', input),
     hint,

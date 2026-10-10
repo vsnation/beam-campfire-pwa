@@ -49,7 +49,7 @@ export default function deleteWallet(app, params = {}) {
   }
 
   const el = screen(
-    { title: forgot ? 'Forgot your password?' : 'Delete wallet', back: () => app.go(forgot ? 'unlock' : 'settings'), actions: [cta] },
+    { title: forgot ? 'Forgot your password?' : 'Delete wallet', back: () => app.back(forgot ? 'unlock' : 'settings'), actions: [cta] },
     forgot
       ? h('p', {
           class: 'lead',

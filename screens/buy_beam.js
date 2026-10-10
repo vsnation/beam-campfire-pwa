@@ -174,7 +174,7 @@ export default function buyBeamScreen(app, params = {}) {
       const order = await c.placeOrder({ asset: coin, amount: value, refundAddress: refund.value.trim(), beamWalletId: app.record.id, newBeamAddress: newBuyAddress, quote: c.quote });
       if (!alive) return;
       app.buyDraft = null;
-      app.go('buyOrder', { deposit: order.depositAddress, fresh: true });
+      app.go('buyOrder', { deposit: order.depositAddress, fresh: true }, { replace: true });
       return;
     } catch (e) {
       if (!alive) return;
@@ -336,7 +336,8 @@ export default function buyBeamScreen(app, params = {}) {
       'data-testid': 'buy-want-wbeam',
       onclick: async () => {
         app.buyDraft = null;
-        app.go((await hasEthWallet().catch(() => false)) ? 'ethSwap' : 'ethStart');
+        if (await hasEthWallet().catch(() => false)) app.go('ethSwap');
+        else app.go('ethStart', { from: 'buy' });
       },
     },
     'Want WBEAM on Ethereum instead?',
@@ -347,7 +348,7 @@ export default function buyBeamScreen(app, params = {}) {
       title: 'Buy BEAM',
       back: () => {
         app.buyDraft = null;
-        app.go(params.from === 'eth' ? 'ethSwap' : 'home');
+        app.back(params.from === 'eth' ? 'ethSwap' : 'home');
       },
       actions: [reason, cta],
       cls: 'swap buy sticky-actions',

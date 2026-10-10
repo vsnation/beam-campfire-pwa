@@ -20,7 +20,7 @@ import { bans, nameProblemText } from './names.js';
 export default function review(app, p) {
   if (p && p.kind === 'name' && p.name && p.ownerKey && p.amount != null) return nameReview(app, p);
   if (!p || !p.address || p.amount == null) {
-    queueMicrotask(() => app.go('send'));
+    queueMicrotask(() => app.go('send', {}, { replace: true }));
     return { el: h('div') };
   }
   const mode = sendModeFor(p.type) || sendModeFor('regular');
@@ -46,7 +46,7 @@ export default function review(app, p) {
     try {
       const txId = await wallet.send({ address: p.address, amount: p.amount, assetId: p.assetId, mode });
       app.sendDraft = null;
-      app.go('txStatus', { txId, amount: p.amount, fee: p.fee, assetId: p.assetId, address: p.address, mustBeOnline: mode.receiverMustBeOnline });
+      app.go('txStatus', { txId, amount: p.amount, fee: p.fee, assetId: p.assetId, address: p.address, mustBeOnline: mode.receiverMustBeOnline }, { replace: true });
     } catch (e) {
       cta.disabled = false;
       cta.textContent = label;
@@ -55,7 +55,7 @@ export default function review(app, p) {
   }
 
   const el = screen(
-    { title: 'Review payment', back: () => app.go('send'), actions: [cta, textButton('Change', () => app.go('send'))] },
+    { title: 'Review payment', back: () => app.back('send'), actions: [cta, textButton('Change', () => app.back('send'))] },
     h('p', { class: 'center small', text: 'You send' }),
     h('div', { class: 'big-amount', 'data-testid': 'review-amount', text: `${formatAmount(p.amount)} ${unit}` }),
     h(
@@ -101,7 +101,7 @@ function nameReview(app, p) {
       // The approve sheet that follows shows the wallet's own figures and asks for Face ID / password.
       const r = await bans().pay(p.name, Number(p.assetId), p.amount, { expectedOwnerKey: p.ownerKey });
       app.sendDraft = null;
-      app.go('txStatus', { txId: r.txId, amount: p.amount, fee: r.fee, assetId: p.assetId, address: display(p.name), name: p.name, mustBeOnline: false });
+      app.go('txStatus', { txId: r.txId, amount: p.amount, fee: r.fee, assetId: p.assetId, address: display(p.name), name: p.name, mustBeOnline: false }, { replace: true });
     } catch (e) {
       cta.disabled = false;
       cta.textContent = label;
@@ -111,7 +111,7 @@ function nameReview(app, p) {
   }
 
   const el = screen(
-    { title: 'Review payment', back: () => app.go('send'), actions: [cta, textButton('Change', () => app.go('send'))], cls: 'plain' },
+    { title: 'Review payment', back: () => app.back('send'), actions: [cta, textButton('Change', () => app.back('send'))], cls: 'plain' },
     h('p', { class: 'center small', text: 'You send' }),
     h('div', { class: 'big-amount', 'data-testid': 'review-amount', text: `${formatAmount(p.amount)} ${unit}` }),
     h(

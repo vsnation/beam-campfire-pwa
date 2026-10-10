@@ -70,6 +70,6 @@ export default function buyOrdersScreen(app) {
     render();
   });
   render();
-  const el = screen({ title: 'Your buys', back: () => app.go('buyBeam'), actions: [actions] }, body);
+  const el = screen({ title: 'Your buys', back: () => app.back('buyBeam'), actions: [actions] }, body);
   return { el, destroy: off };
 }

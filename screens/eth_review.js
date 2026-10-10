@@ -57,7 +57,7 @@ export function openEthReview(app, w, first) {
         await w.reloadOutbox().catch(() => {});
         app.ethSendDraft = null;
         close(true);
-        app.go('ethTx', { hash: r.entry.hash, justSent: true });
+        app.go('ethTx', { hash: r.entry.hash, justSent: true }, { replace: true });
       } catch (e) {
         busy = false;
         const why = e instanceof SendError ? e.message : `${e.message}${/\.$/.test(e.message) ? '' : '.'}`;

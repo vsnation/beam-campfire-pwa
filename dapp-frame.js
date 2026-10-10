@@ -32,6 +32,7 @@
   var NONCE = (document.currentScript && document.currentScript.nonce) || '';
 
   var N = {
+    URL: URL,
     fetch: window.fetch,
     xhrOpen: XMLHttpRequest.prototype.open,
     setAttribute: Element.prototype.setAttribute,
@@ -412,6 +413,34 @@
     document.addEventListener('keydown', touched, true);
   }
 
+  // A request the frame's policy refused: the wallet hears its https origin once (16 at most) and,
+  // for a dApp installed from a file, may ask the person whether this dApp may reach it.
+  var blockedSeen = Object.create(null);
+  var blockedCount = 0;
+  function watchBlocked() {
+    document.addEventListener(
+      'securitypolicyviolation',
+      function (e) {
+        if (!e.isTrusted) return;
+        var d = String(e.effectiveDirective || e.violatedDirective || '').split(' ')[0];
+        if (d !== 'connect-src' && d !== 'img-src') return;
+        var origin;
+        try {
+          var u = new N.URL(String(e.blockedURI));
+          if (u.protocol !== 'https:') return;
+          origin = u.origin;
+        } catch (err) {
+          return;
+        }
+        if (blockedSeen[origin] || blockedCount >= 16) return;
+        blockedSeen[origin] = 1;
+        blockedCount++;
+        send({ t: 'blocked', origin: origin, directive: d });
+      },
+      true,
+    );
+  }
+
   function watchMutations() {
     // A safety net for what the patches above cannot see (markup set with
     // innerHTML, style elements filled with text): rewritten after the fact.
@@ -504,6 +533,7 @@
     // document.open() drops window and document listeners: these come back first.
     listenForHandshake();
     watchLinksAndActivity();
+    watchBlocked();
     watchMutations();
     document.write(out);
     document.close();

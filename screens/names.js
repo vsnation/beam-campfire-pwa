@@ -425,7 +425,7 @@ export default function names(app) {
       title: 'BEAM names',
       back: () => {
         app.namesDraft = null;
-        app.go('home');
+        app.back('home');
       },
       cls: 'names feature',
     },

@@ -144,7 +144,7 @@ export default function airdropCreate(app) {
       app.dropCreateDraft = null;
       wallet.refreshTxs();
       wallet.refreshStatus();
-      app.go('airdropCodes', { localId: r.batch.localId, justCreated: true, txId: r.txId });
+      app.go('airdropCodes', { localId: r.batch.localId, justCreated: true, txId: r.txId }, { replace: true });
       return;
     } catch (e) {
       if (!alive) return;
@@ -179,7 +179,7 @@ export default function airdropCreate(app) {
       title: 'Create codes',
       back: () => {
         app.dropCreateDraft = null;
-        app.go('airdrop');
+        app.back('airdrop');
       },
       cls: 'airdrop-create feature',
     },

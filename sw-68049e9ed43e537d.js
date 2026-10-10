@@ -418,6 +418,12 @@ async function findUpdate({ sources, installed, pending = null, loader, fetchRel
 // frame document never gets anything from the wallet but its first load's
 // MessagePort, so a dApp that navigates itself to a wider policy gains
 // nothing: no files, no bridge.
+//
+// A dApp installed from a .dapp file: <scope>dapp-run/f[,<host>[:<port>]]*/<start page>.
+// It may use eval, as on the desktop, and inline scripts and handlers too:
+// with eval allowed they add nothing, and single-file dApps need them. It
+// reaches exactly the https hosts the person allowed for it, each one a DNS
+// name (no IP address, no local name, no wildcard), checked again here.
 
 const FRAME_ROUTE = 'dapp-run/';
 
@@ -426,6 +432,54 @@ const REMOTE_ORIGINS = ['https://api.coingecko.com', 'https://explorer-api.beam.
 
 const SEGMENT = /^e([01])r(0|[1-9][0-9]?)$/;
 
+/** At most this many hosts for one dApp installed from a file. */
+const MAX_FILE_ORIGINS = 16;
+const LABEL = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
+// Names that never mean a public server: this device, the local network, nowhere.
+const LOCAL_TLDS = new Set(['localhost', 'local', 'internal', 'lan', 'home', 'arpa', 'test', 'invalid', 'onion']);
+
+/** A public DNS name in lowercase: two labels at least, never an IPv4 address in any spelling. */
+function remoteHostOk(host) {
+  if (typeof host !== 'string' || host.length === 0 || host.length > 253) return false;
+  const labels = host.split('.');
+  if (labels.length < 2 || !labels.every((l) => LABEL.test(l))) return false;
+  const last = labels[labels.length - 1];
+  if (/^[0-9]+$/.test(last) || /^0x[0-9a-f]*$/.test(last)) return false;
+  return !LOCAL_TLDS.has(last);
+}
+
+/** An https origin as a frame's policy names it (lowercase host, the port only when not 443), or null. */
+function remoteOriginFor(text) {
+  const m = /^https:\/\/([a-z0-9.-]{1,253})(?::([1-9][0-9]{0,4}))?$/.exec(typeof text === 'string' ? text : '');
+  if (!m || !remoteHostOk(m[1])) return null;
+  const port = m[2] ? Number(m[2]) : 443;
+  if (port > 65535) return null;
+  return 'https://' + m[1] + (port === 443 ? '' : `:${port}`);
+}
+
+/** The policy segment of a dApp installed from a file, allowed `origins`. */
+function fileSegment(origins = []) {
+  const hosts = origins.map((o) => {
+    const n = remoteOriginFor(o);
+    if (!n || n !== o) throw new Error(`not an origin a dApp may be allowed: ${o}`);
+    return n.slice('https://'.length);
+  });
+  if (hosts.length > MAX_FILE_ORIGINS || new Set(hosts).size !== hosts.length) throw new Error('too many or repeated origins');
+  return ['f', ...hosts].join(',');
+}
+
+function parseFileSegment(seg) {
+  const parts = seg.split(',');
+  if (parts[0] !== 'f' || parts.length - 1 > MAX_FILE_ORIGINS) return null;
+  const remoteOrigins = [];
+  for (const host of parts.slice(1)) {
+    const o = 'https://' + host;
+    if (remoteOriginFor(o) !== o || remoteOrigins.includes(o)) return null;
+    remoteOrigins.push(o);
+  }
+  return { file: true, evalAllowed: true, inlineAllowed: true, remoteOrigins };
+}
+
 function policySegment({ evalAllowed, remoteMask = 0 }) {
   const mask = Number(remoteMask) >>> 0;
   if (mask >= 1 << REMOTE_ORIGINS.length) throw new Error('remote mask out of range');
@@ -433,6 +487,7 @@ function policySegment({ evalAllowed, remoteMask = 0 }) {
 }
 
 function parsePolicySegment(seg) {
+  if (String(seg).startsWith('f')) return parseFileSegment(String(seg));
   const m = SEGMENT.exec(String(seg));
   if (!m) return null;
   const mask = Number(m[2]);
@@ -462,14 +517,18 @@ function frameRouteFor(relPath) {
   return parsePolicySegment(rest.slice(0, slash));
 }
 
-/** The frame's Content-Security-Policy. No 'self' anywhere: the wallet's origin is not the frame's to reach. */
-function frameCsp({ evalAllowed, remoteOrigins, nonce }) {
+/**
+ * The frame's Content-Security-Policy. No 'self' anywhere: the wallet's origin is not the frame's to reach.
+ * inlineAllowed (a dApp from a file) drops the nonce: next to a nonce, 'unsafe-inline' would be ignored.
+ */
+function frameCsp({ evalAllowed, inlineAllowed = false, remoteOrigins, nonce }) {
   if (!/^[A-Za-z0-9+/=_-]{16,64}$/.test(String(nonce))) throw new Error('bad nonce');
+  if (!remoteOrigins.every((o) => remoteOriginFor(o) === o)) throw new Error('bad remote origin');
   const remote = remoteOrigins.length ? ` ${remoteOrigins.join(' ')}` : '';
   return [
     'sandbox allow-scripts',
     "default-src 'none'",
-    `script-src 'nonce-${nonce}' blob:${evalAllowed ? " 'unsafe-eval'" : ''}`,
+    `script-src ${inlineAllowed ? "'unsafe-inline'" : `'nonce-${nonce}'`} blob:${evalAllowed ? " 'unsafe-eval'" : ''}`,
     "style-src blob: 'unsafe-inline'",
     `img-src blob: data:${remote}`,
     'media-src blob: data:',
@@ -637,7 +696,7 @@ const LOADER_API = 2;
 // Hash of what this loader does to pages (security headers, MIME types, dApp
 // frame policy, the own-node policy, LOADER_API), filled in by the build; release.json carries the
 // same value for the release's own loader (see loaderCompatible()).
-const LOADER_COMPAT = "58bb6cf6516114b22ecd365c6cab6b16d8f49c97ea89e0108d7b3360a92f856c";
+const LOADER_COMPAT = "0f379a80ac39543e7e4934be0065524d33a2b5a5fc3ad637cb714658bad30900";
 const LOADER_NAME = self.location.pathname.split('/').pop();
 
 let stateCache = null;

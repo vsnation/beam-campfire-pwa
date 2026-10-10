@@ -276,7 +276,7 @@ export default function airdropClaim(app) {
       title: 'Airdrop codes',
       back: () => {
         app.dropDraft = null;
-        app.go('home');
+        app.back('home');
       },
       cls: 'airdrop feature',
     },

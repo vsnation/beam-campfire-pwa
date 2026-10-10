@@ -107,7 +107,7 @@ export default function ethTx(app, p = {}) {
   render();
 
   const link = /^0x[0-9a-fA-F]{64}$/.test(p.hash || '') ? h('a', { class: 'btn btn-text', href: txExplorerUrl(p.hash), target: '_blank', rel: 'noopener noreferrer', 'data-testid': 'eth-tx-explorer' }, icon('external'), 'View on Etherscan') : null;
-  const el = screen({ title: 'Ethereum payment', back: () => app.go('ethHome'), actions: [primary('Done', () => app.go('ethHome'), { 'data-testid': 'eth-tx-done' }), link] }, body);
+  const el = screen({ title: 'Ethereum payment', back: () => app.back('ethHome'), actions: [primary('Done', () => app.go('ethHome'), { 'data-testid': 'eth-tx-done' }), link] }, body);
   return {
     el,
     destroy() {

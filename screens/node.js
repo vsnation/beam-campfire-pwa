@@ -106,7 +106,7 @@ export default function nodeSettings(app) {
   }
 
   const el = screen(
-    { title: 'BEAM node', back: () => app.go('settings'), cls: 'settings node-screen' },
+    { title: 'BEAM node', back: () => app.back('settings'), cls: 'settings node-screen' },
     h('p', { class: 'lead', text: 'How this wallet reaches the BEAM network.' }),
     h(
       'div',

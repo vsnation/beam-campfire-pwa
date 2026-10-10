@@ -152,7 +152,7 @@ export default function buyOrderScreen(app, params = {}) {
     let cta;
     if (s === 'awaiting_deposit') cta = primary(h('span', { text: copied ? 'Address copied' : 'Copy address' }), () => copy(o.depositAddress), { 'data-testid': 'buy-order-cta' });
     else if (s === 'delivered' && arrived) cta = primary('See it in your wallet', () => app.go('activity', { txId: o.beamTxId }), { 'data-testid': 'buy-order-cta' });
-    else if (s === 'expired') cta = primary('Start a new buy', () => app.go('buyBeam'), { 'data-testid': 'buy-order-cta' });
+    else if (s === 'expired') cta = primary('Start a new buy', () => app.go('buyBeam', {}, { replace: true }), { 'data-testid': 'buy-order-cta' });
     else if (s === 'failed' || s === 'attention') cta = h('a', { class: 'btn btn-primary', href: buySiteUrl(), target: '_blank', rel: 'noopener noreferrer', 'data-testid': 'buy-order-cta' }, 'Contact buybeam.my support');
     else cta = primary('Back to your wallet', () => app.go('home'), { 'data-testid': 'buy-order-cta' });
     if (s === 'awaiting_deposit') cta.prepend(icon('copy'));
@@ -160,7 +160,7 @@ export default function buyOrderScreen(app, params = {}) {
     root.dataset.state = s;
   }
 
-  const el = screen({ title: 'Buy BEAM', back: () => app.go(params.from === 'list' ? 'buyOrders' : 'home'), actions: [actions], cls: 'buy-order sticky-actions' }, body);
+  const el = screen({ title: 'Buy BEAM', back: () => app.back(params.from === 'list' ? 'buyOrders' : 'home'), actions: [actions], cls: 'buy-order sticky-actions' }, body);
   const titleEl = el.querySelector('.topbar h1');
   const root = el;
   const off = c.onChange(() => render());

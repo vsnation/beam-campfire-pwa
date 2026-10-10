@@ -24,7 +24,7 @@ export default function ethWords(app) {
     app.ethSetup.words.fill('');
     const from = app.ethSetup.from;
     app.ethSetup = null;
-    app.go('ethStart', { from });
+    app.back('ethStart', { from });
   };
   const el = screen(
     { title: 'Your Ethereum words', back: leave, actions: [cta] },

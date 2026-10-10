@@ -42,7 +42,7 @@ export default function ipNotice(app, params = {}) {
     : primary('Connect', async () => {
         cta.disabled = true;
         await app.setPrefs({ ipAck: true, ipAckAt: Date.now() });
-        app.go('fastStart', { first: true });
+        app.go('fastStart', { first: true }, { replace: true });
       }, { 'data-testid': 'ip-connect' });
 
   const el = screen(

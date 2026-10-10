@@ -35,7 +35,7 @@ export default function changePasswordScreen(app) {
   }
 
   const el = screen(
-    { title: 'Change password', back: () => app.go('settings'), actions: [cta] },
+    { title: 'Change password', back: () => app.back('settings'), actions: [cta] },
     h('p', {
       class: 'lead',
       text: isImported(app)

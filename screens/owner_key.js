@@ -22,7 +22,7 @@ import { wallet } from '../lib/wallet.js';
 import { OWNER_KEY_TEXT as T, looksLikeOwnerKey } from '../lib/owner_key.js';
 
 export default function ownerKey(app, params = {}) {
-  // Opened from Backup, or from the BEAM node screens, and goes back there.
+  // Opened from Backup, or from the BEAM node screens, and goes back there (the fallback when Back has no history).
   const backTo = ['ownNode', 'nodeSettings'].includes(params.from) ? params.from : 'backup';
   if (!app.dbPass) {
     queueMicrotask(() => app.go('unlock'));
@@ -52,7 +52,7 @@ export default function ownerKey(app, params = {}) {
   ];
 
   // Sticky actions: the button stays on screen at 375 x 667 whatever message shows above it.
-  const el = screen({ title: T.title, back: () => app.go(backTo), actions: [cta], cls: 'sticky-actions' }, ...askBody());
+  const el = screen({ title: T.title, back: () => app.back(backTo), actions: [cta], cls: 'sticky-actions' }, ...askBody());
   const content = el.querySelector('.content');
   const actions = el.querySelector('.actions');
   pw.addEventListener('keydown', (e) => e.key === 'Enter' && show());
@@ -124,7 +124,7 @@ export default function ownerKey(app, params = {}) {
     );
     const copyBtn = primary(h('span', { text: T.copyCta }), () => key && copyText(key, T.copied), { 'data-testid': 'okey-copy' });
     copyBtn.prepend(icon('copy'));
-    put(actions, copyBtn, textButton(T.done, () => app.go(backTo), { 'data-testid': 'okey-done' }));
+    put(actions, copyBtn, textButton(T.done, () => app.back(backTo), { 'data-testid': 'okey-done' }));
   }
 
   // Leaving the screen and locking (app.go runs destroy; lock also runs the hooks) take the key off the page.

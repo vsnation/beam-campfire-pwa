@@ -70,7 +70,7 @@ export default function receive(app) {
 
   load(false);
   const el = screen(
-    { title: 'Receive BEAM', back: () => app.go('home'), actions: [shareBtn, copyBtn, textButton('Make a new address', () => load(true), { 'data-testid': 'new-address' })] },
+    { title: 'Receive BEAM', back: () => app.back('home'), actions: [shareBtn, copyBtn, textButton('Make a new address', () => load(true), { 'data-testid': 'new-address' })] },
     qrBox,
     h('div', { class: 'address-box' }, addrText),
     notice('info', "BEAM payments to this address complete only while both wallets are online. Keep BEAM Campfire open until the payment arrives."),
