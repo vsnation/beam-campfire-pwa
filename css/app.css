@@ -563,3 +563,51 @@ details.more.card { padding: 12px 16px; }
 .asset-row .end { word-break: normal; overflow-wrap: anywhere; }
 .sheet .sheet-actions { bottom: calc(-18px - var(--safe-bottom)); }
 .swap-input.long { font-size: 22px; }
+/* Bridge (screens/bridge_*.js): the ⇄ beside BEAM | Ethereum, Move coins, a move and its steps. */
+.chain-row { display: flex; gap: 8px; align-items: stretch; }
+.chain-row .chain-switch { flex: 1; }
+.chain-move { position: relative; flex: none; width: 48px; border: 0; border-radius: 10px; background: var(--secondary); color: var(--on-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.chain-move svg { width: 22px; height: 22px; }
+.chain-move[data-badge="open"]::after, .chain-move[data-badge="collect"]::after { content: ''; position: absolute; top: 5px; right: 5px; width: 10px; height: 10px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 0 2px var(--bg); }
+.chain-move[data-badge="collect"]::after { background: var(--primary); }
+.bridge-chips { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.bridge-chips .choice { min-height: 40px; font-size: 14px; padding: 0 2px; }
+.asset-pick.static { cursor: default; }
+.swap-label .addr { font-size: 13px; color: var(--muted); word-break: normal; }
+.bridge-costs { align-items: flex-start; }
+.bridge-costs .nowrap { font-weight: 600; color: var(--text-2); }
+.bridge-actions { position: sticky; bottom: 0; z-index: 2; background: var(--bg); padding-top: 10px; gap: 6px; }
+.bridge-actions .hint { min-height: 0; }
+.bridge .content { gap: 12px; }
+.bridge-open { padding: 10px 14px; border-bottom: 0; }
+.bridge-short.you { color: var(--primary); font-weight: 600; }
+.bridge-short.mood-success { color: var(--success); }
+.bridge-short.mood-error { color: var(--error); }
+.bridge .pair-to { padding-top: 22px; }
+.bridge .kv .v, .bridge-card .kv .v { word-break: normal; overflow-wrap: break-word; min-width: 0; }
+.bridge-entry .ico { background: var(--secondary); color: var(--on-secondary); }
+.bridge-entry { padding: 12px 14px; border-bottom: 0; }
+.bridge .kv .v .small, .bridge-card .kv .v .small { font-weight: 400; }
+.bridge .notice .grow, .bridge-card + .notice .grow { min-width: 0; }
+.bridge .prompt-actions, .sheet .prompt-actions { flex-wrap: wrap; }
+.bridge .prompt-actions .btn { white-space: normal; }
+.kv .v.addr-short { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 14px; }
+/* A sheet whose button must stay in sight however long it is (the bridge's reviews). */
+.sheet-actions { position: sticky; bottom: calc(-18px - var(--safe-bottom)); z-index: 1; margin: 0 calc(-1 * var(--gutter)) calc(-18px - var(--safe-bottom)); padding: 10px var(--gutter) calc(14px + var(--safe-bottom)); background: var(--bg); box-shadow: 0 -1px 0 var(--border); display: flex; flex-direction: column; gap: 4px; }
+.sheet-actions.actions { margin-top: 0; }
+.bridge-ask { padding: 14px; }
+.bridge-ask h3 { font-size: 15px; }
+.bridge-steps { list-style: none; margin: 0; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.bridge-step { display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: 15px; }
+.bridge-step .mark { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none; border: 2px solid var(--border); box-sizing: border-box; }
+.bridge-step .mark svg { width: 14px; height: 14px; }
+.bridge-step.done .mark { background: var(--success-bg); color: var(--success); border-color: transparent; }
+.bridge-step.active .mark { background: var(--info-bg); color: var(--info); border-color: transparent; }
+.bridge-step.failed .mark { background: var(--error-bg); color: var(--error); border-color: transparent; }
+.bridge-step.waiting .label { color: var(--muted); }
+.bridge-step .label { flex: 1; min-width: 0; }
+.bridge-step .note { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.bridge-step.active .note { color: var(--text-2); font-weight: 600; }
+.notice .pre { white-space: pre-line; margin-top: 4px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.card.empty h3 { margin: 0; }

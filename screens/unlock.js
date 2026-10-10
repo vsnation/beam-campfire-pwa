@@ -13,6 +13,7 @@ import { icon } from '../lib/icons.js';
 import { screen, primary, textButton, notice } from '../lib/ui.js';
 import { hasPasskey, openWithPasswordFor, openWithPasskeyFor, scanEnabled } from '../lib/session.js';
 import { wallet } from '../lib/wallet.js';
+import { resumeBridgeIfAny } from './eth_screens.js';
 
 export default function unlock(app, params = {}) {
   if (!app.record) {
@@ -23,6 +24,8 @@ export default function unlock(app, params = {}) {
   const msg = h('div', { 'aria-live': 'polite' });
   if (params.reason === 'timeout') put(msg, notice('info', `Locked after ${app.prefs.autoLockMin} minute${app.prefs.autoLockMin === 1 ? '' : 's'} without use.`));
   else if (params.reason === 'manual') put(msg, notice('info', 'Locked.'));
+  // A bridge screen was open when it locked: say where its move was, and go back to it after unlock.
+  const follow = app.afterUnlock ? h('div', { 'data-testid': 'unlock-follow' }, notice('info', h('strong', { text: 'Unlock to follow your move. ' }), app.afterUnlock.note || 'BEAM Campfire goes back to it once the wallet is open.')) : null;
 
   const pw = h('input', { class: 'input', type: 'password', autocomplete: 'current-password', 'aria-label': 'Password', 'data-testid': 'unlock-pw', placeholder: 'Password' });
   const pwBtn = primary('Unlock', () => withPassword(), { 'data-testid': 'unlock-submit' });
@@ -38,7 +41,11 @@ export default function unlock(app, params = {}) {
     try {
       if (wallet.session) await wallet.stop();
       await wallet.start({ dbPass, node: app.prefs.node, bodyRequests: scanEnabled(app) });
-      app.go('home');
+      // Moves through the bridge are followed again from where they were (only when there are any).
+      resumeBridgeIfAny(app);
+      const next = app.afterUnlock;
+      app.afterUnlock = null;
+      app.go(next ? next.name : 'home', next ? next.params : {});
     } catch (e) {
       app.dbPass = null;
       await wallet.stop().catch(() => {});
@@ -97,6 +104,7 @@ export default function unlock(app, params = {}) {
   const el = screen(
     { topbar: false },
     h('div', { class: 'hero' }, h('img', { src: 'img/logo.svg', alt: '' }), h('h1', { text: 'BEAM Campfire' }), h('p', { text: 'Unlock your wallet' })),
+    follow,
     pwBlock,
     msg,
   );

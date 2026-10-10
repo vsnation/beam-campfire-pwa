@@ -18,7 +18,7 @@ import { screen, primary, secondary, notice, toast, copyText } from '../lib/ui.j
 import { ethWallet, ethPrefs } from '../lib/eth/wallet.js';
 import { TOKENS } from '../lib/eth/tokens.js';
 import { formatUnits } from '../lib/eth/units.js';
-import { chainSwitch } from './eth_screens.js';
+import { chainSwitch, bridgeEntry } from './eth_screens.js';
 import { ethBadge, compactAmountText, exactText, serverProblem, activityRow } from './eth_ui.js';
 
 const REFRESH_MS = 30000;
@@ -148,6 +148,7 @@ export default function ethHome(app, params = {}) {
     balanceBox,
     problemBox,
     actionsBox,
+    bridgeEntry(app),
     tokensBox,
     activityBox,
   );

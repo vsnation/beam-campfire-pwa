@@ -38,6 +38,11 @@ export default function ethSettings(app) {
       await app.setPrefs({ ethHistory: hist.checked });
       toast(hist.checked ? "History from Stack Wallet's index is on" : 'Only what this device sent is shown');
     });
+    const prices = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': 'Bridge prices from CoinGecko', 'data-testid': 'eth-bridge-prices-switch', checked: app.prefs && app.prefs.bridgePrices === true });
+    prices.addEventListener('change', async () => {
+      await app.setPrefs({ bridgePrices: prices.checked });
+      toast(prices.checked ? 'Bridge prices from CoinGecko are on' : 'Bridge prices are off: only WBEAM → BEAM can move');
+    });
     put(
       body,
       h('p', { class: 'section-title', text: 'Connection' }),
@@ -51,6 +56,13 @@ export default function ethSettings(app) {
           h('span', { class: 'ico' }, icon('activity')),
           h('span', { class: 'main' }, h('div', { class: 't', text: 'History from Stack Wallet' }), h('div', { class: 's wrap', text: "Asks Stack Wallet's index for this address's past payments. Off: only what this device sent." })),
           hist,
+        ),
+        h(
+          'label',
+          { class: 'row' },
+          h('span', { class: 'ico' }, icon('bridge')),
+          h('span', { class: 'main' }, h('div', { class: 't', text: 'Bridge prices from CoinGecko' }), h('div', { class: 's wrap', text: 'The bridge fee follows coin prices. CoinGecko sees your IP. Off: only WBEAM → BEAM can move.' })),
+          prices,
         ),
         row('shield', 'Ethereum privacy', 'What Ethereum and its server can see', () => app.go('ethPrivacy'), { 'data-testid': 'eth-privacy-row' }),
       ),

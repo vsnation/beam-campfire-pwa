@@ -1,6 +1,6 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.2.0",
+ "version": "0.2.1",
  "files": [
   {
    "path": "app.js",
@@ -9,8 +9,8 @@
   },
   {
    "path": "css/app.css",
-   "sha256": "66354c711da6a45c205edb1c59090d9bf61d0af9003266dc21c1769e6568a1d7",
-   "size": 36788
+   "sha256": "a75bcd72606de131f37e8faf1de98b1f887347919be8901efef3536ff5899a5d",
+   "size": 40791
   },
   {
    "path": "dapp-frame.js",
@@ -159,8 +159,8 @@
   },
   {
    "path": "lib/bridge/controller.js",
-   "sha256": "62c2d881b46fb61f1427a5b1d063d42db93b030b6032a2b19aab1ac501c41d6a",
-   "size": 39173
+   "sha256": "cfca166dc8ef21effa1f2878024a5fd6d628c16d0532ca8155d2eb1fef1c45cc",
+   "size": 39615
   },
   {
    "path": "lib/bridge/eth_pipe.js",
@@ -459,8 +459,8 @@
   },
   {
    "path": "lib/icons.js",
-   "sha256": "fb8376fc4bb877a47b5d6ee1c64c4f4ac1e9946b0090344ba89c9172a06c122f",
-   "size": 3354
+   "sha256": "e9ed9d05699064d1670b740baecab5a74d5050cf482717b4cf79785a94975b5a",
+   "size": 3424
   },
   {
    "path": "lib/loader.js",
@@ -544,7 +544,7 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "2bccc3d7c30e88e8846cca7929576efa1371b3a0e0af61c82795045705e4380e",
+   "sha256": "e6cf135ec694888427832127a4f6f266295812a5e74672c20f0fb0ccc23713a1",
    "size": 994
   },
   {
@@ -598,6 +598,41 @@
    "size": 9550
   },
   {
+   "path": "screens/bridge_crossing.js",
+   "sha256": "548846c730a28aad6db0b0d11cbded940a5500b0f9be7c3f18f5ceb537a37d31",
+   "size": 7757
+  },
+  {
+   "path": "screens/bridge_list.js",
+   "sha256": "c2fd558b1a8a597e3babadc43dcaf0f042b7721b8def5c438846f2359d4578f6",
+   "size": 3353
+  },
+  {
+   "path": "screens/bridge_move.js",
+   "sha256": "4a8b192b4e34dd28ad1b4fe6ef80ec08d771696ce9747bd0aa66ff4258b450ea",
+   "size": 22495
+  },
+  {
+   "path": "screens/bridge_review.js",
+   "sha256": "c82fda2c89aa0feb37848c52eab9222aa229ffe7e4bfe435b6bb2ab343d56b09",
+   "size": 7935
+  },
+  {
+   "path": "screens/bridge_text.js",
+   "sha256": "210b230778dd1ecec9cab888709c45b55c1a34229f99ae50784376bd65fe6936",
+   "size": 10560
+  },
+  {
+   "path": "screens/bridge_ui.js",
+   "sha256": "ba4a5547f5891b01e107f5c84949c13855c1bd4bfd3d2ff427595939cb78c1ea",
+   "size": 9835
+  },
+  {
+   "path": "screens/bridge_words.js",
+   "sha256": "f058b1c9d8526b20c7fdf57a6c1e1bdd2b2b31124e16b2cc8fdc02617ac72d3d",
+   "size": 8490
+  },
+  {
    "path": "screens/buy_beam.js",
    "sha256": "3304eb6d9f0b0fb5401e13dfaea05988130245099ea09fb7864a62c83c767282",
    "size": 17597
@@ -629,8 +664,8 @@
   },
   {
    "path": "screens/consent.js",
-   "sha256": "ab5df549530cafffb6ad3f9ad73759f29ca0fc24354f2d680bc49c43718e432c",
-   "size": 12511
+   "sha256": "0c863e73e63d5b9168e17eb9dba9c380ee03586eb3d0cb9d3b551622d6ed3110",
+   "size": 16048
   },
   {
    "path": "screens/dapps.js",
@@ -649,8 +684,8 @@
   },
   {
    "path": "screens/eth_home.js",
-   "sha256": "76312d2c5d6f5b8b26abc21f10a465a596b70f5e6fa4d4f648682caf322c47d8",
-   "size": 7923
+   "sha256": "89fe024eb17c2a87bb55152ee9b9edf62d734114198729f625121b4d434069c9",
+   "size": 7958
   },
   {
    "path": "screens/eth_import.js",
@@ -659,8 +694,8 @@
   },
   {
    "path": "screens/eth_privacy.js",
-   "sha256": "cb81e0b13492749533698a2dbf60c9afa216a16c1a8a0ae06a531d8397ff47cf",
-   "size": 5479
+   "sha256": "5d7dce7e70e3b49ce89ff431c164248f63389ffcd35ada1a8a164e925f3a9756",
+   "size": 5595
   },
   {
    "path": "screens/eth_receive.js",
@@ -674,8 +709,8 @@
   },
   {
    "path": "screens/eth_screens.js",
-   "sha256": "45e5367154d44bb37fab6c1e66f405da5c42cbb6421ddff827af8a55cc3e5ac0",
-   "size": 3204
+   "sha256": "23e77a6aea332a83970b13dad1f8a7bf2be4df9b4dcd435dd00d88dc9ab3dde3",
+   "size": 5655
   },
   {
    "path": "screens/eth_send.js",
@@ -684,8 +719,8 @@
   },
   {
    "path": "screens/eth_settings.js",
-   "sha256": "ab9590ea0b927f9350b70dc8a1f8781a9f385529a4980ef208bd0eec0c76223c",
-   "size": 6281
+   "sha256": "20a198e4ab50f8c9702f15c7996357426407f6d81f560b6f2c7cb56832f22468",
+   "size": 7137
   },
   {
    "path": "screens/eth_start.js",
@@ -804,8 +839,8 @@
   },
   {
    "path": "screens/unlock.js",
-   "sha256": "b183cf487ed6ac7915c39d531af99a1fe03ccfc3feb95fb78c2d9b7bfadcc638",
-   "size": 4465
+   "sha256": "359f56d48a5f4cb25ac165bd8eefe0c93fbeea30826a53b9e3d3692d461124e0",
+   "size": 5115
   },
   {
    "path": "screens/welcome.js",

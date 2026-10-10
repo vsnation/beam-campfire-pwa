@@ -10,6 +10,11 @@
  *     only a trusted app should be approved.
  *   - "Why can't I approve?" -> "Not enough BEAM" with how much is needed and one tap to add it.
  *   - "What if I leave?" -> closing, locking or leaving the screen is a No: nothing is sent.
+ * A move through BEAM's bridge (the wallet's own request, intent.action 'bridge') reads as one:
+ *   "Confirm your move" - what leaves, the bridge fee, the network fee, what arrives on Ethereum and
+ *   in which wallet, about an hour, and that it is public on both chains - with the button
+ *   "Move 300 BEAM to Ethereum"; collecting on BEAM is "Collect 0.5 bETH". The rows are used only
+ *   when the engine's report agrees with the request to the groth.
  */
 import { h, shorten } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
@@ -88,7 +93,8 @@ export function spentUnits(req, unit) {
   return ids.length ? ids.map(unit).join(' or ') : 'BEAM';
 }
 
-function title(req) {
+function title(req, bridge) {
+  if (bridge) return bridge.kind === 'collect' ? 'Collect your coins' : 'Confirm your move';
   if (req.kind === 'send') return 'Approve this payment';
   if (req.intent && req.intent.action === 'swap') return 'Confirm your swap';
   if (req.intent && TITLES[req.intent.action]) return TITLES[req.intent.action];
@@ -97,6 +103,45 @@ function title(req) {
 
 /** Shows one consent request. Resolves true only when the person approved and proved it is them. */
 export function presentConsent(app, req) {
+  // The bridge's words load only for a bridge request (the approve sheet is on every page).
+  if (req.native && req.intent && req.intent.action === 'bridge') {
+    return import('./bridge_text.js').then(
+      (t) => showConsent(app, req, t.bridgeConsent(req), t),
+      () => showConsent(app, req, null, null),
+    );
+  }
+  return showConsent(app, req, null, null);
+}
+
+/** The bridge rows: what leaves, what arrives and where, every fee, and when. */
+function bridgeCard(req, b, t) {
+  const kv = (k, v, testid, note = null) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), h('span', { class: 'v' }, h('span', { 'data-testid': testid, text: v }), note ? h('div', { class: 'small', text: note }) : null));
+  const r = b.route;
+  if (b.kind === 'collect') {
+    return h(
+      'div',
+      { class: 'card bridge-card', 'data-testid': 'consent-bridge' },
+      kv('You collect', `${formatAmount(b.amount)} ${r.beamSymbol}`, 'consent-get-0'),
+      kv('From', "BEAM's official bridge", 'consent-bridge-from', b.msgId != null ? `transfer #${b.msgId}, from your Ethereum wallet` : 'from your Ethereum wallet'),
+      kv('Network fee', `${formatAmount(req.fee)} BEAM`, 'consent-fee'),
+      kv('Into', 'your BEAM wallet', 'consent-bridge-into'),
+    );
+  }
+  const when = t.arrivesText(r, t.TO_ETHEREUM);
+  return h(
+    'div',
+    { class: 'card bridge-card', 'data-testid': 'consent-bridge' },
+    kv('You move', `${formatAmount(b.amount)} ${r.beamSymbol}`, 'consent-bridge-amount'),
+    kv('Bridge fee', `${formatAmount(b.fee)} ${r.beamSymbol}`, 'consent-bridge-fee', 'paid to the bridge operator'),
+    kv('Network fee', `${formatAmount(req.fee)} BEAM`, 'consent-fee'),
+    kv('Leaves your BEAM wallet', r.isBeam ? `${formatAmount(b.out)} BEAM` : `${formatAmount(b.out)} ${r.beamSymbol} + ${formatAmount(req.fee)} BEAM`, 'consent-total'),
+    kv('Arrives on Ethereum', `${t.exact(b.receives, r.ethDecimals)} ${r.ethSymbol}`, 'consent-bridge-receives'),
+    h('div', { class: 'kv kv-stack' }, h('span', { class: 'k', text: 'In your Ethereum wallet' }), h('span', { class: 'v mono addr-groups', 'data-testid': 'consent-bridge-to', 'data-address': b.receiver, text: t.grouped(b.receiver) })),
+    kv('Arrives', when.replace(/;.*/, ''), 'consent-bridge-time', when.replace(/^[^;]*; /, '')),
+  );
+}
+
+function showConsent(app, req, bridge, t) {
   const wallet = app.wallet;
   const ids = [...new Set([0, ...req.spends.map((a) => a.assetId), ...req.receives.map((a) => a.assetId)])];
   for (const id of ids) if (id !== 0 && !wallet.assetNamed.has(id) && wallet.session) wallet.loadAsset(id);
@@ -107,7 +152,7 @@ export function presentConsent(app, req) {
     const sheet = openSheet(
       (close, rerender) => {
         const native = req.native && req.appName === NATIVE_APP_NAME;
-        const label = approveLabel(req, unit);
+        const label = bridge ? bridge.label : approveLabel(req, unit);
         // The engine's isEnough counts what a call spends, not its network fee: a claim that only
         // brings tokens in reads as enough on a wallet with no BEAM, and would fail once approved.
         // For the wallet's own features this wallet's balance must cover the fee as well.
@@ -125,7 +170,8 @@ export function presentConsent(app, req) {
         };
         const beamOut = req.spends.filter((a) => a.assetId === 0).reduce((s, a) => s + a.amount, 0n) + req.fee;
         const showTotal = req.spends.some((a) => a.assetId === 0) && req.fee > 0n;
-        const notListed = [...req.spends, ...req.receives].filter((a) => a.assetId !== 0 && !wallet.label(a.assetId).verified);
+        // A bridge asset is named by the bridge's own registry, not by its metadata.
+        const notListed = bridge ? [] : [...req.spends, ...req.receives].filter((a) => a.assetId !== 0 && !wallet.label(a.assetId).verified);
 
         const approve = async () => {
           if (busy) return;
@@ -137,24 +183,28 @@ export function presentConsent(app, req) {
 
         return h(
           'div',
-          { class: 'consent', 'data-testid': 'consent', 'data-kind': req.kind },
-          h('h2', { text: title(req) }),
+          { class: 'consent', 'data-testid': 'consent', 'data-kind': req.kind, 'data-bridge': bridge ? bridge.kind : null },
+          h('h2', { text: title(req, bridge) }),
           h(
             'div',
             { class: 'consent-app', 'data-testid': 'consent-app' },
             native ? h('img', { src: 'img/logo.svg', alt: '' }) : h('span', { class: 'app-dot' }, icon('globe')),
             h('span', { text: native ? 'BEAM Campfire, this wallet' : `${req.appName} asks you to approve` }),
           ),
-          h(
-            'div',
-            { class: 'card' },
-            ...req.spends.map((a, i) => row(req.kind === 'send' ? 'You send' : 'You pay', a, `consent-pay-${i}`, '')),
-            ...req.receives.map((a, i) => row(req.intent && req.intent.action === 'swap' ? 'You get' : 'You receive', a, `consent-get-${i}`, '')),
-            req.address ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'To' }), h('span', { class: 'v mono', text: shorten(req.address, 10, 8) })) : null,
-            req.intent && req.intent.action === 'namePay' ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'To' }), h('span', { class: 'v', 'data-testid': 'consent-to', text: `${req.intent.name}.beam` })) : null,
-            h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Network fee' }), h('span', { class: 'v', 'data-testid': 'consent-fee', text: `${formatAmount(req.fee)} BEAM` })),
-            showTotal ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Total BEAM out' }), h('span', { class: 'v', 'data-testid': 'consent-total', text: `${formatAmount(beamOut)} BEAM` })) : null,
-          ),
+          bridge
+            ? bridgeCard(req, bridge, t)
+            : h(
+                'div',
+                { class: 'card' },
+                ...req.spends.map((a, i) => row(req.kind === 'send' ? 'You send' : 'You pay', a, `consent-pay-${i}`, '')),
+                ...req.receives.map((a, i) => row(req.intent && req.intent.action === 'swap' ? 'You get' : 'You receive', a, `consent-get-${i}`, '')),
+                req.address ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'To' }), h('span', { class: 'v mono', text: shorten(req.address, 10, 8) })) : null,
+                req.intent && req.intent.action === 'namePay' ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'To' }), h('span', { class: 'v', 'data-testid': 'consent-to', text: `${req.intent.name}.beam` })) : null,
+                h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Network fee' }), h('span', { class: 'v', 'data-testid': 'consent-fee', text: `${formatAmount(req.fee)} BEAM` })),
+                showTotal ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Total BEAM out' }), h('span', { class: 'v', 'data-testid': 'consent-total', text: `${formatAmount(beamOut)} BEAM` })) : null,
+              ),
+          // Said before approving; when it cannot be approved, what is missing comes first.
+          bridge && bridge.kind === 'send' && enough ? h('div', { 'data-testid': 'consent-bridge-public' }, notice('info', t.PUBLIC_NOTE)) : null,
           !native && req.comment ? h('p', { class: 'small', text: `The app describes it as: “${req.comment}”` }) : null,
           notListed.length ? h('p', { class: 'small', 'data-testid': 'consent-unlisted', text: `${notListed.map((a) => `${unit(a.assetId)} is asset #${a.assetId}`).join('; ')}: not on BEAM Campfire's list of known assets. Check the number if the name matters to you.` }) : null,
           !native ? notice('warn', `Only approve if you trust ${req.appName}. Approving lets it move what is listed above.`) : null,
@@ -173,7 +223,8 @@ export function presentConsent(app, req) {
               ),
           h(
             'div',
-            { class: 'actions' },
+            // A move's sheet is long: its button stays in sight.
+            { class: bridge ? 'actions sheet-actions' : 'actions' },
             enough ? h('button', { class: 'btn btn-primary wrap', 'data-testid': 'consent-approve', onclick: approve }, label) : null,
             // The wallet's own swap: the way out of "not enough" is one tap away. (A dApp stays open; its text says where.)
             !enough && native
@@ -194,7 +245,7 @@ export function presentConsent(app, req) {
           ),
         );
       },
-      { dismissable: false, label: title(req) },
+      { dismissable: false, label: title(req, bridge) },
     );
 
     const labels = () => ids.map((id) => wallet.label(id).unit).join('|');

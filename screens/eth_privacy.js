@@ -52,7 +52,8 @@ export default function ethPrivacy(app, params = {}) {
       await saveEthKey(app, { sk: key.sk, address: key.address, words: s.words.length, passphrase: Boolean(s.passphrase) });
       s.words.fill('');
       app.ethSetup = null;
-      app.go('ethHome', { created: s.mode });
+      // Started from Move coins: back there, the bridge now has both wallets.
+      app.go(s.from === 'bridge' ? 'bridgeMove' : 'ethHome', { created: s.mode });
     } catch (e) {
       cta.disabled = false;
       cta.textContent = 'Connect';
