@@ -26,26 +26,37 @@ import { isImported, openWithPasswordFor, markExported } from '../lib/session.js
 import { prepareExport, deliverExport } from '../lib/export.js';
 import { NO_PHRASE_NOTICE, formatFileSize } from '../lib/wallet_file.js';
 
-export default function backup(app) {
-  // A wallet already lives on this device: never make new words here.
-  if (app.record) return existingBackup(app);
+/**
+ * Recovery words in a grid that stays blurred until tapped (no shoulder
+ * surfing). fill(words) puts them in; onReveal runs once they are shown.
+ * Also used for the Ethereum wallet's words (screens/eth_words.js).
+ */
+export function wordReveal(onReveal) {
   const grid = h('div', { class: 'words hidden-words', 'data-testid': 'words' });
-  const cta = primary('I wrote them down', () => app.go('confirmWords'), { disabled: true, 'data-testid': 'wrote-down' });
   const cover = h('div', { class: 'cover' }, h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'reveal' }, icon('eye'), 'Tap to show the words'));
-  const reveal = h('div', { class: 'reveal' }, grid, cover);
-  const status = h('p', { class: 'small', text: 'Making your words…' });
-
   cover.querySelector('button').addEventListener('click', () => {
     grid.classList.remove('hidden-words');
     cover.remove();
-    cta.disabled = false;
+    onReveal();
   });
+  return {
+    el: h('div', { class: 'reveal' }, grid, cover),
+    fill: (words) => put(grid, ...words.map((w, i) => h('div', { class: 'word' }, h('span', { class: 'n', text: String(i + 1) }), h('span', { text: w })))),
+  };
+}
+
+export default function backup(app) {
+  // A wallet already lives on this device: never make new words here.
+  if (app.record) return existingBackup(app);
+  const cta = primary('I wrote them down', () => app.go('confirmWords'), { disabled: true, 'data-testid': 'wrote-down' });
+  const reveal = wordReveal(() => (cta.disabled = false));
+  const status = h('p', { class: 'small', text: 'Making your words…' });
 
   (async () => {
     try {
       if (!app.setup || app.setup.mode !== 'create') app.setup = { mode: 'create' };
       if (!app.setup.words) app.setup.words = await generatePhrase();
-      put(grid, ...app.setup.words.map((w, i) => h('div', { class: 'word' }, h('span', { class: 'n', text: String(i + 1) }), h('span', { text: w }))));
+      reveal.fill(app.setup.words);
       status.textContent = '';
     } catch (e) {
       status.textContent = `The wallet engine did not start: ${e.message}. Reload the page to try again.`;
@@ -64,7 +75,7 @@ export default function backup(app) {
     h('p', { class: 'step', text: 'Step 1 of 3' }),
     h('p', { class: 'lead', text: 'These words are your wallet. With them you can open it on any device, even if this phone is lost.' }),
     notice('warn', h('strong', { text: 'Write them on paper, in order. ' }), 'Anyone who sees them can take your money. No screenshots: photos sync to the cloud.'),
-    reveal,
+    reveal.el,
     status,
   );
   return { el };

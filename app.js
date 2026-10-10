@@ -30,13 +30,27 @@ import about from './screens/about.js';
 import deleteWallet from './screens/delete_wallet.js';
 import problem from './screens/problem.js';
 import install from './screens/install.js';
+import swap from './screens/swap.js';
+import dapps, { runnerStats } from './screens/dapps.js';
+import names from './screens/names.js';
+import airdrop from './screens/airdrop.js';
+import airdropCreate from './screens/airdrop_create.js';
+import airdropBatches from './screens/airdrop_batches.js';
+import airdropCodes from './screens/airdrop_codes.js';
+import { installConsent } from './screens/consent.js';
+import { ETH_SCREENS } from './screens/eth_screens.js';
+import { BUY_SCREENS } from './screens/buy_screens.js';
+import { consentLog, contractsState } from './lib/contracts.js';
 
 const SCREENS = {
   welcome, backup, confirmWords, restore, importWallet, setPassword, passkeySetup, ipNotice, fastStart, unlock,
-  home, send, review, txStatus, receive, activity, settings, changePassword, about, deleteWallet, problem, install,
+  home, send, review, txStatus, receive, activity, settings, changePassword, about, deleteWallet, problem, install, swap, dapps,
+  names, airdrop, airdropCreate, airdropBatches, airdropCodes,
+  ...ETH_SCREENS,
+  ...BUY_SCREENS,
 };
 // Screens that need an unlocked, running wallet.
-const NEEDS_WALLET = new Set(['home', 'send', 'review', 'txStatus', 'receive', 'activity', 'settings', 'changePassword', 'about']);
+const NEEDS_WALLET = new Set(['home', 'send', 'review', 'txStatus', 'receive', 'activity', 'settings', 'changePassword', 'about', 'swap', 'dapps', 'names', 'airdrop', 'airdropCreate', 'airdropBatches', 'airdropCodes', ...Object.keys(ETH_SCREENS), ...Object.keys(BUY_SCREENS)]);
 
 const root = document.getElementById('app');
 
@@ -53,6 +67,18 @@ export const app = {
   wallet,
   updates,
   persisted: null,
+  // Run on lock and on the tripwire, to forget what a feature kept in memory (the Ethereum screens add one).
+  lockHooks: new Set(),
+
+  runLockHooks() {
+    for (const f of this.lockHooks) {
+      try {
+        f();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  },
 
   go(name, params = {}) {
     if (!SCREENS[name]) throw new Error(`no screen ${name}`);
@@ -69,7 +95,10 @@ export const app = {
         console.error(e);
       }
     }
-    document.querySelectorAll('.overlay').forEach((o) => o.remove());
+    document.querySelectorAll('.overlay').forEach((o) => {
+      o.dispatchEvent(new Event('campfire:dismiss'));
+      o.remove();
+    });
     clear(root);
     this.currentName = name;
     this.params = params;
@@ -92,6 +121,7 @@ export const app = {
     const wasOpen = Boolean(this.dbPass);
     this.dbPass = null;
     if (this.setup) this.setup = null;
+    this.runLockHooks();
     await wallet.stop();
     if (wasOpen || this.currentName !== 'unlock') this.go('unlock', { reason });
   },
@@ -107,6 +137,7 @@ export const app = {
     console.warn('[campfire] tripwire:', this.intrusion);
     this.dbPass = null;
     this.setup = null;
+    this.runLockHooks();
     this.go('problem', { kind: 'tripwire', detail: this.intrusion });
     await wallet.stop().catch(() => {});
   },
@@ -124,6 +155,9 @@ export const app = {
     return Boolean(this.dbPass) && this.currentName !== 'fastStart' && !wallet.state.importing;
   },
 };
+
+// Every contract request that spends is shown on the approve sheet; without it, all are refused.
+installConsent(app);
 
 window.addEventListener('pointerdown', () => app.touch(), { passive: true });
 window.addEventListener('keydown', () => app.touch(), { passive: true });
@@ -223,5 +257,10 @@ window.__campfire = Object.freeze({
   addresses: async () => ((await wallet.session.call('addr_list', { own: true })) || []).map((a) => a.address).sort(),
   // Names and flags only: which files the engine holds, and what kind of wallet this is.
   walletFiles: () => walletFiles(),
+  // Contract calls: the last consent decisions (amounts as the engine reported them) and counters.
+  consents: () => consentLog(),
+  contracts: () => contractsState(),
+  // Counters of the running dApp frames (requests, refused, dropped messages); nothing a dApp sent.
+  dapps: () => runnerStats(),
   record: () => (app.record ? { imported: Boolean(app.record.imported), restored: Boolean(app.record.restored), scan: app.record.scan !== false, setupDone: Boolean(app.record.setupDone), passkey: Boolean(app.record.envelopes && app.record.envelopes.passkey) } : null),
 });

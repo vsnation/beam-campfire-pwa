@@ -5,6 +5,9 @@ is the signed build itself: these files are the whole app.
 
 **Open it:** https://vsnation.github.io/beam-campfire-pwa/
 
+**Download it:** every release is also one signed zip, so the app outlives this site:
+https://github.com/vsnation/campfire-beam/releases (the `web-v…` releases).
+
 ## Install on iPhone
 
 1. Open the link above in **Safari**.
@@ -38,6 +41,19 @@ Requirements:
 - **HTTPS**, and an address used **only** for this app (for example `wallet.yourdomain.org`).
   Never put other sites on the same address: they would share its storage.
 - The security headers below on every response. (The app also adds them itself once installed.)
+
+### On your own computer, with no website at all
+
+Unpack the release zip, then in that folder:
+
+```bash
+python3 -m http.server 8080 --bind 127.0.0.1
+```
+
+Open http://127.0.0.1:8080 in Chrome or Edge (and Install, if you like). Once it has opened, it
+runs from the browser's own copy: it keeps working with the command stopped. Keep the same port
+next time; another port is another app with its own wallets. An iPhone cannot do this: Safari
+needs an HTTPS address once to install the app.
 
 ### On a VPS with Caddy (automatic HTTPS)
 

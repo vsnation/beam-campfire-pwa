@@ -12,12 +12,18 @@ import { screen, primary, notice } from '../lib/ui.js';
 import { wipeWallet, isImported } from '../lib/session.js';
 import { wallet } from '../lib/wallet.js';
 import { getPrefs } from '../lib/store.js';
+import { hasEthWallet } from '../lib/eth/record.js';
 
 export default function deleteWallet(app, params = {}) {
   const forgot = Boolean(params.forgot);
   const imported = isImported(app);
   const input = h('input', { class: 'input', type: 'text', autocomplete: 'off', autocapitalize: 'characters', autocorrect: 'off', spellcheck: 'false', 'aria-label': 'Type DELETE', 'data-testid': 'delete-confirm', placeholder: 'DELETE' });
   const msg = h('div');
+  // With an Ethereum wallet beside it, both sets of words are needed: it goes too.
+  const ethBox = h('div');
+  hasEthWallet().then((has) => {
+    if (has) put(ethBox, h('div', { 'data-testid': 'delete-eth-words' }, notice('warn', h('strong', { text: 'Your Ethereum wallet is removed too. ' }), 'Its own words bring it back; your BEAM words do not. Keep both sets of words before you delete.')));
+  }, () => {});
   const cta = primary('Delete from this device', run, { disabled: true, 'data-testid': 'delete-submit' });
   cta.classList.replace('btn-primary', 'btn-danger');
   input.addEventListener('input', () => (cta.disabled = input.value.trim().toUpperCase() !== 'DELETE'));
@@ -50,6 +56,7 @@ export default function deleteWallet(app, params = {}) {
     imported
       ? notice('warn', h('strong', { text: 'Only the original wallet.db file and its password can bring this wallet back. ' }), 'It has no 12 words. If you do not have both, stop here: deleting without them loses the money for good.')
       : notice('warn', h('strong', { text: 'Only your 12 words can bring this wallet back. ' }), 'If you do not have them written down, stop here: deleting without them loses the money for good.'),
+    ethBox,
     h('p', { class: 'lead', text: 'This removes the wallet, its history and its settings from this device. Nothing is changed on the blockchain.' }),
     h('label', { class: 'field' }, 'Type DELETE to confirm', input),
     msg,

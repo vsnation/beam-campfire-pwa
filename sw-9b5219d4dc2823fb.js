@@ -24,6 +24,11 @@
  * Every response gets the security headers (COOP/COEP for the engine's
  * SharedArrayBuffer, CSP, CORP): a response from the cache would carry none.
  *
+ * dApp frames: a navigation to dapp-run/<policy>/... is answered with the
+ * frame document built from the verified dapp-frame.js and the frame's own
+ * headers (lib/dapps/frame_policy.js, inlined below): a sandboxed, opaque
+ * origin with its own CSP. Nothing for that route ever comes from the network.
+ *
  * Not intercepted (they go to the network, and only when the app asks):
  * release.json/.sig, manifest.json, the loader script, the recovery snapshot,
  * the explorer status and dev-server paths. The BEAM node is a WebSocket,
@@ -41,7 +46,7 @@
 'use strict';
 
 const RELEASE_PUBLIC_JWK = {"kty":"EC","crv":"P-256","x":"nHc0TAS1zffyZvN4tSmEyelt5vpEB-QDUEgHSNztzpc","y":"hHBISFLKDalMgMsjuW78PAMirodfcnlZ5N3-9A9Pa9A"};
-const SECURITY_HEADERS = {"Cross-Origin-Opener-Policy":"same-origin","Cross-Origin-Embedder-Policy":"require-corp","Cross-Origin-Resource-Policy":"same-origin","Content-Security-Policy":"default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self' wss://eu-nodes.mainnet.beam.mw:8200 wss://eu-node01.mainnet.beam.mw:8200 wss://eu-node02.mainnet.beam.mw:8200; img-src 'self' data: blob:; style-src 'self'; font-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'","Referrer-Policy":"no-referrer","X-Content-Type-Options":"nosniff","Permissions-Policy":"camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()"};
+const SECURITY_HEADERS = {"Cross-Origin-Opener-Policy":"same-origin","Cross-Origin-Embedder-Policy":"require-corp","Cross-Origin-Resource-Policy":"same-origin","Content-Security-Policy":"default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self' wss://eu-nodes.mainnet.beam.mw:8200 wss://eu-node01.mainnet.beam.mw:8200 wss://eu-node02.mainnet.beam.mw:8200 https://raw.githubusercontent.com/BeamMW/beam-ui/2f36c21ed010dee350c052ffce9097b23f69ecfb/ui/apps/mainnet/ https://eth2.stackwallet.com https://ethereum-rpc.publicnode.com https://eth.drpc.org https://rpc.mevblocker.io https://eth-mainnet.public.blastapi.io https://api.coingecko.com/api/v3/simple/price https://buybeam.my/api/v1/buy/; img-src 'self' data: blob:; style-src 'self'; font-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'","Referrer-Policy":"no-referrer","X-Content-Type-Options":"nosniff","Permissions-Policy":"camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()"};
 const MIME = {".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".mjs":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".json":"application/json",".webmanifest":"application/manifest+json",".wasm":"application/wasm",".svg":"image/svg+xml",".png":"image/png",".ttf":"font/ttf",".woff2":"font/woff2",".txt":"text/plain; charset=utf-8",".sig":"text/plain; charset=utf-8",".jwk":"application/json"};
 
 // ---- inlined from lib/release.js
@@ -160,12 +165,132 @@ async function verifyFile(entry, bytes) {
 
 // ---- end of lib/release.js
 
+// ---- inlined from lib/dapps/frame_policy.js
+// How a dApp frame is served. Shared by the page (which builds the frame's
+// address), the service worker (the build inlines this file into it, so it
+// imports nothing) and the dev server.
+//
+// A dApp runs in an <iframe> whose document the service worker builds from
+// the verified copy: dapp-frame.js inlined under a per-response nonce, with
+// the headers below. The Content-Security-Policy starts with
+// "sandbox allow-scripts" (no allow-same-origin), so the document gets an
+// opaque origin: it cannot reach this wallet's storage, cookies, service
+// worker, engine or DOM. The page sets the iframe's own sandbox attribute
+// right after that first load, so anything the frame navigates to later is
+// sandboxed too and is never served by the service worker (browsers bypass
+// it for sandboxed frames).
+//
+// The frame's address carries its policy: <scope>dapp-run/e<0|1>r<mask>/<start page>.
+// e1 allows 'unsafe-eval' (most dApp bundles are webpack eval builds); the
+// mask grants REMOTE_ORIGINS by bit. Nothing else can widen it, and a
+// frame document never gets anything from the wallet but its first load's
+// MessagePort, so a dApp that navigates itself to a wider policy gains
+// nothing: no files, no bridge.
+
+const FRAME_ROUTE = 'dapp-run/';
+
+/** Every remote origin a dApp may be granted, by bit (1, 2, ...). */
+const REMOTE_ORIGINS = ['https://api.coingecko.com', 'https://explorer-api.beam.mw'];
+
+const SEGMENT = /^e([01])r(0|[1-9][0-9]?)$/;
+
+function policySegment({ evalAllowed, remoteMask = 0 }) {
+  const mask = Number(remoteMask) >>> 0;
+  if (mask >= 1 << REMOTE_ORIGINS.length) throw new Error('remote mask out of range');
+  return `e${evalAllowed ? 1 : 0}r${mask}`;
+}
+
+function parsePolicySegment(seg) {
+  const m = SEGMENT.exec(String(seg));
+  if (!m) return null;
+  const mask = Number(m[2]);
+  if (mask >= 1 << REMOTE_ORIGINS.length) return null;
+  return { evalAllowed: m[1] === '1', remoteMask: mask, remoteOrigins: REMOTE_ORIGINS.filter((_, i) => mask & (1 << i)) };
+}
+
+function remoteMaskFor(origins) {
+  let mask = 0;
+  for (const o of origins) {
+    const i = REMOTE_ORIGINS.indexOf(o);
+    if (i < 0) throw new Error(`not a known remote origin: ${o}`);
+    mask |= 1 << i;
+  }
+  return mask;
+}
+
+/**
+ * The policy for a path inside the service worker's scope, or null when the
+ * path is not a dApp frame. "dapp-run/e1r0/app/index.html" -> {evalAllowed, ...}.
+ */
+function frameRouteFor(relPath) {
+  if (typeof relPath !== 'string' || !relPath.startsWith(FRAME_ROUTE)) return null;
+  const rest = relPath.slice(FRAME_ROUTE.length);
+  const slash = rest.indexOf('/');
+  if (slash <= 0 || slash === rest.length - 1) return null;
+  return parsePolicySegment(rest.slice(0, slash));
+}
+
+/** The frame's Content-Security-Policy. No 'self' anywhere: the wallet's origin is not the frame's to reach. */
+function frameCsp({ evalAllowed, remoteOrigins, nonce }) {
+  if (!/^[A-Za-z0-9+/=_-]{16,64}$/.test(String(nonce))) throw new Error('bad nonce');
+  const remote = remoteOrigins.length ? ` ${remoteOrigins.join(' ')}` : '';
+  return [
+    'sandbox allow-scripts',
+    "default-src 'none'",
+    `script-src 'nonce-${nonce}' blob:${evalAllowed ? " 'unsafe-eval'" : ''}`,
+    "style-src blob: 'unsafe-inline'",
+    `img-src blob: data:${remote}`,
+    'media-src blob: data:',
+    'font-src blob: data:',
+    `connect-src blob: data:${remote}`,
+    "worker-src 'none'",
+    "frame-src 'none'",
+    "child-src 'none'",
+    "object-src 'none'",
+    "manifest-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+    "frame-ancestors 'self'",
+  ].join('; ');
+}
+
+function frameHeaders(policy, nonce) {
+  return {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Content-Security-Policy': frameCsp({ ...policy, nonce }),
+    'Cross-Origin-Embedder-Policy': 'require-corp',
+    'Cross-Origin-Resource-Policy': 'same-origin',
+    'Referrer-Policy': 'no-referrer',
+    'X-Content-Type-Options': 'nosniff',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()',
+    'Cache-Control': 'no-store',
+  };
+}
+
+/** The frame document: nothing but the bootstrap, which waits for the wallet. */
+function frameDocument(scriptText, nonce) {
+  if (String(scriptText).toLowerCase().includes('</script')) throw new Error('the frame script cannot contain </script');
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><script nonce="${nonce}">${scriptText}</script></head><body></body></html>`;
+}
+
+/** 24 random bytes, base64url. */
+function newNonce() {
+  const b = new Uint8Array(24);
+  crypto.getRandomValues(b);
+  let s = '';
+  for (const x of b) s += String.fromCharCode(x);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// ---- end of lib/dapps/frame_policy.js
+
 const META_CACHE = 'campfire-meta';
 const scopeUrl = new URL(self.registration.scope);
 const STATE_KEY = new URL('__campfire_state', scopeUrl).href;
 const PROGRESS_KEY = new URL('__campfire_install', scopeUrl).href;
 const PASSTHROUGH = [/^release\.json$/, /^release\.sig$/, /^manifest\.json$/, /^sw(-[0-9a-f]+)?\.js$/, /^recovery\//, /^explorer\//, /^__dev\//, /^_headers$/];
 const PARALLEL = 6;
+const FRAME_SCRIPT = 'dapp-frame.js';
 const FILE_TIMEOUT_MS = 90000; // per file: a stalled connection fails the run, which can then resume
 
 let stateCache = null;
@@ -396,6 +521,20 @@ async function serve(request, path) {
   return new Response('Not part of this BEAM Campfire release.', { status: 404, headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' } });
 }
 
+const notInRelease = () => new Response('Not part of this BEAM Campfire release.', { status: 404, headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' } });
+
+/** A dApp frame document: the verified bootstrap under a fresh nonce, with the frame's own headers. */
+async function serveFrame(request, policy) {
+  if (request.mode !== 'navigate') return notInRelease();
+  const st = await readState();
+  if (!st.current || !Object.prototype.hasOwnProperty.call(st.current.files, FRAME_SCRIPT)) return notInRelease();
+  const cache = await caches.open(st.current.cache);
+  const hit = await cache.match(new URL(FRAME_SCRIPT, scopeUrl).href);
+  if (!hit) return notInRelease();
+  const nonce = newNonce();
+  return new Response(frameDocument(await hit.text(), nonce), { status: 200, headers: frameHeaders(policy, nonce) });
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
@@ -403,6 +542,11 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   const path = relPath(url);
   if (path === null || PASSTHROUGH.some((r) => r.test(path))) return;
+  if (path.startsWith(FRAME_ROUTE)) {
+    const policy = frameRouteFor(path);
+    event.respondWith(policy ? serveFrame(req, policy) : Promise.resolve(notInRelease()));
+    return;
+  }
   event.respondWith(serve(req, path));
 });
 
@@ -456,6 +600,14 @@ self.addEventListener('message', (event) => {
     // The first-run screen saw no progress for a while: end this run now. The
     // page registers again, and the next run resumes from what was verified.
     if (installAbort) installAbort.abort();
+    return;
+  }
+  if (type === 'skip-waiting') {
+    // The page moves to this loader once, after an Update the person approved.
+    // Chrome can drop the skipWaiting() made during install when the old loader
+    // is busy with the page's reload (measured: this loader then waited five
+    // minutes behind the old one), so the page asks again once it is waiting.
+    event.waitUntil(self.skipWaiting());
     return;
   }
   const port = event.ports && event.ports[0];

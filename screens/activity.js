@@ -11,7 +11,7 @@ import { h, shorten, fmtDate, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, openSheet, primary, secondary, notice, copyText } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
-import { wallet, txStatusText } from '../lib/wallet.js';
+import { wallet, txStatusText, isContractTx, contractMoves } from '../lib/wallet.js';
 import { txRow } from './home.js';
 
 export default function activity(app, params = {}) {
@@ -35,6 +35,7 @@ export default function activity(app, params = {}) {
     openSheet((close, rerender) => {
       const t = wallet.state.txs.find((x) => x.txId === txId);
       if (!t) return [h('h2', { text: 'Payment' }), h('p', { text: 'This payment is no longer in the list.' })];
+      if (isContractTx(t)) return contractDetail(t, close);
       const unit = wallet.label(t.asset_id || 0).unit;
       const s = Number(t.status);
       const canCancel = !t.income && (s === 0 || s === 1);
@@ -77,4 +78,30 @@ export default function activity(app, params = {}) {
   wallet.refreshTxs();
   const el = screen({ title: 'Activity', tabs: 'activity', app }, listBox);
   return { el, destroy: () => off() };
+}
+
+/** A swap or other contract call: what left, what arrived, the fee, which app. */
+function contractDetail(t, close) {
+  const m = contractMoves(t);
+  const kv = (k, v, opts = {}) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, `${k} copied`), text: v }) : h('span', { class: 'v', text: v }));
+  const amt = (a) => `${formatAmount(a.amount)} ${wallet.label(a.assetId).unit}`;
+  const head = m.receives[0] ? `+${amt(m.receives[0])}` : m.spends[0] ? `−${amt(m.spends[0])}` : `−${formatAmount(BigInt(t.fee || 0))} BEAM`;
+  return [
+    h('h2', { 'data-testid': 'tx-detail-title', text: txStatusText(t) }),
+    h('div', { class: 'big-amount', text: head }),
+    h(
+      'div',
+      { class: 'card' },
+      kv('Status', txStatusText(t)),
+      kv('Date', fmtDate(t.create_time)),
+      ...m.spends.map((a) => kv('You paid', amt(a))),
+      ...m.receives.map((a) => kv('You got', amt(a))),
+      kv('Network fee', `${formatAmount(BigInt(t.fee || 0))} BEAM`),
+      t.appname ? kv('App', t.appname) : null,
+      t.kernel && /[1-9a-f]/.test(t.kernel) ? kv('Kernel ID', shorten(t.kernel, 10, 8), { copy: t.kernel }) : null,
+      t.confirmations != null ? kv('Confirmations', String(t.confirmations)) : null,
+      t.failure_reason ? kv('Reason', t.failure_reason) : null,
+    ),
+    h('button', { class: 'btn btn-text', onclick: () => close() }, 'Close'),
+  ];
 }

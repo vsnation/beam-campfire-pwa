@@ -114,6 +114,7 @@ export default function settings(app) {
       { class: 'card list' },
       h('div', { class: 'row' }, h('span', { class: 'ico' }, icon('globe')), h('span', { class: 'main' }, h('div', { class: 't', text: 'BEAM node' }), h('div', { class: 's', text: 'Run by BEAM. Europe is the default.' })), nodeSel),
       row('shield', 'IP privacy', 'Who can see your IP address', () => app.go('ipNotice'), { 'data-testid': 'ip-privacy' }),
+      row('eth', 'Ethereum wallet', 'Server, privacy, backup', () => app.go('ethSettings'), { 'data-testid': 'eth-settings-row' }),
     ),
     h('p', { class: 'section-title', text: 'App' }),
     h(

@@ -1,16 +1,21 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.1.8",
+ "version": "0.2.0",
  "files": [
   {
    "path": "app.js",
-   "sha256": "439f6a5d8c76606400f89d20d51fdcd107e7514e92eff4d40c5009b510b9ad46",
-   "size": 9996
+   "sha256": "81970decbc7af290cf8a4be6003c2d03be222d73d263e9fe74123c3d54ff8392",
+   "size": 11657
   },
   {
    "path": "css/app.css",
-   "sha256": "5a66ad4156ef88b8b0bf73d9675cc28c2cf0b752e983d6dd6a6f29f69a6952ea",
-   "size": 17319
+   "sha256": "66354c711da6a45c205edb1c59090d9bf61d0af9003266dc21c1769e6568a1d7",
+   "size": 36788
+  },
+  {
+   "path": "dapp-frame.js",
+   "sha256": "2af8f0af029612d75fbb91a47f4d026573442da57aa8174579804e67902197c6",
+   "size": 21044
   },
   {
    "path": "fonts/Inter-Bold.ttf",
@@ -58,6 +63,66 @@
    "size": 9678
   },
   {
+   "path": "img/beam.svg",
+   "sha256": "a9b707fa1db1e41ccff69e8a16a93fa90e3432efc7ff9909a15e532ac5d2d5fc",
+   "size": 1396
+  },
+  {
+   "path": "img/dapps/43d08c209df04c169005446d7eff51ab.svg",
+   "sha256": "fdbe7b5a9042aa02b7ef703adbb0aeaa816128c4d1fb934cbec2e8b133727dca",
+   "size": 4998
+  },
+  {
+   "path": "img/dapps/6e5151edf286458da42d11f3aef4969d.png",
+   "sha256": "8d2e3665a7ab54666daf94025e718f11e336a0e82724105490fc28a136540424",
+   "size": 64477
+  },
+  {
+   "path": "img/dapps/7e9c916bc3444aadbd10232713be4525.svg",
+   "sha256": "4e0e05897fe9f4b29a1d37b7ef0c0bf26db245d2f13aa16081969e90bb5ee98e",
+   "size": 11222
+  },
+  {
+   "path": "img/dapps/9811fa65e16b44b585ee22e227b0e2ee.svg",
+   "sha256": "fdbe7b5a9042aa02b7ef703adbb0aeaa816128c4d1fb934cbec2e8b133727dca",
+   "size": 4998
+  },
+  {
+   "path": "img/dapps/NOTICE.txt",
+   "sha256": "4b929090a70752aa7e82e863e228c5bd3eabddcd94ec00499edf03c75123b1c5",
+   "size": 902
+  },
+  {
+   "path": "img/dapps/a0b387971c9c4b0eaefa34f4deb888e4.svg",
+   "sha256": "9dd1e772ca287ef61ecc999db48c34d5634ca327585cefdf86b7a66c7f1b3fe4",
+   "size": 2211
+  },
+  {
+   "path": "img/dapps/abcc470e12c6422291f360f83d79355e.svg",
+   "sha256": "54fb10306b8b0b79209ae74156b9d28af15ffa083887c07cf26a20fce3615c1d",
+   "size": 1120
+  },
+  {
+   "path": "img/dapps/c26538f5ce9e410b89c1fd0dff783f97.svg",
+   "sha256": "c043b1ebb8ebb3c791b989ceaeb0746536d7fe071b7282459fb7ebeedbeb4a3e",
+   "size": 2877
+  },
+  {
+   "path": "img/dapps/db851322f6674a6da3e84e9953db2ffd.svg",
+   "sha256": "6c5bb744309d398ab6439e45184115cce986b475d09a9be6295260575034c743",
+   "size": 8504
+  },
+  {
+   "path": "img/dapps/ffbec734a0bb4f88a7104357a2680d20.svg",
+   "sha256": "0261580100598feaaea5ddee189385ad8fb544358df8c70cbe7ffce1da769078",
+   "size": 1518
+  },
+  {
+   "path": "img/eth.svg",
+   "sha256": "7f2ec2101dc80d054c1bf9cb1f06796b76eaa1c5e6b0202ecbfefe70d30dd73b",
+   "size": 388
+  },
+  {
    "path": "img/logo.svg",
    "sha256": "ae213216c9e966701cd1a21f8957b019859af77d53f2a94cba04427927142ac6",
    "size": 2021
@@ -68,6 +133,11 @@
    "size": 1548
   },
   {
+   "path": "lib/airdrop.js",
+   "sha256": "8f7f8e1c720b6b1bfd752e5b72755cda1e2985b7d413bd8d1193d371cfd0f3fe",
+   "size": 34807
+  },
+  {
    "path": "lib/amount.js",
    "sha256": "e715ed8fdf921bc8810d84221cc1ddd114d1fa6a841c0f3b8080cfad963e288d",
    "size": 3720
@@ -76,6 +146,161 @@
    "path": "lib/auth_ui.js",
    "sha256": "328fff2f9d3ffd44a1f9efca054aba5e2f7032e0662b1bb0071c28b1e096668b",
    "size": 2987
+  },
+  {
+   "path": "lib/bans.js",
+   "sha256": "edbb29f0a1a7b26489faf58aff4d985247c322f106bfdc90e8decc8f55fe71b7",
+   "size": 27312
+  },
+  {
+   "path": "lib/bridge/beam_pipe.js",
+   "sha256": "0b3ee29ad6e20cb978565c982253c5136fab02b91b8d1601df3c829b0cd182ec",
+   "size": 23232
+  },
+  {
+   "path": "lib/bridge/controller.js",
+   "sha256": "62c2d881b46fb61f1427a5b1d063d42db93b030b6032a2b19aab1ac501c41d6a",
+   "size": 39173
+  },
+  {
+   "path": "lib/bridge/eth_pipe.js",
+   "sha256": "debb17f4ff729c3f28f5cbfe859ee94a85c1ce4242da21ef706c54ab81294d41",
+   "size": 28054
+  },
+  {
+   "path": "lib/bridge/fees.js",
+   "sha256": "13eae0dbaf5ef8690db8f5f31e480a4c40bcecef3bbcf719eaffe25d35687d42",
+   "size": 7159
+  },
+  {
+   "path": "lib/bridge/prices.js",
+   "sha256": "b72974f808c227e69a5c3d807e798d313a5ed0ed694ae5510d6a75ba8b99ad23",
+   "size": 4763
+  },
+  {
+   "path": "lib/bridge/quote.js",
+   "sha256": "529e8db1a3843550e07fd4a8a7017d3e29cc49009d99f8620f01175ef8f36d6b",
+   "size": 14002
+  },
+  {
+   "path": "lib/bridge/routes.js",
+   "sha256": "ea464d4c6d065cee68fef10e7b236e778cce92ece5dbe104ca536f09c78d6896",
+   "size": 7782
+  },
+  {
+   "path": "lib/bridge/store.js",
+   "sha256": "e526fd4d3996075eca806e8ec9b6e2116d1735e12479aa4b5a66c49772603486",
+   "size": 16917
+  },
+  {
+   "path": "lib/buy/buybeam.js",
+   "sha256": "be9bb903cbba443549baa6eb1ad7987ed2a3085903f263dea4e4c59724ae1043",
+   "size": 20216
+  },
+  {
+   "path": "lib/buy/controller.js",
+   "sha256": "7c605bc3b50ce6585cf9d3994a99068d3927288368b367170e2d3d33172afa7e",
+   "size": 13344
+  },
+  {
+   "path": "lib/buy/hosts.js",
+   "sha256": "1be836a698ad7c3767c37e96af80ef765f675aacaa003163926368ac3c489bb8",
+   "size": 1238
+  },
+  {
+   "path": "lib/buy/store.js",
+   "sha256": "903bfdf2c624ee590291445cc4ac0bda7ab948a5731c496f1e10fda50e957b60",
+   "size": 12929
+  },
+  {
+   "path": "lib/buy/wiring.js",
+   "sha256": "d77c11ed6a5213a01e50f1cc6aef71088470571c91c7769f7403babc4c367e5a",
+   "size": 3172
+  },
+  {
+   "path": "lib/buy/words.js",
+   "sha256": "c9ec07fc193c8fea75e662bc0325289a771f83d40c058bea9f28ff6c00aa4383",
+   "size": 9014
+  },
+  {
+   "path": "lib/compact.js",
+   "sha256": "c0fbae10758dcb10b9484c06b930ae2b13389d33ea1c9ac976579c010012b32a",
+   "size": 2409
+  },
+  {
+   "path": "lib/contract_tx.js",
+   "sha256": "0401ff0c6383f4b13760b628608db1c88b6183e648b3e2cace8559a910853aad",
+   "size": 5829
+  },
+  {
+   "path": "lib/contracts.js",
+   "sha256": "6b19eda6c48b6af84a48dc16a2a4eb2f113c6f04979b6f9238f4271ea9b53a85",
+   "size": 22780
+  },
+  {
+   "path": "lib/dapps/catalogue.js",
+   "sha256": "187e875384c9c7e1d3bcaa7ff3c270161595b6293829bc2207e2118955b200d2",
+   "size": 5714
+  },
+  {
+   "path": "lib/dapps/frame_policy.js",
+   "sha256": "9fa42d25977f44d4b74c9a7fe865bf08087e6c0127cdaf0c85244629db8fadd2",
+   "size": 4872
+  },
+  {
+   "path": "lib/dapps/gate.js",
+   "sha256": "7153cfa24f162be3e0f90842b37a7531992e0be862a65c9d38876d94656eccec",
+   "size": 4124
+  },
+  {
+   "path": "lib/dapps/invoke_data.js",
+   "sha256": "4870589fa5491d05fc241ef6b240711743860571754b8a18b0a38eb5b5cbab86",
+   "size": 5678
+  },
+  {
+   "path": "lib/dapps/messages.js",
+   "sha256": "9eaab2028ef2e3114c449ef8645b7280c7c873cbb0b9fc4086d0f91817efff53",
+   "size": 2970
+  },
+  {
+   "path": "lib/dapps/package.js",
+   "sha256": "f64ec08c008e3e5a3f71758e902bdb1ae10a7df5c50e2416c843388f04b37ee7",
+   "size": 7564
+  },
+  {
+   "path": "lib/dapps/policy.js",
+   "sha256": "e48625b29af24780ed04702ba1e26d5872c80f9c7177a6fd29a330023236faaf",
+   "size": 4782
+  },
+  {
+   "path": "lib/dapps/rpc.js",
+   "sha256": "d7b04819bdd6282631c3b8ee6176d7ede8c082c3b4936fa1bb3d5703220987f4",
+   "size": 3553
+  },
+  {
+   "path": "lib/dapps/runner.js",
+   "sha256": "3f473cf5168fb8ddee9e7574caff8ecd6a9f10afba28a49222e1bd5c98da4415",
+   "size": 10688
+  },
+  {
+   "path": "lib/dapps/sanitizer.js",
+   "sha256": "c532bbceb2e91f1b7483300bd0dd731c65ec0e85b9b509cd3d575cdcc4c80bea",
+   "size": 9031
+  },
+  {
+   "path": "lib/dapps/session.js",
+   "sha256": "5303c59a90f7c184c8c5a2bc937054b9238eb17dd9d1140fc82cabb285c5da86",
+   "size": 7645
+  },
+  {
+   "path": "lib/dapps/zip.js",
+   "sha256": "621a42c493e9afe82500a77519cf219fcd07697ddc05ecd233256a7dfad3410b",
+   "size": 11013
+  },
+  {
+   "path": "lib/dex.js",
+   "sha256": "2d123ecbb3cfcc04a746559f862b83fc50c5e3e1e28f159a1469f81b80abbe99",
+   "size": 14713
   },
   {
    "path": "lib/dom.js",
@@ -93,24 +318,159 @@
    "size": 5542
   },
   {
+   "path": "lib/eth/abi.js",
+   "sha256": "0ee47cd53147c56e05f06074d8b1334522f822c6d199e8fa5f1884b1c1f1a383",
+   "size": 10845
+  },
+  {
+   "path": "lib/eth/crypto.js",
+   "sha256": "d0360eaa879984cf83f97fe0303cc8431c6696478c9d2c45dd45436372c990e5",
+   "size": 9415
+  },
+  {
+   "path": "lib/eth/hex.js",
+   "sha256": "1e43bd173d691b4afbc73604d79d257dac8cc1fe502ad50484e5052c733334cd",
+   "size": 3870
+  },
+  {
+   "path": "lib/eth/history.js",
+   "sha256": "dcc6f140fe9074840d6550ba45e2ac37cda5e014249f9cf15b1cbc413eca796c",
+   "size": 10522
+  },
+  {
+   "path": "lib/eth/hosts.js",
+   "sha256": "d93520f7c1ee009dbcd66184ece03cb141a58c2c39208254caf6a0892071e9e3",
+   "size": 4617
+  },
+  {
+   "path": "lib/eth/outbox.js",
+   "sha256": "9ba6e905ba68e3db0cbc013908c7e01b15878f3397bdd363aa272c695361b1fb",
+   "size": 3952
+  },
+  {
+   "path": "lib/eth/record.js",
+   "sha256": "50af30973a9c359e411658c15cb7ca191760d724c1ec662807540baf49ea7702",
+   "size": 680
+  },
+  {
+   "path": "lib/eth/rlp.js",
+   "sha256": "43e623ab078d933b8c22d3e03d1aeea24320a508cbf0fef922a97719fb51ef7a",
+   "size": 3888
+  },
+  {
+   "path": "lib/eth/rpc.js",
+   "sha256": "c49691df28e525d935a16ebbaaa5c58d0368ac85f4f8768d31eb8413fa622e6c",
+   "size": 17878
+  },
+  {
+   "path": "lib/eth/sealed.js",
+   "sha256": "a46c27a98af8bd4e92578e750a6e127197980a9e96c6a5d42d7a8582f6921d62",
+   "size": 4666
+  },
+  {
+   "path": "lib/eth/send.js",
+   "sha256": "0503cf82199dcfc051ea439d1e347fdee9c78034deeaa761fb579f1a6d23d2c3",
+   "size": 13826
+  },
+  {
+   "path": "lib/eth/tokens.js",
+   "sha256": "cfb6ae93bec348884d4b830afaa053723ea9aab0afcfe72b523114c8abf02d7e",
+   "size": 1958
+  },
+  {
+   "path": "lib/eth/tx.js",
+   "sha256": "dc7ac4ba0ac3d91d88ad7329b6d9c0513c241646de360d4b746a63c93323b8f2",
+   "size": 10779
+  },
+  {
+   "path": "lib/eth/uniswap/constants.js",
+   "sha256": "76c7f003dbae3ed04e72b7ef9a34131b3f81bb192e1020141dd0d018c882d090",
+   "size": 5401
+  },
+  {
+   "path": "lib/eth/uniswap/discovery.js",
+   "sha256": "bb76815d1bb21f66fafba196f9b3104a37f8eb9e930e999a3a86635c83408e0e",
+   "size": 20381
+  },
+  {
+   "path": "lib/eth/uniswap/known_pools.json",
+   "sha256": "aba6f2670dd82d84269d661a580620b1443b40b8a6e696735cd01a769a70ef45",
+   "size": 56419
+  },
+  {
+   "path": "lib/eth/uniswap/models.js",
+   "sha256": "0f20dbd6c3f0f71c850a7ee1e150369b06cf6bc1a9308730ffcb1f7d4e42cb04",
+   "size": 10544
+  },
+  {
+   "path": "lib/eth/uniswap/permit2.js",
+   "sha256": "c51666a35a5e1dcc2a5fe788d95923e4356e0d0dd8e596c0a2b78aa5346ff2d3",
+   "size": 4770
+  },
+  {
+   "path": "lib/eth/uniswap/planner.js",
+   "sha256": "8c936d4370d1cde60f46851f5e977de63b8ff7ee7719a55c558e58ca360e2013",
+   "size": 9370
+  },
+  {
+   "path": "lib/eth/uniswap/quoter.js",
+   "sha256": "f500b6538f4ece22a17179c649a92973d5f56820dc1146f77601b716af500d92",
+   "size": 23673
+  },
+  {
+   "path": "lib/eth/uniswap/service.js",
+   "sha256": "d619b2e7dc36a7abf2eee73c308d9fc115986da9c50fa0dfce48d08b16973434",
+   "size": 20206
+  },
+  {
+   "path": "lib/eth/uniswap/split.js",
+   "sha256": "870b0255e95140c203dee4b11f60fffd7a54919512e85ed23ab11e05b9f2a48a",
+   "size": 5130
+  },
+  {
+   "path": "lib/eth/uniswap_app.js",
+   "sha256": "3cb886e90ab0a931845c8210b073e42f638778882e780681c11c2a09b7f48319",
+   "size": 4258
+  },
+  {
+   "path": "lib/eth/uniswap_words.js",
+   "sha256": "86bec2d5c7b7b2869e91331569bae1afdd2525902b482fdf05001fa8b18bf02f",
+   "size": 3978
+  },
+  {
+   "path": "lib/eth/units.js",
+   "sha256": "ee3ce5e0b0139bb76357ea59aa2db6f3641dc96232ac9bc5cfc5073e53ac572e",
+   "size": 4013
+  },
+  {
+   "path": "lib/eth/vault.js",
+   "sha256": "77a1a013abfce36a8f569e3d20631c3962a37c66bd1722d9d8e04cf812ca29ce",
+   "size": 10665
+  },
+  {
+   "path": "lib/eth/wallet.js",
+   "sha256": "dc7bb45f39cbf7625c852586471aff875be84faa0c77d82cc8ddc3b7d95f9eb6",
+   "size": 6537
+  },
+  {
    "path": "lib/export.js",
    "sha256": "8ece73124e6ae0f1287535d75a6b73dfb009e22448d3476ba82f1b9c20a90a9f",
    "size": 2600
   },
   {
    "path": "lib/icons.js",
-   "sha256": "766358a4ba065d307cad28c4ee6b54c3aaecabfff79333abc21fdfdeccbe9b6d",
-   "size": 2602
+   "sha256": "fb8376fc4bb877a47b5d6ee1c64c4f4ac1e9946b0090344ba89c9172a06c122f",
+   "size": 3354
   },
   {
    "path": "lib/loader.js",
-   "sha256": "2037b57b95670fc0c700acf04cb07205daa1c6596aa5fede97f89a1c1c77a63c",
-   "size": 4916
+   "sha256": "0979372dbdb014db71bdfa697644c86deca510ac002d3913f21430624ccd3c5f",
+   "size": 5685
   },
   {
    "path": "lib/meta.js",
-   "sha256": "c7a907f3b037c3e387559a7aa95396b0e2ff0f6896b17f47bc30df38a0243718",
-   "size": 2009
+   "sha256": "e0c70ad368d757ee82904b6130536299f19a3ec551d9775cede108a8fe4ca33f",
+   "size": 4052
   },
   {
    "path": "lib/network.js",
@@ -153,6 +513,11 @@
    "size": 6911
   },
   {
+   "path": "lib/shaders.js",
+   "sha256": "bbcc30e7891a4361723c1c15ea485738c374178bb9dec972c8e7133ba98da651",
+   "size": 4205
+  },
+  {
    "path": "lib/storage.js",
    "sha256": "8212d3f6fe50bd5d371af81ee079dea7f7013de7bc39a042e3fcc73640f83d70",
    "size": 860
@@ -169,8 +534,8 @@
   },
   {
    "path": "lib/ui.js",
-   "sha256": "843488e76ca16029155bb3fdf810b86958e13e957e619f3b4e8b1b913990134b",
-   "size": 4175
+   "sha256": "4b1c04fa86c4a77b572e621ea15348b2b0ad2046c0da7bcb831b84fe1c270cc6",
+   "size": 5465
   },
   {
    "path": "lib/update.js",
@@ -179,13 +544,13 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "7e9b7ce1637dd88fe680a6bc133a556f4108a68b40909f520e9c7ebe8d892a6e",
+   "sha256": "2bccc3d7c30e88e8846cca7929576efa1371b3a0e0af61c82795045705e4380e",
    "size": 994
   },
   {
    "path": "lib/wallet.js",
-   "sha256": "a1cf551d88c53d1d88549093a25bdd9f2da9d420414128a4ab136712ab469102",
-   "size": 12730
+   "sha256": "bc193d58a871864bfb79b2148c8ad8cce794745be9a3d3db7d0f4ebea39c73cc",
+   "size": 16030
   },
   {
    "path": "lib/wallet_file.js",
@@ -204,13 +569,53 @@
   },
   {
    "path": "screens/activity.js",
-   "sha256": "754a3488f9a57c7f96e18e27cd4387dbc65a9c574ff1d29e88054d5661416975",
-   "size": 3935
+   "sha256": "ffea52e2da14208f1ba0688ee76ff820c7a3860c9403a3cc795f4d45dbb643d8",
+   "size": 5492
+  },
+  {
+   "path": "screens/airdrop.js",
+   "sha256": "317e6d871a58666228eb4e8d0f8d5d02f6fafb28d1d68ada44f2d77abb4a2ae1",
+   "size": 13819
+  },
+  {
+   "path": "screens/airdrop_batches.js",
+   "sha256": "b0ed6c32663abe9b3e1e618f5e012ee852c3d2643ea28a541294d08c60a714b4",
+   "size": 8472
+  },
+  {
+   "path": "screens/airdrop_codes.js",
+   "sha256": "ae3f34181ba8b7278d70ca729e76e6c12f9c5c0ab96cd778cb4d89b4ab0c7d80",
+   "size": 5166
+  },
+  {
+   "path": "screens/airdrop_create.js",
+   "sha256": "d9f2e2e1a72e67c8ee4a2bee1b66481c9157d280f3463e6c75a6baef244147ce",
+   "size": 9298
   },
   {
    "path": "screens/backup.js",
-   "sha256": "45d71a875797591aaca34bf19e73eeb1805b22132b6966c8e332e3f9d2fbef89",
-   "size": 9185
+   "sha256": "fd70124791d78fd4c11d7e9a23c8521fd76c86522da6fc1f73af5fe922ac666f",
+   "size": 9550
+  },
+  {
+   "path": "screens/buy_beam.js",
+   "sha256": "3304eb6d9f0b0fb5401e13dfaea05988130245099ea09fb7864a62c83c767282",
+   "size": 17597
+  },
+  {
+   "path": "screens/buy_order.js",
+   "sha256": "408b45af02a6de2974798dc519c65723b4d6bd995a211706608acdf09a91b3fc",
+   "size": 10441
+  },
+  {
+   "path": "screens/buy_orders.js",
+   "sha256": "d905ec55202efe2e65a3e48c6a29053e880ce70ce2ae919510599638b93d1ca2",
+   "size": 3297
+  },
+  {
+   "path": "screens/buy_screens.js",
+   "sha256": "adaadb9c39c0e212c8d135eb6aac35c6d342a3539e9f131b5738e2e3a1952ff9",
+   "size": 5515
   },
   {
    "path": "screens/change_password.js",
@@ -219,13 +624,103 @@
   },
   {
    "path": "screens/confirm_words.js",
-   "sha256": "8e15a4d1de14347cf9938458ffdc5edd580793b6381f4421be4db35c7c7ed5bd",
-   "size": 2585
+   "sha256": "746904f2e521aa229d141d9a538590f623f4907adbee4a4c43697c8cddb734d9",
+   "size": 3127
+  },
+  {
+   "path": "screens/consent.js",
+   "sha256": "ab5df549530cafffb6ad3f9ad73759f29ca0fc24354f2d680bc49c43718e432c",
+   "size": 12511
+  },
+  {
+   "path": "screens/dapps.js",
+   "sha256": "ab113bd7cfee704e5eb1e5e551b36d408d6fb5d1eb9b720a05f28a0ce6455aae",
+   "size": 16584
   },
   {
    "path": "screens/delete_wallet.js",
-   "sha256": "ef1c6554c50cd76c61e50a35ca9763532774a09922e2704522b19bbf1cb5945b",
-   "size": 3227
+   "sha256": "5914dafc184bc299254a333784fcdfa109bac3ffd111e6f0220663d3ff76eedd",
+   "size": 3706
+  },
+  {
+   "path": "screens/eth_confirm.js",
+   "sha256": "8ea6d30eebd9384a03d443c7add0a6bf9a88a4a4958f0f8ee862e60d9602fef9",
+   "size": 1648
+  },
+  {
+   "path": "screens/eth_home.js",
+   "sha256": "76312d2c5d6f5b8b26abc21f10a465a596b70f5e6fa4d4f648682caf322c47d8",
+   "size": 7923
+  },
+  {
+   "path": "screens/eth_import.js",
+   "sha256": "e976b7287f70aad74630b9f23f8c5254745aa0493fff2f8b41bf7df33590b29f",
+   "size": 4821
+  },
+  {
+   "path": "screens/eth_privacy.js",
+   "sha256": "cb81e0b13492749533698a2dbf60c9afa216a16c1a8a0ae06a531d8397ff47cf",
+   "size": 5479
+  },
+  {
+   "path": "screens/eth_receive.js",
+   "sha256": "64510f3a9c16f6d6ad7c36756f03030b19e7aad73022f10845a364f35f1dc37c",
+   "size": 2850
+  },
+  {
+   "path": "screens/eth_review.js",
+   "sha256": "fb335fa1f58bb4587156ffe2361539172f939bfc5a7845c575715a63c1c24135",
+   "size": 5016
+  },
+  {
+   "path": "screens/eth_screens.js",
+   "sha256": "45e5367154d44bb37fab6c1e66f405da5c42cbb6421ddff827af8a55cc3e5ac0",
+   "size": 3204
+  },
+  {
+   "path": "screens/eth_send.js",
+   "sha256": "df38456bb5037df4665f709e98a45ad9b935297a20865ad34b0e7651aa2cdcb4",
+   "size": 8787
+  },
+  {
+   "path": "screens/eth_settings.js",
+   "sha256": "ab9590ea0b927f9350b70dc8a1f8781a9f385529a4980ef208bd0eec0c76223c",
+   "size": 6281
+  },
+  {
+   "path": "screens/eth_start.js",
+   "sha256": "ee386efc6e7bcdbff4fad645dcb895d42eb63bba8adb8854204dbfc6ed17dd8a",
+   "size": 2467
+  },
+  {
+   "path": "screens/eth_swap.js",
+   "sha256": "d03d0c26aa9509056c5573f8b030a8c6b9ee2fcd3352d0936b4166aaece595dd",
+   "size": 21519
+  },
+  {
+   "path": "screens/eth_swap_parts.js",
+   "sha256": "739c956f1c5dbb71b6664e1d8f84f3a8486da6490c9bc6eff1bcf466c7ff1b61",
+   "size": 22976
+  },
+  {
+   "path": "screens/eth_swap_tx.js",
+   "sha256": "a23a26a5ae461e2a67c4c5f89a601b265fb6ca9266c160a5ca30eae3a585bab0",
+   "size": 9541
+  },
+  {
+   "path": "screens/eth_tx.js",
+   "sha256": "6046ab6753a7053dfb9152728c10d6bcadb76a0238a5e3e2b34f630df5518227",
+   "size": 7285
+  },
+  {
+   "path": "screens/eth_ui.js",
+   "sha256": "21a62dedf88a37cb90cbf1184d08ff5effee8f0ba4b3edb9212ccfc495b6059d",
+   "size": 7821
+  },
+  {
+   "path": "screens/eth_words.js",
+   "sha256": "dbb0842040cf1eb977682841305798d1bd5e1eea8e794267ced06c614cdecab1",
+   "size": 2080
   },
   {
    "path": "screens/fast_start.js",
@@ -234,8 +729,8 @@
   },
   {
    "path": "screens/home.js",
-   "sha256": "897d22381da83c9f862c178241c2324ef6bd933e29f2c72ee5d8c88f0ae1d584",
-   "size": 8080
+   "sha256": "f182ff6f1c34338c6df86873da086c68d095ffcb9ac3452510b9fc4fcadef7a0",
+   "size": 11821
   },
   {
    "path": "screens/import_wallet.js",
@@ -251,6 +746,11 @@
    "path": "screens/ip_notice.js",
    "sha256": "f77486306c4706411dc0ba9dd3c41bcea0d89ecbc92fcc4fd7f582a0a740fa43",
    "size": 3140
+  },
+  {
+   "path": "screens/names.js",
+   "sha256": "d9ea28d0d065080b79647e1f0f9e12166d1e82ae6c66a76768f2177182b4cbd2",
+   "size": 23064
   },
   {
    "path": "screens/passkey_setup.js",
@@ -274,13 +774,13 @@
   },
   {
    "path": "screens/review.js",
-   "sha256": "c2a27a5032a67d9a8ee1198bbcb7e4df20b91284870b5ecf9c0b5e3b10a84bf4",
-   "size": 4133
+   "sha256": "2bf7d586536ef532faf0e2e6277caa0d832f74c7ed97de8034bd1c61f87377be",
+   "size": 7416
   },
   {
    "path": "screens/send.js",
-   "sha256": "72e5799a2c35c8894e93dede939c91bea4cc7cc3b7a6c1a91efc55a8c286d9c4",
-   "size": 8338
+   "sha256": "95bcb2b666725abce187a86bd08f566847322c84b596cb1b1af034e1e79717c7",
+   "size": 12004
   },
   {
    "path": "screens/set_password.js",
@@ -289,13 +789,18 @@
   },
   {
    "path": "screens/settings.js",
-   "sha256": "24f7f8bb0c6e04115961408dcfe97f05f70a7c2c86140bd6051eba33a1eab47a",
-   "size": 7498
+   "sha256": "21b9853459aadf0aed637734ed6254025c1d6d2800958f6fc9c247814faa3e9f",
+   "size": 7630
+  },
+  {
+   "path": "screens/swap.js",
+   "sha256": "d002f4795eeff380d77d250f117c8ab0898e86dd1ecc25f587fd321579141cf5",
+   "size": 20919
   },
   {
    "path": "screens/tx_status.js",
-   "sha256": "8281399f878e914dc32a0a413467ea19e36bff7a18150a55314a3897b4dae9ae",
-   "size": 4035
+   "sha256": "0a714fa212c315c1be25fa281223ab0c5e0a855405d4dfff14fdc944de06e90b",
+   "size": 7827
   },
   {
    "path": "screens/unlock.js",
@@ -308,9 +813,39 @@
    "size": 3318
   },
   {
-   "path": "sw-1f03190f6a23cc9d.js",
-   "sha256": "1f03190f6a23cc9d71388980fd4ab079b713bffbd9a2f76d66048efa457e7c03",
-   "size": 21585
+   "path": "shaders/airdrop_app.wasm",
+   "sha256": "cddf4a6301f01f2045312f90e977951feaba04d1174744d768dde1c214e55c20",
+   "size": 12821
+  },
+  {
+   "path": "shaders/amm_app.wasm",
+   "sha256": "42d0f6f20237dd4a2e9fbcd912e82110a0602d3e147140fb179c3dc6bdab01ba",
+   "size": 38914
+  },
+  {
+   "path": "shaders/bans_app.wasm",
+   "sha256": "99eb1dfb023d30c338e3c4a4c536b7695b48ca25e27f9ce5f659b6567241736d",
+   "size": 34666
+  },
+  {
+   "path": "shaders/minter_app.wasm",
+   "sha256": "95b37fc5708fbad7b323d52ef32e02c40d572433251d8ab6d1e88c80ba4b0fe1",
+   "size": 7430
+  },
+  {
+   "path": "shaders/pipe_app.wasm",
+   "sha256": "6a2ca541ac14e20cdeb55f432bf3d5ee273547844bc92853f1d1282fa6f9a9c3",
+   "size": 7840
+  },
+  {
+   "path": "shaders/pipe_reverse_app.wasm",
+   "sha256": "6310f8af645dc85e093ab975209a60ca1b71197d92841c78fdac70088341415e",
+   "size": 5876
+  },
+  {
+   "path": "sw-9b5219d4dc2823fb.js",
+   "sha256": "9b5219d4dc2823fbdf60287f898fdd01ed620f73b2478cc9ac334a48fed40667",
+   "size": 28595
   },
   {
    "path": "vendor/engine/wasm-client.js",
@@ -326,6 +861,156 @@
    "path": "vendor/engine/wasm-client.worker.js",
    "sha256": "eff6668e83689221c3515bd0b29bf9db9a1c8067a73213be4abe142f396a4e0e",
    "size": 3758
+  },
+  {
+   "path": "vendor/fake-indexeddb/LICENSE",
+   "sha256": "0c2e77addd3045b932ae0de86b7cf66aa1eeed4248d4dab37e851f9e5499d85e",
+   "size": 10893
+  },
+  {
+   "path": "vendor/fake-indexeddb/fake-indexeddb.js",
+   "sha256": "ef122e3c318d929697d1f13fbf3df93442cb8aafeb286ccd7403443f3383d6c9",
+   "size": 168474
+  },
+  {
+   "path": "vendor/noble/VENDOR.json",
+   "sha256": "d8923265719851df63659328553094cfd49d712c26e78649d81d36c62b95c19e",
+   "size": 9821
+  },
+  {
+   "path": "vendor/noble/noble-curves/LICENSE",
+   "sha256": "4f221aee6e072336700c408c68ab3b96a3fc09f6aebe6f48f1bd99e5ef13faec",
+   "size": 1109
+  },
+  {
+   "path": "vendor/noble/noble-curves/abstract/curve.js",
+   "sha256": "dbaeee3b41ff47efb76b78e14170fe4dda7c7ecdc387c402f16c5118e0bac356",
+   "size": 35711
+  },
+  {
+   "path": "vendor/noble/noble-curves/abstract/der.js",
+   "sha256": "7f80d698611b131368ecf732b8740bb97f72cd42fef77c4b0bb923e2e2d44159",
+   "size": 7401
+  },
+  {
+   "path": "vendor/noble/noble-curves/abstract/fft.js",
+   "sha256": "a4b2ff7ca33f4acc85d61f0e83ec3303c3f6b38ecc19b20d0f6462d820e518cf",
+   "size": 26024
+  },
+  {
+   "path": "vendor/noble/noble-curves/abstract/frost.js",
+   "sha256": "8defa97225915ae6abc53a6b930a43c69941aac07fa08f92eb135cd7dbe7e9d9",
+   "size": 45404
+  },
+  {
+   "path": "vendor/noble/noble-curves/abstract/hash-to-curve.js",
+   "sha256": "e3c97e7d0827b728b14e3311ed11d8e386d8a70d8fc77e0b9fd2a3090f19d955",
+   "size": 26273
+  },
+  {
+   "path": "vendor/noble/noble-curves/abstract/modular.js",
+   "sha256": "9ced3aa10598277a735e54f7b61d88e929d565da884ba5385f9006ebb3b6aab2",
+   "size": 39844
+  },
+  {
+   "path": "vendor/noble/noble-curves/abstract/weierstrass.js",
+   "sha256": "efcdae460bfb8beae5b86883897269c5aad94b2ba78f576d09434709f9215b9e",
+   "size": 53664
+  },
+  {
+   "path": "vendor/noble/noble-curves/secp256k1.js",
+   "sha256": "67bb8e2b9f45b4351350d8f0603f77dd7efb2721ce93e7408bbef8d96e013d3d",
+   "size": 20704
+  },
+  {
+   "path": "vendor/noble/noble-curves/utils.js",
+   "sha256": "6a66bcce57ddabddd68776ea5211be52c226984723c440cd79d795ccecb0f0d1",
+   "size": 23223
+  },
+  {
+   "path": "vendor/noble/noble-hashes/LICENSE",
+   "sha256": "4f221aee6e072336700c408c68ab3b96a3fc09f6aebe6f48f1bd99e5ef13faec",
+   "size": 1109
+  },
+  {
+   "path": "vendor/noble/noble-hashes/_md.js",
+   "sha256": "60cf3010fda89e3e4d3f0e7ff1ce249e9c467f34b4fd41b6fd6101d9f69be763",
+   "size": 9175
+  },
+  {
+   "path": "vendor/noble/noble-hashes/_u64.js",
+   "sha256": "b09da8c07fe8187c07649494cdb7cd0bcf13df90b506a9473d19e4d5f8c2e102",
+   "size": 4794
+  },
+  {
+   "path": "vendor/noble/noble-hashes/hmac.js",
+   "sha256": "fec9f8f3aeda785ea2de91cc4c059d54ef98196261c026c43f48341007ae52c9",
+   "size": 3118
+  },
+  {
+   "path": "vendor/noble/noble-hashes/legacy.js",
+   "sha256": "690553a41af2fdd1e32ff6b534ba8508e95f1861c09c2d62fe762b6b501e09be",
+   "size": 12613
+  },
+  {
+   "path": "vendor/noble/noble-hashes/pbkdf2.js",
+   "sha256": "62b75b5465a89af052a80bdebe7e0383ba01648b12f64877ce285a2e9896c713",
+   "size": 7644
+  },
+  {
+   "path": "vendor/noble/noble-hashes/sha2.js",
+   "sha256": "471746bba6ec4c6238ca41358d1d3b40b6ff31cf3363f0b4d550c649c1a8e83b",
+   "size": 18997
+  },
+  {
+   "path": "vendor/noble/noble-hashes/sha3.js",
+   "sha256": "9a81e1edb24eae27b335533220167609cfb58008c5690e140ce478acdc669f32",
+   "size": 17469
+  },
+  {
+   "path": "vendor/noble/noble-hashes/utils.js",
+   "sha256": "037ad49adb78168b6b699598fd33f85f7877456b1d28b4d032e2a1a16807947c",
+   "size": 26035
+  },
+  {
+   "path": "vendor/noble/noble-hashes/webcrypto.js",
+   "sha256": "83f476a634233b999ce6e6cd67dc03e64f07b8d5a826e67ad4a50c940d9ce7ee",
+   "size": 9633
+  },
+  {
+   "path": "vendor/noble/scure-base/LICENSE",
+   "sha256": "3239e134eb6e6d64538ca76498c7fcb08a395249dd9d4af9927bf6d0169ee429",
+   "size": 1110
+  },
+  {
+   "path": "vendor/noble/scure-base/index.js",
+   "sha256": "4bd334e6606db7216143c7bffbc5c00716d2c137744a0c48b51495fa6d05444a",
+   "size": 49993
+  },
+  {
+   "path": "vendor/noble/scure-bip32/LICENSE",
+   "sha256": "1565efd0ec4580bfaa96c7eeaaa9af3791baa1cc562c3bde62d0a055910b9ec7",
+   "size": 1122
+  },
+  {
+   "path": "vendor/noble/scure-bip32/index.js",
+   "sha256": "326b965144872eb5c8e844bd636f3b4103d80ebb3a8341cbbbec8c01080aaf57",
+   "size": 13214
+  },
+  {
+   "path": "vendor/noble/scure-bip39/LICENSE",
+   "sha256": "1565efd0ec4580bfaa96c7eeaaa9af3791baa1cc562c3bde62d0a055910b9ec7",
+   "size": 1122
+  },
+  {
+   "path": "vendor/noble/scure-bip39/index.js",
+   "sha256": "50e004abe6f5f7c20a32b110c1444b5c103aa029a3de05ea4df95a4ccf60ed83",
+   "size": 12147
+  },
+  {
+   "path": "vendor/noble/scure-bip39/wordlists/english.js",
+   "sha256": "d87a52ebb094d166717691e624aea3a1bcd45dd04e6c7748e8edb7ae10f3c458",
+   "size": 13217
   }
  ]
 }
