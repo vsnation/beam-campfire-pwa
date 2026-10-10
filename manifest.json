@@ -1,11 +1,11 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.2.4",
+ "version": "0.2.5",
  "files": [
   {
    "path": "app.js",
-   "sha256": "bd59c67ba6be6eec320979afa05e9162097175c22f1843cdd13cb673c4a4579d",
-   "size": 13836
+   "sha256": "0e2f1c223fde600c7885ac22abb5d7c3896f91bf78e1a5a951074c4b066aa151",
+   "size": 14572
   },
   {
    "path": "css/app.css",
@@ -324,8 +324,8 @@
   },
   {
    "path": "lib/engine.js",
-   "sha256": "3098c97255c4ef0e2c2eb754be5b7c9a7c794ed2b08bf4603743186ba2506ffb",
-   "size": 22018
+   "sha256": "5217660f9726313b4900b44d0ce342a7833dcb1fc9d17ff081988154689ec2a5",
+   "size": 24642
   },
   {
    "path": "lib/envelope.js",
@@ -594,13 +594,13 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "f0e82040dca779f8373cdb448b0996f17efdd0f863b4d09d1f9bf78928499ee7",
+   "sha256": "88d08a5e12a48fd157f6d7a206ef827a34c1d988f972ff7acfcc3091a23b8be5",
    "size": 1275
   },
   {
    "path": "lib/wallet.js",
-   "sha256": "733b1745b9fd1649e900b898915b22e5290b9296f05eb4395e480f3207e69411",
-   "size": 23410
+   "sha256": "698cd78fdd1986dee3122365f59d9fdbc2943df8bccb1b0e7f42e35ac48c1b6b",
+   "size": 25907
   },
   {
    "path": "lib/wallet_file.js",
@@ -629,8 +629,8 @@
   },
   {
    "path": "screens/activity.js",
-   "sha256": "ffea52e2da14208f1ba0688ee76ff820c7a3860c9403a3cc795f4d45dbb643d8",
-   "size": 5492
+   "sha256": "41470980cc46d8526eaa3c8c46cde31de946859532abf45d35b89580fe36339f",
+   "size": 6105
   },
   {
    "path": "screens/airdrop.js",
@@ -869,13 +869,13 @@
   },
   {
    "path": "screens/problem.js",
-   "sha256": "ba55d7ad691b209151cbc6f97fcbb7d849c0f4f583baf94c5ccb901aeb1e79c8",
-   "size": 3726
+   "sha256": "16700b510349c558ec4a66e487c63458baee193e297bbc00b74e550d99ab1075",
+   "size": 4573
   },
   {
    "path": "screens/receive.js",
-   "sha256": "643db88b75ace10b83c26c53e5b0a62b5f51aadbbd9595ba484e6d274db4aa93",
-   "size": 3383
+   "sha256": "7294f6a47cc2d9bf5d62ebc27c71f7b4859d826d052d84ad6a50ad7660e429a0",
+   "size": 3621
   },
   {
    "path": "screens/restore.js",
@@ -914,8 +914,8 @@
   },
   {
    "path": "screens/unlock.js",
-   "sha256": "24ff0bea136263836a16d41e98d49736d8bc96dec73b0d1cf4f7345d083f46c4",
-   "size": 5419
+   "sha256": "be9c7665bd4eab2db3cea3affd4f9522d0f361d33d50c746ab317f1c9d5edcfd",
+   "size": 5777
   },
   {
    "path": "screens/welcome.js",

@@ -23,8 +23,9 @@ export default function unlock(app, params = {}) {
   }
   const passkey = hasPasskey(app);
   const msg = h('div', { 'aria-live': 'polite' });
-  if (params.reason === 'timeout') put(msg, notice('info', `Locked after ${app.prefs.autoLockMin} minute${app.prefs.autoLockMin === 1 ? '' : 's'} without use.`));
-  else if (params.reason === 'manual') put(msg, notice('info', 'Locked.'));
+  const going = params.keptRunning ? " Your payment keeps going: leave BEAM Campfire open until it's done." : '';
+  if (params.reason === 'timeout') put(msg, h('div', { 'data-testid': 'locked-notice' }, notice('info', `Locked after ${app.prefs.autoLockMin} minute${app.prefs.autoLockMin === 1 ? '' : 's'} without use.${going}`)));
+  else if (params.reason === 'manual') put(msg, h('div', { 'data-testid': 'locked-notice' }, notice('info', `Locked.${going}`)));
   else if (params.updated) put(msg, h('div', { 'data-testid': 'updated-notice' }, notice('success', params.updated)));
   const switched = takeSwitchNote();
   if (switched) put(msg, notice('info', `Unlock to connect through your node, ${switched}.`));
@@ -43,8 +44,11 @@ export default function unlock(app, params = {}) {
     if (!app.record.setupDone) return app.go(app.prefs.ipAck ? 'fastStart' : 'ipNotice', { first: true });
     put(msg, notice('info', 'Opening your wallet…'));
     try {
-      if (wallet.session) await wallet.stop();
-      await wallet.start({ dbPass, node: app.prefs.node, bodyRequests: scanEnabled(app) });
+      // Kept running behind the lock for a payment under way: carry on with it.
+      if (!wallet.unlockedAgain(dbPass)) {
+        if (wallet.session) await wallet.stop();
+        await wallet.start({ dbPass, node: app.prefs.node, bodyRequests: scanEnabled(app) });
+      }
       // Moves through the bridge are followed again from where they were (only when there are any).
       resumeBridgeIfAny(app);
       const next = app.afterUnlock;

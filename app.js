@@ -1,6 +1,6 @@
 // BEAM Campfire - app controller: boot, screen routing, lock and auto-lock.
 import { h, clear } from './lib/dom.js';
-import { engineSupport, loadEngine, nodeGuard, walletFiles } from './lib/engine.js';
+import { engineSupport, loadEngine, nodeGuard, walletFiles, onEngineAbort } from './lib/engine.js';
 import { getPrefs, setPrefs, getWalletRecord } from './lib/store.js';
 import { wallet } from './lib/wallet.js';
 import { updates, takeJustUpdated } from './lib/update.js';
@@ -143,8 +143,12 @@ export const app = {
     if (this.setup) this.setup = null;
     this.nav.clear();
     this.runLockHooks();
-    await wallet.stop();
-    if (wasOpen || this.currentName !== 'unlock') this.go('unlock', { reason });
+    // A payment under way keeps going behind the lock screen (lib/wallet.js): stopping
+    // here would hold it until the next unlock. A move to another node needs the stop.
+    const keptRunning = reason !== 'node' && wallet.paymentUnderWay();
+    if (keptRunning) wallet.keepRunningLocked();
+    else await wallet.stop();
+    if (wasOpen || this.currentName !== 'unlock') this.go('unlock', { reason, keptRunning });
   },
 
   /**
@@ -177,6 +181,18 @@ export const app = {
     return Boolean(this.dbPass) && this.currentName !== 'fastStart' && !wallet.state.importing;
   },
 };
+
+// The engine stopped working in this page (its runtime aborted): say so, with one tap to
+// start a new one, rather than a wallet that reaches no node and sees no payment.
+onEngineAbort((why) => {
+  console.error('[campfire] engine stopped:', why);
+  if (app.intrusion) return;
+  app.dbPass = null;
+  app.setup = null;
+  app.nav.clear();
+  app.runLockHooks();
+  app.go('problem', { kind: 'engine' });
+});
 
 // Every contract request that spends is shown on the approve sheet; without it, all are refused.
 installConsent(app);

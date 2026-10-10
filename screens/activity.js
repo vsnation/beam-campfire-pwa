@@ -3,7 +3,8 @@
  *       Primary CTA: none on the list (tap a payment for details); empty list: "Receive BEAM".
  *       Taps from app open: 1 (tab), 2 for a payment's details.
  * Exit-intent reasons and answers:
- *   - "Is my payment stuck?" -> status in words, and for my own waiting payments a Cancel button.
+ *   - "Is my payment stuck?" -> status in words, and for my own waiting payments a Cancel button;
+ *     an arriving payment says the sender's wallet must be online to finish it.
  *   - "Proof it happened?" -> kernel ID (copyable), fee, both addresses, date.
  *   - "Nothing here" -> says why and offers Receive.
  */
@@ -42,6 +43,12 @@ export default function activity(app, params = {}) {
       const kv = (k, v, opts = {}) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, `${k} copied`), text: v }) : h('span', { class: `v${opts.mono ? ' mono' : ''}`, text: v }));
       const other = t.income ? t.sender : t.receiver;
       const msg = h('div');
+      // An arriving payment: the sender's wallet finishes it (it puts it on the blockchain).
+      const arriving = t.income && (s === 0 || s === 1 || s === 5);
+      if (arriving)
+        put(msg, h('div', { 'data-testid': 'tx-arriving-help' }, notice('info', s === 5
+          ? "BEAM Campfire has accepted it. The sender's wallet now puts it on the blockchain, so it must be online. Paid from another app on this phone? Open that app again."
+          : 'It finishes while both wallets are online: keep BEAM Campfire open.')));
       return [
         h('h2', { 'data-testid': 'tx-detail-title', text: txStatusText(t) }),
         h('div', { class: 'big-amount', text: `${t.income ? '+' : '−'}${formatAmount(BigInt(t.value || 0))} ${unit}` }),

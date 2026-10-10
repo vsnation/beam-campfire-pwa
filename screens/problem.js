@@ -1,5 +1,6 @@
 /* Problem: this browser can't run the wallet / this copy failed its signature check /
- *          the web address now serves code BEAM Campfire did not sign (tripwire)
+ *          the web address now serves code BEAM Campfire did not sign (tripwire) /
+ *          the wallet engine stopped working in this page (engine)
  * Spec: ONE job: say why the wallet can't open here and what to do instead.
  *       Primary CTA: "Try again" (reload) - except after the tripwire, where a reload would run
  *       the unsigned code: there the next step is written out instead (the 12 words or the
@@ -20,6 +21,7 @@ export const TRIPWIRE_TEXT =
 export default function problem(app, p = {}) {
   if (p.kind === 'tripwire') return tripwire(app);
   if (p.kind === 'bypassed') return bypassed();
+  if (p.kind === 'engine') return engineStopped();
   const integrity = p.kind === 'integrity';
   const el = screen(
     { title: integrity ? 'Security check failed' : "This browser can't run BEAM Campfire", actions: [primary('Try again', () => location.reload())] },
@@ -45,6 +47,18 @@ function tripwire(app) {
       h('ul', { class: 'steps-list' }, h('li', { text: 'with your 12 words (Restore), or' }), h('li', { text: 'with your exported wallet.db file and its password (Import wallet.db).' })),
     ),
     h('p', { class: 'small', text: 'Close this app now. Do not reopen it from the same address or enter any password or words in it. This check is a best effort: code that has already taken over can show anything.' }),
+  );
+  return { el };
+}
+
+/* The wallet engine's runtime aborted: no wallet can run in this page any more, and
+ * it would otherwise sit there reaching no node and seeing no payment. A reload starts
+ * a new engine; the wallet on this device is untouched. */
+function engineStopped() {
+  const el = screen(
+    { title: 'The wallet stopped', actions: [primary('Start it again', () => location.reload(), { 'data-testid': 'engine-reload' })] },
+    h('div', { 'data-testid': 'engine-stopped' }, notice('warn', 'The wallet engine in this page stopped working. Your wallet and your coins are safe.')),
+    h('p', { class: 'lead', text: 'Start it again, then unlock with your password. A payment that was under way carries on.' }),
   );
   return { el };
 }

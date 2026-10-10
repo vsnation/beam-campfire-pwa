@@ -4,7 +4,8 @@
  *       Taps from app open: 1 (Home -> Receive).
  * Exit-intent reasons and answers:
  *   - "Why is the payment not arriving?" -> says up front: BEAM regular payments need both
- *     wallets online; keep BEAM Campfire open until it completes.
+ *     wallets online; keep BEAM Campfire open until it completes. Paying from another app on
+ *     the same phone: that app must be opened once more, since the sender finishes the payment.
  *   - "Is this address safe to share?" -> yes, and a new one is one tap away.
  *   - "The address is huge" -> QR code first; copy and share buttons, no manual selection.
  */
@@ -73,7 +74,7 @@ export default function receive(app) {
     { title: 'Receive BEAM', back: () => app.back('home'), actions: [shareBtn, copyBtn, textButton('Make a new address', () => load(true), { 'data-testid': 'new-address' })] },
     qrBox,
     h('div', { class: 'address-box' }, addrText),
-    notice('info', "BEAM payments to this address complete only while both wallets are online. Keep BEAM Campfire open until the payment arrives."),
+    h('div', { 'data-testid': 'receive-online' }, notice('info', 'A BEAM payment finishes only while both wallets are online. Keep BEAM Campfire open until it arrives. Paying from another app on this phone? Send, come back here, then open that app once more.')),
     msg,
   );
   return { el };
