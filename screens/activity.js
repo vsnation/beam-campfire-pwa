@@ -7,6 +7,8 @@
  *     an arriving payment says the sender's wallet must be online to finish it.
  *   - "Proof it happened?" -> kernel ID (copyable), fee, both addresses, date.
  *   - "Nothing here" -> says why and offers Receive.
+ *   - "I need it for my accountant" -> the download button at the top: every payment as a CSV file, as
+ *     BEAM's wallets write it (lib/tx_csv.js). 2 taps: prepare, then save (a share sheet needs a fresh tap).
  */
 import { h, shorten, fmtDate, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
@@ -18,6 +20,10 @@ import { splitDetail } from './coins_ui.js';
 import { isSplitTx } from '../lib/coins.js';
 import { noteRow, paymentExtras } from './payment_extras.js';
 import { loadContacts } from '../lib/contacts.js';
+import { buildCsv, csvFileName, readAllTxs, readProofs, isCsvPayment } from '../lib/tx_csv.js';
+import { exportProof } from '../lib/payments.js';
+import { deliverExport } from '../lib/export.js';
+import { listWallets, nameOf } from '../lib/wallets.js';
 
 export default function activity(app, params = {}) {
   const listBox = h('div');
@@ -91,8 +97,69 @@ export default function activity(app, params = {}) {
   wallet.refreshTxs();
   // Contact names on the rows and in the details (sealed per wallet; read once per unlock).
   loadContacts(app).then(() => render(wallet.state), () => {});
-  const el = screen({ title: 'Activity', tabs: 'activity', app }, listBox);
+  const csvBtn = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Save payment history as a CSV file', 'data-testid': 'activity-csv', onclick: () => csvSheet(app) }, icon('download'));
+  const el = screen({ title: 'Activity', tabs: 'activity', app, right: csvBtn }, listBox);
   return { el, destroy: () => off() };
+}
+
+/** Save the payment history as a CSV file (issue #51): prepare, then a fresh tap hands it out. */
+function csvSheet(app) {
+  openSheet((close) => {
+    const msg = h('div', { 'data-testid': 'csv-msg' });
+    const go = primary('Get my payment history', prepare, { 'data-testid': 'csv-prepare' });
+    let busy = false;
+    async function prepare() {
+      if (busy) return;
+      busy = true;
+      go.disabled = true;
+      try {
+        if (!wallet.session) throw new Error('The wallet is still starting. Try again in a moment.');
+        put(msg, notice('info', 'Reading your payments…'));
+        const txs = await readAllTxs(wallet.session);
+        const n = txs.filter(isCsvPayment).length;
+        if (!n) {
+          put(msg, notice('info', 'No payments to save yet. They show up here once you send or receive BEAM.'));
+          return;
+        }
+        const proofs = await readProofs(wallet.session, txs, exportProof, (d, total) => put(msg, notice('info', `Adding payment proofs: ${d} of ${total}`)));
+        let walletName = null;
+        try {
+          if ((await listWallets()).length > 1) walletName = nameOf(app.record);
+        } catch {
+          /* one wallet */
+        }
+        // A token's unit with its number: anyone can mint a token named BEAM.
+        const text = buildCsv(txs, { unit: (id) => (id === 0 ? 'BEAM' : `${wallet.label(id).unit} #${id}`), proofs });
+        const file = new File([text], csvFileName(new Date(), walletName), { type: 'text/csv' });
+        put(
+          msg,
+          h('p', { class: 'lead', 'data-testid': 'csv-ready', text: `${n === 1 ? '1 payment' : `${n} payments`} in ${file.name}.` }),
+          primary(
+            'Save the file',
+            async () => {
+              const r = await deliverExport(file, { title: 'BEAM payment history' });
+              if (r !== 'cancelled') close();
+            },
+            { 'data-testid': 'csv-save' },
+          ),
+        );
+        go.remove();
+      } catch (e) {
+        put(msg, notice('error', `The file could not be made: ${e.message}`));
+      } finally {
+        busy = false;
+        go.disabled = false;
+      }
+    }
+    return [
+      h('h2', { text: 'Save your payment history' }),
+      h('p', { class: 'lead', text: "Every payment as a CSV file, the way BEAM's wallets write it. It opens in Excel, Numbers or Google Sheets." }),
+      notice('warn', 'It lists amounts, addresses and comments: anyone who has the file can read them. It is made on this device and goes only where you save it.'),
+      msg,
+      go,
+      h('button', { class: 'btn btn-text', type: 'button', onclick: () => close() }, 'Cancel'),
+    ];
+  }, { label: 'Save your payment history' });
 }
 
 /** A swap or other contract call: what left, what arrived, the fee, which app. */

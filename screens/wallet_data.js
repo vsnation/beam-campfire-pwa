@@ -26,7 +26,7 @@ import { confirmIdentity } from '../lib/auth_ui.js';
 import { isImported } from '../lib/session.js';
 import { deliverExport } from '../lib/export.js';
 import { formatFileSize } from '../lib/wallet_file.js';
-import { DATA_TEXT as T, summaryRows, addedText, bookSkippedText, planEmpty } from '../lib/wallet_data.js';
+import { DATA_TEXT as T, summaryRows, addedText, bookSkippedText, unfinishedText, planEmpty } from '../lib/wallet_data.js';
 import { prepareDataExport, previewImport, runImport } from '../lib/wallet_data_io.js';
 
 const INPUT_ID = 'wallet-data-file-input';
@@ -158,10 +158,11 @@ function importSheet(app, file) {
         fileLine,
         rowsCard(p.summary, 'data-summary'),
         empty
-          ? h('div', { 'data-testid': 'data-all-here' }, notice('info', T.allHere))
+          ? h('div', { 'data-testid': 'data-all-here' }, notice('info', p.plan.unfinished ? T.allHere.replace(/^Everything in/, 'Everything else in') : T.allHere))
           : h('p', { 'data-testid': 'data-new', text: `New here: ${addedText(p.plan.counts)}. ${T.nothingChanged}` }),
         p.bookBlocked ? h('p', { class: 'small', text: 'Your address book could not be opened here, so contacts from the file are left out.' }) : null,
         skipped ? h('p', { class: 'small', 'data-testid': 'data-book-skipped', text: skipped }) : null,
+        unfinishedText(p.plan.unfinished) ? h('p', { class: 'small', 'data-testid': 'data-unfinished', text: unfinishedText(p.plan.unfinished) }) : null,
         actions(
           empty
             ? h('button', { class: 'btn btn-primary', onclick: () => close(), 'data-testid': 'data-done' }, 'Done')

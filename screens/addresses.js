@@ -15,7 +15,7 @@ import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, secondary, textButton, notice, openSheet, copyText, toast, focusSoon } from '../lib/ui.js';
 import { wallet, ADDRESS_COMMENT } from '../lib/wallet.js';
-import { splitAddresses, typeLabel, lifetime, shortAddress, canBeCurrent, cleanLabel, busyWith, listOwn, renameAddress, deleteAddress, pickReceiveAddress, ADDRESS_TEXT as T, LABEL_MAX } from '../lib/addresses.js';
+import { splitAddresses, typeLabel, lifetime, shortAddress, canBeCurrent, cleanLabel, busyWith, listOwn, renameAddress, deleteAddress, pickReceiveAddress, ADDRESS_TEXT as T, LABEL_MAX, canExtend, extendAddress, EXTEND_DAYS, fmtDay } from '../lib/addresses.js';
 import { vaultFor } from '../lib/contacts.js';
 
 /** The address Receive shows, as chosen on this screen (null: the newest). */
@@ -98,9 +98,22 @@ export default function addresses(app) {
         textButton('Copy', () => copyText(a.address, 'Address copied'), { 'data-testid': 'address-copy' }),
         textButton('Edit label', () => editLabel(a), { 'data-testid': 'address-rename' }),
         !isCurrent && canBeCurrent(a) ? textButton('Show on Receive', () => makeCurrent(a), { 'data-testid': 'address-make-current' }) : null,
+        canExtend(a) ? textButton(a.expired ? 'Use again' : `Extend ${EXTEND_DAYS} days`, () => extend(a), { 'data-testid': 'address-extend' }) : null,
         textButton('Delete', () => confirmDelete(a), { class: 'btn btn-text danger', 'data-testid': 'address-delete' }),
       ),
     );
+  }
+
+  async function extend(a) {
+    try {
+      await extendAddress(wallet.session, a.address);
+      await wallet.persistNow();
+      const until = fmtDay(Date.now() / 1000 + EXTEND_DAYS * 86400);
+      toast(a.expired ? T.reused(until) : T.extended(until), 4000);
+      load();
+    } catch (e) {
+      toast(`It wasn't extended: ${e.message}. Try again.`, 5000);
+    }
   }
 
   async function makeCurrent(a) {

@@ -1,6 +1,6 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.2.10",
+ "version": "0.2.11",
  "files": [
   {
    "path": "app.js",
@@ -284,13 +284,13 @@
   },
   {
    "path": "lib/addresses.js",
-   "sha256": "36d3573e6a0a815342d4cb0ea3776f13c9a165e489d7e4feb93fb3723b7c5076",
-   "size": 5114
+   "sha256": "0d88169b9ba82fff761aa2307159cca1e16d06fa0414417c2d917f1be77eba0a",
+   "size": 6124
   },
   {
    "path": "lib/airdrop.js",
-   "sha256": "8f7f8e1c720b6b1bfd752e5b72755cda1e2985b7d413bd8d1193d371cfd0f3fe",
-   "size": 34807
+   "sha256": "e9bd432e52704c52c6fa2f2ae6d33022b4fda7adc497fd95b4b2f5cf2d6c52c6",
+   "size": 34834
   },
   {
    "path": "lib/airdrop_csv.js",
@@ -419,8 +419,8 @@
   },
   {
    "path": "lib/contracts.js",
-   "sha256": "ab0b59ff314f6a2b07f45713619d32518853c1c5b798d854c3f793f7b9487e2b",
-   "size": 29632
+   "sha256": "112c8e87d26ee06d476bc4f18d29e7e3949257cf876bda5000680de64244deeb",
+   "size": 30550
   },
   {
    "path": "lib/dapps/catalogue.js",
@@ -754,13 +754,13 @@
   },
   {
    "path": "lib/notify.js",
-   "sha256": "20f4687dfd8ceb540682dfd74390a0541d4912917644c549d79a24ec3a2abf26",
-   "size": 17127
+   "sha256": "27ea9f0d169e783adb268a613582709697f7a2ac5cc839503deef761d0102bc1",
+   "size": 17732
   },
   {
    "path": "lib/notify_rules.js",
-   "sha256": "4f65b6509cfa34c0a0ef6ddf06085e7bf402167883dd6374d70b236e62ce0cdf",
-   "size": 13661
+   "sha256": "a269917775e927fea1953fbfc454e311fcfe164afcf55c417830bbbe89fe4273",
+   "size": 15240
   },
   {
    "path": "lib/own_node.js",
@@ -873,6 +873,11 @@
    "size": 6285
   },
   {
+   "path": "lib/tx_csv.js",
+   "sha256": "6158dd7a03b7a4672807c4a7099fca51fed992978f0c3b6c2ff32304ccd35013",
+   "size": 6832
+  },
+  {
    "path": "lib/ui.js",
    "sha256": "341f50b9118c79ccdc2d55c71da1e3904d2aecbbcddb41bb9ad37a095b521a2a",
    "size": 8493
@@ -894,7 +899,7 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "def8a1c38087ebd083f5ba7ab5c7942305ae2698b12345154ada1dae9fb551b9",
+   "sha256": "29904efb9796b1f1544984a3dc8c8bd2fed704254afdf5843a66f0891158da31",
    "size": 1276
   },
   {
@@ -904,8 +909,8 @@
   },
   {
    "path": "lib/wallet_data.js",
-   "sha256": "a6198528df41a25d3944be9907b87954520573b8da32dfa8cd58fd74a6e3b2fb",
-   "size": 27130
+   "sha256": "57ab67b1a2436bd639935fd8cda3613a499a8ce817cd2ce2860f457ce9600d69",
+   "size": 29330
   },
   {
    "path": "lib/wallet_data_io.js",
@@ -949,8 +954,8 @@
   },
   {
    "path": "screens/activity.js",
-   "sha256": "41c8eadad6d34f91907a557de64c60683c7a68b8f7ab227d21e56f9690e6c86b",
-   "size": 6983
+   "sha256": "8c159fb2a500286508d76f3a3f5d318dda1f911deaeb8ae8c002cb761bf2eb58",
+   "size": 10367
   },
   {
    "path": "screens/add_wallet.js",
@@ -959,8 +964,8 @@
   },
   {
    "path": "screens/addresses.js",
-   "sha256": "2f6bd107bfacdfba16c606126d05e5b2dc35a8b4071d7b691eaefce26f4c3e4e",
-   "size": 8703
+   "sha256": "1dfbdace5674e7a9e447478f0332f109a118e2f3d21eb8c32c0a260b42e44a77",
+   "size": 9275
   },
   {
    "path": "screens/airdrop.js",
@@ -1444,8 +1449,8 @@
   },
   {
    "path": "screens/wallet_data.js",
-   "sha256": "dc7d9fc8f6f6a9a2bbdcc473e869361ae40a5ba620c172495e0eda57d996f588",
-   "size": 11981
+   "sha256": "9d9db627cf11d0c192835c3d33291371ae494cde4961dcf192257d3d60073b76",
+   "size": 12231
   },
   {
    "path": "screens/wallets.js",
@@ -1504,13 +1509,13 @@
   },
   {
    "path": "vendor/engine/wasm-client.js",
-   "sha256": "60bd3c8bcb34a04a1508017b2f4d1d75a739220be542d8ae5f8730a5dfebc982",
+   "sha256": "b3d47b7ce7a18a6400de02f103e2982dd511ce2e5f3815a8e9cd1661d7ab97f0",
    "size": 262725
   },
   {
    "path": "vendor/engine/wasm-client.wasm",
-   "sha256": "84ac5d999f2db59dd98c20adb69567d4b9a62b7ecb4d3448f04cf2de7a1f5163",
-   "size": 5837353
+   "sha256": "a0410ea3ab28486847e48434ba68125c09bf1986acb801daec82fc5a5d3f482b",
+   "size": 5840077
   },
   {
    "path": "vendor/engine/wasm-client.worker.js",
