@@ -4,7 +4,7 @@
 // BEAM / Ethereum switcher both Homes show, with the bridge's way in (⇄).
 import { h } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { notice, screen } from '../lib/ui.js';
+import { notice, screen, canAutofocus } from '../lib/ui.js';
 import { store } from '../lib/store.js';
 import { hasEthWallet } from '../lib/eth/record.js';
 
@@ -37,7 +37,7 @@ function lazyScreen(load) {
         inner = m.default(app, params) || {};
         holder.replaceWith(inner.el || inner);
         const focus = document.querySelector('#app [data-autofocus]');
-        if (focus) focus.focus();
+        if (focus && canAutofocus()) focus.focus();
       })
       .catch((e) => {
         if (dead) return;

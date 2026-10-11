@@ -20,7 +20,7 @@
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, primary, notice } from '../lib/ui.js';
+import { screen, primary, notice, focusSoon } from '../lib/ui.js';
 import { stageImport, checkImportPassword, discardImport } from '../lib/engine.js';
 import { prepareImport, importWallet } from '../lib/session.js';
 import { passkeyAvailable } from '../lib/passkey.js';
@@ -140,7 +140,7 @@ export default function importWalletScreen(app) {
     pw.value = '';
     cta.disabled = true;
     render();
-    setTimeout(() => pw.focus(), 50);
+    focusSoon(pw);
   }
 
   async function submit() {

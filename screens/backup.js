@@ -26,7 +26,7 @@
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, primary, notice, openSheet, toast } from '../lib/ui.js';
+import { screen, primary, notice, openSheet, toast, focusSoon } from '../lib/ui.js';
 import { generatePhrase } from '../lib/engine.js';
 import { isImported, openWithPasswordFor, markExported } from '../lib/session.js';
 import { prepareExport, deliverExport, cloudPlatform, CLOUD_MIN_PASSWORD } from '../lib/export.js';
@@ -257,11 +257,17 @@ function cloudSheet(app) {
       pw2.value = '';
       prepare();
     };
-    pw.onkeydown = (e) => e.key === 'Enter' && who();
-    pw2.onkeydown = (e) => e.key === 'Enter' && chosen();
+    // A block body: an on… property handler that returns false cancels the key, so every letter but
+    // Enter was dropped ("I can't type there, only Paste").
+    pw.onkeydown = (e) => {
+      if (e.key === 'Enter') who();
+    };
+    pw2.onkeydown = (e) => {
+      if (e.key === 'Enter') chosen();
+    };
     const cancel = h('button', { class: 'btn btn-text', onclick: () => close(), 'data-testid': 'cloud-cancel' }, 'Cancel');
     if (step === 'who') {
-      setTimeout(() => pw.focus(), 50);
+      focusSoon(pw);
       return [
         h('h2', { text: t.cta }),
         h('p', { class: 'lead', text: 'Enter your BEAM Campfire password.' }),
@@ -272,7 +278,7 @@ function cloudSheet(app) {
       ];
     }
     if (step === 'choose') {
-      setTimeout(() => pw1.focus(), 50);
+      focusSoon(pw1);
       return [
         h('h2', { text: 'Choose a password for the copy' }),
         h('p', { class: 'lead', 'data-testid': 'cloud-choose-lead', text: `Your BEAM Campfire password is short for a file kept in ${t.place}. Choose one of at least ${CLOUD_MIN_PASSWORD} characters for this copy. You need it to open the copy, so write it down, not in the same account as the copy.` }),
@@ -341,9 +347,12 @@ function exportSheet(app) {
       busy = false;
       rerender();
     };
-    pw.onkeydown = (e) => e.key === 'Enter' && prepare();
+    // A block body: returning false from an on… property handler cancels the key (see cloudSheet).
+    pw.onkeydown = (e) => {
+      if (e.key === 'Enter') prepare();
+    };
     if (!file) {
-      setTimeout(() => pw.focus(), 50);
+      focusSoon(pw);
       return [
         h('h2', { text: 'Export wallet.db' }),
         h('p', { class: 'lead', text: 'Enter your BEAM Campfire password. The exported file will open with it.' }),

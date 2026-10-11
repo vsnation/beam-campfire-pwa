@@ -16,7 +16,7 @@
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, primary, textButton, notice, copyText } from '../lib/ui.js';
+import { screen, primary, textButton, notice, copyText, focusSoon } from '../lib/ui.js';
 import { hasPasskey, openWithPasswordFor, openWithPasskeyFor } from '../lib/session.js';
 import { wallet } from '../lib/wallet.js';
 import { OWNER_KEY_TEXT as T, looksLikeOwnerKey } from '../lib/owner_key.js';
@@ -56,7 +56,7 @@ export default function ownerKey(app, params = {}) {
   const content = el.querySelector('.content');
   const actions = el.querySelector('.actions');
   pw.addEventListener('keydown', (e) => e.key === 'Enter' && show());
-  setTimeout(() => pw.isConnected && pw.focus(), 50);
+  focusSoon(pw);
 
   // Every message is scrolled into view, above the pinned button.
   const say = (n) => {

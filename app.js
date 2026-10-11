@@ -10,7 +10,7 @@ import { swSupported, isControlled, clearReloadFlag, installedButBypassed, watch
 import { refreshPersistence } from './lib/storage.js';
 import { reconcileOwnNode } from './lib/own_node.js';
 import { BUILT, APP_VERSION } from './lib/version.js';
-import { toast } from './lib/ui.js';
+import { toast, canAutofocus } from './lib/ui.js';
 
 import welcome from './screens/welcome.js';
 import backup from './screens/backup.js';
@@ -122,7 +122,7 @@ export const app = {
     root.dataset.screen = name;
     window.scrollTo(0, 0);
     const focus = root.querySelector('[data-autofocus]');
-    if (focus) focus.focus();
+    if (focus && canAutofocus()) focus.focus();
   },
 
   /** Back to the screen the person came from, or to `fallback` when there is none (after a reload or an unlock). */

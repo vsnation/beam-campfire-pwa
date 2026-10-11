@@ -1,11 +1,11 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.2.7",
+ "version": "0.2.8",
  "files": [
   {
    "path": "app.js",
-   "sha256": "0e2f1c223fde600c7885ac22abb5d7c3896f91bf78e1a5a951074c4b066aa151",
-   "size": 14572
+   "sha256": "c28b77a5064ed1b5d713ebe4c6f084ab8c0e0db53869449444b5c18f049eb7a5",
+   "size": 14604
   },
   {
    "path": "css/app.css",
@@ -289,8 +289,8 @@
   },
   {
    "path": "lib/auth_ui.js",
-   "sha256": "328fff2f9d3ffd44a1f9efca054aba5e2f7032e0662b1bb0071c28b1e096668b",
-   "size": 2987
+   "sha256": "08fc9675f3b94fa890216b0c4ceb4f4fda9f6245e25763b27e62a8085664f368",
+   "size": 2979
   },
   {
    "path": "lib/back.js",
@@ -734,8 +734,8 @@
   },
   {
    "path": "lib/ui.js",
-   "sha256": "b0cb7bc51c13ef9adaf67a85d5635b6bc57e2ad59bf901e0ca9949ea1f0a4173",
-   "size": 7599
+   "sha256": "9ef013f3082f674211875aa2e2fb692f8c29d96b4b790817c7340ddf139178eb",
+   "size": 8365
   },
   {
    "path": "lib/update.js",
@@ -749,12 +749,12 @@
   },
   {
    "path": "lib/update_ui.js",
-   "sha256": "235f6fc38020f162699ddfb9ecaf246752bc9d2c14a703f16598cdba096f475a",
-   "size": 8143
+   "sha256": "c1166192f5dac6103953679c9a9a6a622d4bd1bca112bee4d733b0604c191b43",
+   "size": 8135
   },
   {
    "path": "lib/version.js",
-   "sha256": "8f82422aded9f09791f90484ddf7a0cf5add57ed11896c52cb5626e773f8a08e",
+   "sha256": "07e6c25f66dec63abdc6269d380a69244838272c502495fad9f1e21e7853755d",
    "size": 1275
   },
   {
@@ -814,8 +814,8 @@
   },
   {
    "path": "screens/backup.js",
-   "sha256": "1a333b2720cbe072ef7871eff2106e9b5326ab5aee906094cd446d0824f26168",
-   "size": 18517
+   "sha256": "3843ed33483bb8c721e249b9fd09cf3b8c1944571c3ba3c2859bf3b78f302852",
+   "size": 18788
   },
   {
    "path": "screens/bridge_crossing.js",
@@ -929,8 +929,8 @@
   },
   {
    "path": "screens/eth_screens.js",
-   "sha256": "fbd8a630a6905485b06c1be6091cc2b2f84764db1633c7d49c6538654c018252",
-   "size": 5845
+   "sha256": "c899dd6616278fb7c84793bfc57f6db919ea95a623f1d83939d9fdd4eae711a0",
+   "size": 5877
   },
   {
    "path": "screens/eth_send.js",
@@ -989,8 +989,8 @@
   },
   {
    "path": "screens/import_wallet.js",
-   "sha256": "04eb237e37c70b1ff74cbd3ccd3ebbf9bc6fa61dae32ec37a4bee07bcdba6eb1",
-   "size": 9162
+   "sha256": "563f09a362737a6faa9e42a77a3a9e93a89051f1f41c8a1a1ad6229c1377e439",
+   "size": 9154
   },
   {
    "path": "screens/install.js",
@@ -1014,13 +1014,13 @@
   },
   {
    "path": "screens/own_node.js",
-   "sha256": "664f7c726c71c3bda55baf22b62ca24e080fe40133ac91d0b974fc57b517ed47",
-   "size": 6492
+   "sha256": "aaff07f26e0e80137661439a12d6ee4222d236a2191c4a9ada91793e8f7cd4bf",
+   "size": 6484
   },
   {
    "path": "screens/owner_key.js",
-   "sha256": "9bad308e77aa8b18cb3253ebe0d4f773f231ce75963efe91735a3a97c145eabd",
-   "size": 5721
+   "sha256": "2a274936333b5a139fe18cdd5ca586d3781c11e8e45528610f4bf187f3e334a5",
+   "size": 5695
   },
   {
    "path": "screens/passkey_setup.js",
@@ -1074,8 +1074,8 @@
   },
   {
    "path": "screens/unlock.js",
-   "sha256": "c23c962480e681bfb1a152f7bfa7c35bfac7762d22c62e69717b84029ade6882",
-   "size": 5746
+   "sha256": "b41ae98779b6587687b3b758746801b6e5791f170044b0770533e4d5ffd09225",
+   "size": 5738
   },
   {
    "path": "screens/welcome.js",

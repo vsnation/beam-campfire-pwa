@@ -14,7 +14,7 @@
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, primary, notice } from '../lib/ui.js';
+import { screen, primary, notice, focusSoon } from '../lib/ui.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
 import { normalizeNodeAddress, NODE_EXAMPLE } from '../lib/node_address.js';
 import { probeNode, useOwnNode, isOwnNode, canUseOwnNode } from '../lib/own_node.js';
@@ -130,6 +130,6 @@ export default function ownNode(app, params = {}) {
     h('p', { class: 'small', 'data-testid': 'own-node-ip-line' }, icon('shield', 'inline-icon'), ' Your node can see your IP address, like any BEAM node.'),
   );
   if (input.value) check();
-  else if (!blocked) setTimeout(() => input.focus(), 50);
+  else if (!blocked) focusSoon(input);
   return { el };
 }

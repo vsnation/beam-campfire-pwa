@@ -10,7 +10,7 @@
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, primary, textButton, notice } from '../lib/ui.js';
+import { screen, primary, textButton, notice, focusSoon } from '../lib/ui.js';
 import { hasPasskey, openWithPasswordFor, openWithPasskeyFor, scanEnabled } from '../lib/session.js';
 import { wallet } from '../lib/wallet.js';
 import { resumeBridgeIfAny } from './eth_screens.js';
@@ -117,6 +117,6 @@ export default function unlock(app, params = {}) {
     msg,
   );
   el.appendChild(actions);
-  if (!passkey) setTimeout(() => pw.focus(), 50);
+  if (!passkey) focusSoon(pw);
   return { el };
 }
