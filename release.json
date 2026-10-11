@@ -1,9 +1,9 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.2.9",
- "created": "2026-10-11T11:25:25.777Z",
- "manifest_sha256": "41dcbad2379a4bbdbe6faaa09caa31d6cfff26118de2fbe2e3c3f9838f390e9a",
- "file_count": 334,
+ "version": "0.2.10",
+ "created": "2026-10-11T11:54:03.489Z",
+ "manifest_sha256": "849f62ef80abf5ecd7bf020099ca6bc9e538acaf9377281b4b222970cef5e624",
+ "file_count": 336,
  "engine": {
   "wasm-client.js": "60bd3c8bcb34a04a1508017b2f4d1d75a739220be542d8ae5f8730a5dfebc982",
   "wasm-client.wasm": "84ac5d999f2db59dd98c20adb69567d4b9a62b7ecb4d3448f04cf2de7a1f5163",

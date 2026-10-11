@@ -45,8 +45,10 @@
   --safe-right: env(safe-area-inset-right, 0px);
 }
 
+/* Dark: under the device's dark mode unless Settings -> Theme says Light, and always when it says
+   Dark (lib/theme.js). The two blocks are one palette; test/unit/theme.test.mjs keeps them equal. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #1c1d22;
     --surface: #2a2d34;
     --surface-2: #363a43;
@@ -75,6 +77,36 @@
     --shadow: 0 1px 4px 1px rgba(0, 0, 0, 0.25);
   }
 }
+:root[data-theme="dark"] {
+  --bg: #1c1d22;
+  --surface: #2a2d34;
+  --surface-2: #363a43;
+  --text: #f3f3f3;
+  --text-2: #dbdbdb;
+  --muted: #a7a9ad;
+  --subtle: #9e9e9e;
+  --primary: #d63a52;
+  --on-primary: #ffffff;
+  --primary-disabled: #5a3138;
+  --on-primary-disabled: #b9a3a7;
+  --secondary: #4a2a31;
+  --on-secondary: #ffb3be;
+  --border: #3e434c;
+  --success-bg: #1f4d3e;
+  --success: #8ef5c3;
+  --error-bg: #5c1f1f;
+  --error: #ffb4a9;
+  --info-bg: #1e2a4d;
+  --info: #c7d5ff;
+  --warn-bg: #4d3a1a;
+  --warn: #ffe3a8;
+  --green: #4cc0a0;
+  --yellow: #f7d65d;
+  --red: #f37475;
+  --shadow: 0 1px 4px 1px rgba(0, 0, 0, 0.25);
+}
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; height: 100%; }
@@ -457,9 +489,11 @@ body.dapp-open { overflow: hidden; }
 .chain-opt { flex: 1; border: 0; background: none; border-radius: 8px; min-height: 36px; font-weight: 600; font-size: 15px; color: var(--muted); cursor: pointer; }
 .chain-opt.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); cursor: default; }
 @media (prefers-color-scheme: dark) {
-  .chain-switch { background: rgba(0, 0, 0, 0.28); }
-  .chain-opt.on { background: var(--surface-2); }
+  :root:not([data-theme="light"]) .chain-switch { background: rgba(0, 0, 0, 0.28); }
+  :root:not([data-theme="light"]) .chain-opt.on { background: var(--surface-2); }
 }
+:root[data-theme="dark"] .chain-switch { background: rgba(0, 0, 0, 0.28); }
+:root[data-theme="dark"] .chain-opt.on { background: var(--surface-2); }
 .row .main .s.addr { font-feature-settings: 'calt' 0; white-space: normal; }
 .mono.addr-groups { word-break: normal; overflow-wrap: anywhere; }
 .nowrap { white-space: nowrap; }

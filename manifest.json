@@ -1,16 +1,16 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.2.9",
+ "version": "0.2.10",
  "files": [
   {
    "path": "app.js",
-   "sha256": "a66b4826893102c2dfa7f08d28638a8d87f651e3ff9de49aa184f20f298d2232",
-   "size": 17726
+   "sha256": "5e0c70254906759dc042ea6169872440e06e3710c108409c6865016f3f40118c",
+   "size": 17889
   },
   {
    "path": "css/app.css",
-   "sha256": "1d7425bf8caa3350c5dbec9ba7bc3db3220f5cbdee93a6e25eeabe65c8c50556",
-   "size": 60851
+   "sha256": "687a0cec6e1fff42f2d99ac43ea87e4bf7ed2bf297988e804b4cddb56025611e",
+   "size": 62026
   },
   {
    "path": "css/payments.css",
@@ -279,8 +279,8 @@
   },
   {
    "path": "index.html",
-   "sha256": "edde0792b19c04aae4b8b40c08454e93173277d74c9d27b53403b7eb23c5a222",
-   "size": 1591
+   "sha256": "fb94d325d1f4ad879ef8eae9a5a3944e9bb438c7aecc80e89f29b9bee1416305",
+   "size": 1629
   },
   {
    "path": "lib/addresses.js",
@@ -674,8 +674,8 @@
   },
   {
    "path": "lib/icons.js",
-   "sha256": "9bdca630cb15f18f32fb697723eeb18621ece912b9bf59ae017668633cd2dc8f",
-   "size": 4432
+   "sha256": "f98a1c591d309a2a83be05dd17e25b1646e0d323537f1b0545e972f82f08e2c5",
+   "size": 4497
   },
   {
    "path": "lib/intents/hosts.js",
@@ -858,6 +858,11 @@
    "size": 6564
   },
   {
+   "path": "lib/theme.js",
+   "sha256": "d24ff42d8b4aab97f5b9b50d1fee984dcb51a940e79eead5256058cf1641e89d",
+   "size": 2271
+  },
+  {
    "path": "lib/token_market.js",
    "sha256": "cfffdff826ad20e270da74cc8ef464f624f67b6adf4d1aef4ac3dc07eba1db50",
    "size": 3070
@@ -889,8 +894,8 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "af207aa1791fa0253e8babeae191b8de1202d01922ad877797469b76dfb74751",
-   "size": 1275
+   "sha256": "def8a1c38087ebd083f5ba7ab5c7942305ae2698b12345154ada1dae9fb551b9",
+   "size": 1276
   },
   {
    "path": "lib/wallet.js",
@@ -1399,8 +1404,8 @@
   },
   {
    "path": "screens/settings.js",
-   "sha256": "c61af09a3c2fab2f914b0a2f298556e1b1113a01dc998795f4e074a8a91ac8f5",
-   "size": 8347
+   "sha256": "1226c8529e6b2488b0ed7cb7708774c8754ffaf0031b4748710b43d0ff859fc9",
+   "size": 9028
   },
   {
    "path": "screens/split_review.js",
@@ -1491,6 +1496,11 @@
    "path": "sw-6bbd4c175f01375b.js",
    "sha256": "6bbd4c175f01375b24518fa9994c34316cb0aa9ab371a4858db1c4c1711051dc",
    "size": 58512
+  },
+  {
+   "path": "theme-boot.js",
+   "sha256": "68dd5f54dfa172249dd9106ca8db284b22eab7a45bdba24d6cb858d552447bab",
+   "size": 507
   },
   {
    "path": "vendor/engine/wasm-client.js",

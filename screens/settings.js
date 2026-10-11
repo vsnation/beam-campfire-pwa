@@ -31,6 +31,7 @@ import { runUpdateCheck, openOtherAddress } from '../lib/update_ui.js';
 import { tokenSettings } from './token_ui.js';
 import { listWallets, nameOf } from '../lib/wallets.js';
 import { notificationsRow } from './notifications.js';
+import { THEMES, THEME_WORDS, readTheme, setTheme } from '../lib/theme.js';
 
 export default function settings(app) {
   const row = (ico, title, sub, onclick, extra = {}) =>
@@ -42,6 +43,11 @@ export default function settings(app) {
     await app.setPrefs({ autoLockMin: Number(lockSel.value) });
     toast(`Locks after ${lockSel.value} min without use`);
   });
+
+  // Light or dark: like this device, or always one (lib/theme.js). It changes at once.
+  const themeSel = h('select', { class: 'inline', 'aria-label': 'Theme', 'data-testid': 'theme-select' }, ...THEMES.map((t) => h('option', { value: t, text: THEME_WORDS[t] })));
+  themeSel.value = readTheme();
+  themeSel.addEventListener('change', () => setTheme(themeSel.value));
 
   const faceRowBox = h('div');
   (async () => {
@@ -122,6 +128,7 @@ export default function settings(app) {
     h(
       'div',
       { class: 'card list' },
+      h('div', { class: 'row', 'data-testid': 'theme-row' }, h('span', { class: 'ico' }, icon('moon')), h('span', { class: 'main' }, h('div', { class: 't', text: 'Theme' }), h('div', { class: 's', text: 'Light or dark' })), themeSel),
       // Rescan keeps wallet.db and rebuilds only its coins (engine patch 0107), so it suits every
       // wallet, an imported one too: nothing is made from words.
       row('refresh', 'Rescan', 'If your balance looks wrong', () => app.go('fastStart', { rescan: true }), { 'data-testid': 'rescan-row' }),
