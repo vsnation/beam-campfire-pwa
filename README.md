@@ -81,6 +81,14 @@ Upload all files as they are; `_headers` sets the security headers. Static hosts
 BEAM's recovery snapshot, so "Restore with 12 words" asks for the recovery file on such hosts;
 creating a wallet, importing a wallet.db and every installed wallet work as usual.
 
+### BEAM's DApp Store packages (`dapp-store/`)
+
+The DApp Store in the app lists dApps from BEAM's on-chain store. Their packages live on IPFS in BEAM's
+private network, which a browser cannot reach, so this site keeps a copy of each: `dapp-store/<IPFS
+hash>.dapp`. The app installs one only if its bytes hash to exactly the IPFS hash its publisher
+recorded on the chain, so a copy can be missing but never different. Copy this folder too when you
+host your own copy; without it the store still lists every dApp and offers Install from a file.
+
 ### Check that a copy is genuine
 
 Every file is listed with its SHA-256 in `manifest.json`, whose own SHA-256 is in `release.json`,

@@ -16,6 +16,7 @@ import { formatAmount } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
 import { walletStore } from '../lib/wallet_scope.js';
 import { airdropFor, codeVault, normaliseCode, formatCode, isWellFormedCode, CALL_FEE, CODE_LENGTH } from '../lib/airdrop.js';
+import { scanCode } from './scan_sheet.js';
 
 const CHECK_DEBOUNCE_MS = 300;
 
@@ -79,6 +80,7 @@ export default function airdropClaim(app) {
   const input = h('input', { class: 'input code-input', type: 'text', autocomplete: 'off', autocapitalize: 'characters', autocorrect: 'off', spellcheck: 'false', placeholder: 'XXXX-XXXX-XXXX-XXXX', 'aria-label': 'Code', 'data-testid': 'airdrop-code' });
   input.value = draft.code;
   const pasteBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'airdrop-paste' }, icon('paste'), 'Paste');
+  const scanBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'airdrop-scan', 'aria-label': 'Scan a QR code' }, icon('scan'), 'Scan');
   const hint = h('p', { class: 'hint', 'data-testid': 'airdrop-hint' });
   const card = h('div', { 'aria-live': 'polite' });
   const reason = h('p', { class: 'hint center', 'data-testid': 'airdrop-reason', 'aria-live': 'polite' });
@@ -246,6 +248,13 @@ export default function airdropClaim(app) {
   input.addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter') claim();
   });
+  scanBtn.addEventListener('click', async () => {
+    const r = await scanCode();
+    if (!r) return;
+    if (r.paste) return pasteBtn.click();
+    input.value = formatCode(r.code);
+    onInput();
+  });
   pasteBtn.addEventListener('click', async () => {
     try {
       input.value = (await navigator.clipboard.readText()).trim();
@@ -261,7 +270,7 @@ export default function airdropClaim(app) {
   put(
     body,
     h('p', { class: 'lead', text: 'Got a code? Paste it to see what it gives, then claim it into this wallet.' }),
-    h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: 'Code' }), pasteBtn), input),
+    h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: 'Code' }), scanBtn, pasteBtn), input),
     hint,
     card,
     h('div', { class: 'actions inline-actions' }, reason, cta),

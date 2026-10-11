@@ -36,6 +36,8 @@ export { runnerStats };
 
 const FILE_INPUT_ID = 'dapp-file-input';
 const NOT_CHECKED = 'installed from a file, not checked by BEAM Campfire';
+/** Where an installed dApp came from, in a few words. */
+const originText = (rec) => (rec.store ? `from BEAM's DApp Store, published by ${rec.store.publisherName || 'a publisher'} · matches its on-chain hash` : NOT_CHECKED);
 
 const remoteHosts = (e) => e.remoteOrigins.map(hostOf).join(' and ');
 
@@ -121,7 +123,7 @@ export default function dapps(app, params = {}) {
         { class: 'main' },
         h('div', { class: 't', text: rec.name }),
         h('div', { class: 's', text: rec.description }),
-        h('div', { class: 's meta wrap', text: `${versionText(rec.version)} · from a file, not checked by BEAM Campfire` }),
+        h('div', { class: 's meta wrap', 'data-testid': 'dapp-origin', text: `${versionText(rec.version)} · ${rec.store ? `from BEAM's DApp Store, by ${rec.store.publisherName || 'a publisher'}` : 'from a file, not checked by BEAM Campfire'}` }),
       ),
       h('span', { class: 'pill', text: 'Open' }),
     );
@@ -154,6 +156,14 @@ export default function dapps(app, params = {}) {
       available.length
         ? h('div', { class: 'card list dapp-list', 'data-testid': 'dapp-available' }, ...available.map(catalogueRow))
         : h('p', { class: 'small', 'data-testid': 'dapp-available-none', text: "Every one of BEAM's dApps is downloaded. You can still add another one from a .dapp file below." }),
+      h('p', { class: 'section-title', text: 'More dApps' }),
+      h(
+        'button',
+        { class: 'card row dapp-store-entry', type: 'button', onclick: () => app.go('dappStore'), 'data-testid': 'dapp-store-entry' },
+        h('span', { class: 'ico' }, icon('apps')),
+        h('span', { class: 'main' }, h('div', { class: 't', text: "BEAM's DApp Store" }), h('div', { class: 's', text: 'dApps from publishers in the BEAM community' })),
+        h('span', { class: 'chev' }, icon('chevron')),
+      ),
       h(
         'div',
         { class: 'dapp-file-block' },
@@ -456,6 +466,8 @@ export default function dapps(app, params = {}) {
    * BEAM Campfire did not check it).
    */
   function connect(manifest, e) {
+    // From the store: named on approvals by its publisher on the chain (the same app id as from a file).
+    if (e.file && e.rec.store) return openApp({ appName: manifest.name, appUrl: `campfire-pwa:dapp-file/${e.guid}/${manifest.startPath}`, publisher: { key: e.rec.store.publisher, name: e.rec.store.publisherName } });
     if (e.file) return openApp({ appName: manifest.name, appUrl: `campfire-pwa:dapp-file/${e.guid}/${manifest.startPath}`, unchecked: true });
     return openApp({ appName: manifest.name, appUrl: `campfire-pwa:dapp/${e.guid}/${manifest.startPath}` });
   }
@@ -568,7 +580,7 @@ export default function dapps(app, params = {}) {
     const rec = e.rec;
     openSheet((close) => [
       h('div', { class: 'dapp-sheet-head' }, dappIcon(e, 'dapp-icon big'), h('h2', { text: manifest.name })),
-      h('p', { class: 'small', 'data-testid': 'dapp-more-meta', text: `${versionText(rec.version)} · ${publisherText(rec.publisher)} · ${NOT_CHECKED}.` }),
+      h('p', { class: 'small', 'data-testid': 'dapp-more-meta', text: rec.store ? `${versionText(rec.version)} · ${originText(rec)}.` : `${versionText(rec.version)} · ${publisherText(rec.publisher)} · ${NOT_CHECKED}.` }),
       h('p', { class: 'section-title', text: 'Servers it can reach' }),
       e.remoteOrigins.length
         ? h(
@@ -714,7 +726,7 @@ export default function dapps(app, params = {}) {
 
   const el = screen(
     { title: 'dApps', back: () => app.back('home') },
-    h('p', { class: 'lead', text: "BEAM's own dApps, and any you install from a file. Each runs walled off from your wallet: nothing leaves it without your OK." }),
+    h('p', { class: 'lead', text: "BEAM's own dApps, dApps from BEAM's DApp Store, and any you install from a file. Each runs walled off from your wallet: nothing leaves it without your OK." }),
     topNote,
     listBox,
     layer,
@@ -724,6 +736,12 @@ export default function dapps(app, params = {}) {
   if (params.open) {
     const e = CATALOGUE.find((x) => x.guid === params.open);
     if (e) queueMicrotask(() => tapOpen(e));
+    // An installed one (from the store or a file), once the list is read.
+    else
+      installed
+        .get(params.open)
+        .then((rec) => rec && !destroyed && start(fileEntry(rec)))
+        .catch(() => {});
   }
 
   return {

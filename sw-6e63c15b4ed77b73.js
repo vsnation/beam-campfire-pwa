@@ -43,6 +43,11 @@
  * headers (lib/dapps/frame_policy.js, inlined below): a sandboxed, opaque
  * origin with its own CSP. Nothing for that route ever comes from the network.
  *
+ * BEAM's DApp Store packages kept next to the app (dapp-store/<IPFS hash>.dapp, lib/dapps/store_install.js):
+ * fetched from this address when the page asks, and handed over as data only (a download type, nosniff,
+ * a sandbox policy; a navigation to one gets a 404), so a package can never be served as a page of this
+ * app. The page uses one only after it hashed to the IPFS hash its publisher recorded on chain.
+ *
  * Not intercepted (they go to the network, and only when the app asks):
  * release.json/.sig, manifest.json, the loader script, the recovery snapshot,
  * the explorer status and dev-server paths. The BEAM node is a WebSocket,
@@ -692,11 +697,12 @@ const MAX_META_BYTES = 4 * 1024 * 1024; // release.json, release.sig or manifest
 // something only a newer loader does (a message, a route, a header): it is
 // part of LOADER_COMPAT, so such a release then installs only from the own
 // address, where its loader comes along.
-const LOADER_API = 2;
+// 3: the DApp Store's dapp-store/ route (the page's store installs rely on it).
+const LOADER_API = 3;
 // Hash of what this loader does to pages (security headers, MIME types, dApp
 // frame policy, the own-node policy, LOADER_API), filled in by the build; release.json carries the
 // same value for the release's own loader (see loaderCompatible()).
-const LOADER_COMPAT = "4da06086d3edcfe57114cde14650eb766d851a385b62bf758a5ff09ebf822164";
+const LOADER_COMPAT = "eef72746df0435e988467270190d8dd7aee920e1df0c9e03647934a36ce7efd3";
 const LOADER_NAME = self.location.pathname.split('/').pop();
 
 let stateCache = null;
@@ -1001,6 +1007,30 @@ function probeResponse(request, hit) {
 
 const notInRelease = () => new Response('Not part of this BEAM Campfire release.', { status: 404, headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' } });
 
+const STORE_MIRROR = 'dapp-store/';
+const STORE_PACKAGE = /^dapp-store\/Qm[1-9A-HJ-NP-Za-km-z]{44}\.dapp$/;
+const storeHeaders = (length) => ({
+  'Content-Type': 'application/octet-stream',
+  'X-Content-Type-Options': 'nosniff',
+  'Content-Security-Policy': "default-src 'none'; sandbox",
+  'Cross-Origin-Resource-Policy': 'same-origin',
+  'Cache-Control': 'no-store',
+  ...(length ? { 'Content-Length': length } : {}),
+});
+
+/** A DApp Store package from this address, as data only. */
+async function storePackage(request) {
+  if (request.mode === 'navigate') return notInRelease();
+  let r;
+  try {
+    r = await fetch(request.url, { cache: 'no-store', credentials: 'omit', redirect: 'error' });
+  } catch {
+    return new Response(null, { status: 502, headers: storeHeaders() });
+  }
+  if (!r.ok) return new Response(null, { status: r.status === 404 ? 404 : 502, headers: storeHeaders() });
+  return new Response(r.body, { status: 200, headers: storeHeaders(r.headers.get('content-length')) });
+}
+
 /** A dApp frame document: the verified bootstrap under a fresh nonce, with the frame's own headers. */
 async function serveFrame(request, policy) {
   if (request.mode !== 'navigate') return notInRelease();
@@ -1023,6 +1053,10 @@ self.addEventListener('fetch', (event) => {
   if (path.startsWith(FRAME_ROUTE)) {
     const policy = frameRouteFor(path);
     event.respondWith(policy ? serveFrame(req, policy) : Promise.resolve(notInRelease()));
+    return;
+  }
+  if (path.startsWith(STORE_MIRROR)) {
+    event.respondWith(STORE_PACKAGE.test(path) ? storePackage(req) : Promise.resolve(notInRelease()));
     return;
   }
   event.respondWith(serve(req, path));

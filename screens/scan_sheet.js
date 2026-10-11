@@ -1,4 +1,4 @@
-/* Scan a QR code (a sheet over Send and the contact form)
+/* Scan a QR code (a sheet over Home, Send, Ethereum Send, Airdrop codes and the contact form)
  * Spec: ONE job: get an address off someone's screen or paper without typing it.
  *       Primary CTA: none while the camera looks (pointing it is the action); on a camera
  *       problem: "Paste instead".
@@ -14,12 +14,26 @@ import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { openSheet, notice, primary, secondary, textButton } from '../lib/ui.js';
 import { parseScanned, startCameraScan, cameraProblem, cameraSupported, scanImageFile } from '../lib/qr_scan.js';
+import { recognize } from '../lib/scan_recognize.js';
+
+/** Why a code is not what this scanner wants, in words that say where it belongs. */
+function elsewhere(text, wanted) {
+  const r = recognize(text);
+  if (r.kind === 'eth' && wanted !== 'eth') return "That's an Ethereum address. Send to it from your Ethereum wallet, or scan a BEAM address.";
+  if ((r.kind === 'beam' || r.kind === 'name') && wanted === 'eth') return "That's a BEAM address. Send to it from your BEAM wallet, or scan an Ethereum address.";
+  if (r.kind === 'code' && wanted !== 'code') return "That's an airdrop code: claim it under Airdrop codes. Point the camera at an address.";
+  if (r.kind === 'unsupported' && r.reason === 'chain') return "That's a payment on another network, which this wallet doesn't use.";
+  if (r.kind === 'unsupported' && r.reason === 'coin') return "That's an address of another coin, which this wallet doesn't hold.";
+  if (r.kind === 'unsupported' && r.reason === 'link') return "That's a web link. BEAM Campfire doesn't open links from codes.";
+  return null;
+}
 
 /**
- * Opens the scanner. Resolves {address, amount?} (lib/qr_scan.js parseScanned),
- * {paste: true} when the person chose to paste instead, or null.
+ * The scanner sheet. consider(text) -> the value to resolve with, or null to keep looking (with
+ * `wrong(text)` as what to say). Resolves that value, {paste: true} when the person chose to paste
+ * instead, or null.
  */
-export function scanAddress({ title = 'Scan a QR code' } = {}) {
+function scanSheet({ title, idle, consider, wrong }) {
   return new Promise((resolve) => {
     let scanner = null;
     let done = false;
@@ -38,14 +52,14 @@ export function scanAddress({ title = 'Scan a QR code' } = {}) {
       if (scanner) scanner.stop();
       sheet.close(v);
     };
-    // A QR code that is not an address: say so, keep looking.
-    const consider = (text) => {
-      const r = parseScanned(text);
-      if (r) {
-        finish(r);
+    // A code this scanner does not want: say what it is, keep looking.
+    const take = (text) => {
+      const v = consider(text);
+      if (v) {
+        finish(v);
         return true;
       }
-      status.textContent = "That QR code isn't a BEAM address. Point the camera at the receiver's address.";
+      status.textContent = wrong(text);
       status.className = 'small center bad-text';
       return false;
     };
@@ -89,21 +103,76 @@ export function scanAddress({ title = 'Scan a QR code' } = {}) {
           status.textContent = 'No QR code found in that photo. Try a sharper one, closer to the code.';
           return;
         }
-        consider(text);
+        take(text);
       } catch {
-        status.textContent = "That photo couldn't be read. Try another, or paste the address.";
+        status.textContent = "That photo couldn't be read. Try another, or paste instead.";
       }
     });
 
     if (!cameraSupported()) return showProblem({ name: 'unsupported' });
-    startCameraScan(video, { onText: consider })
+    startCameraScan(video, { onText: take })
       .then((s) => {
         if (done) return s.stop();
         scanner = s;
-        status.textContent = 'Point the camera at the QR code of a BEAM address.';
+        status.textContent = idle;
       })
       .catch((e) => {
         if (!done) showProblem(e);
       });
+  });
+}
+
+/**
+ * A BEAM address for Send and the contact form. Resolves {address, amount?} (lib/qr_scan.js
+ * parseScanned), {paste: true}, or null. Another kind of code is named as such; scanning goes on.
+ */
+export function scanAddress({ title = 'Scan a QR code' } = {}) {
+  return scanSheet({
+    title,
+    idle: 'Point the camera at the QR code of a BEAM address.',
+    consider: (text) => {
+      const r = recognize(text);
+      return r.kind === 'beam' || r.kind === 'name' ? parseScanned(text) : null;
+    },
+    wrong: (text) => elsewhere(text, 'beam') || "That QR code isn't a BEAM address. Point the camera at the receiver's address.",
+  });
+}
+
+/** An Ethereum address for Ethereum Send: {kind: 'eth', to, valueWei?, token?}, {paste: true}, or null. */
+export function scanEthAddress({ title = 'Scan an Ethereum address' } = {}) {
+  return scanSheet({
+    title,
+    idle: 'Point the camera at the QR code of an Ethereum address.',
+    consider: (text) => {
+      const r = recognize(text);
+      return r.kind === 'eth' ? r : null;
+    },
+    wrong: (text) => elsewhere(text, 'eth') || "That QR code isn't an Ethereum address.",
+  });
+}
+
+/** An airdrop code: {kind: 'code', code}, {paste: true}, or null. */
+export function scanCode({ title = 'Scan a code' } = {}) {
+  return scanSheet({
+    title,
+    idle: 'Point the camera at the QR code of the airdrop code.',
+    consider: (text) => {
+      const r = recognize(text);
+      return r.kind === 'code' ? r : null;
+    },
+    wrong: (text) => elsewhere(text, 'code') || "That QR code isn't an airdrop code.",
+  });
+}
+
+/** Home's Scan: anything with a meaning (lib/scan_recognize.js), {paste: true}, or null. */
+export function scanAnything({ title = 'Scan a QR code' } = {}) {
+  return scanSheet({
+    title,
+    idle: 'Point the camera at a QR code: a BEAM or Ethereum address, a BEAM name, or an airdrop code.',
+    consider: (text) => {
+      const r = recognize(text);
+      return r.kind === 'empty' ? null : { ...r, text: String(text).trim().slice(0, 2000) };
+    },
+    wrong: () => '',
   });
 }

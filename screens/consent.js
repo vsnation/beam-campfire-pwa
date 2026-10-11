@@ -248,7 +248,11 @@ function showConsent(app, req, bridge, t) {
             native ? h('img', { src: 'img/logo.svg', alt: '' }) : h('span', { class: 'app-dot' }, icon('globe')),
             h('span', { text: native ? 'BEAM Campfire, this wallet' : `${req.appName} asks you to approve` }),
           ),
-          !native && req.unchecked ? h('p', { class: 'tag unchecked', 'data-testid': 'consent-unchecked', text: 'Installed from a file · not checked by BEAM Campfire' }) : null,
+          !native && req.publisher
+            ? h('p', { class: 'tag store', 'data-testid': 'consent-publisher', text: `From BEAM's DApp Store · published by ${req.publisher.name} (${req.publisher.key.slice(0, 8)}…${req.publisher.key.slice(-6)})` })
+            : !native && req.unchecked
+              ? h('p', { class: 'tag unchecked', 'data-testid': 'consent-unchecked', text: 'Installed from a file · not checked by BEAM Campfire' })
+              : null,
           bridge
             ? bridgeCard(req, bridge, t)
             : h(

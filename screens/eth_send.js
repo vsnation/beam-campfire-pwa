@@ -20,6 +20,7 @@ import { ETH, TOKENS } from '../lib/eth/tokens.js';
 import { recipientProblem, prepareSend, SendError, ETH_TRANSFER_GAS } from '../lib/eth/send.js';
 import { amountText, ethText, serverProblem } from './eth_ui.js';
 import { openEthReview } from './eth_review.js';
+import { scanEthAddress } from './scan_sheet.js';
 
 /** What a token transfer usually costs in gas, for the estimate shown before the real one. */
 const TYPICAL_TOKEN_GAS = 65000n;
@@ -33,6 +34,7 @@ export default function ethSend(app) {
   const addr = h('textarea', { class: 'input mono', rows: 2, autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', placeholder: 'Paste the 0x… address', 'aria-label': 'Ethereum address', 'data-testid': 'eth-send-to' });
   addr.value = draft.to;
   const pasteBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'eth-paste-to' }, icon('paste'), 'Paste');
+  const scanBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'eth-scan-to', 'aria-label': 'Scan a QR code' }, icon('scan'), 'Scan');
   const addrHint = h('p', { class: 'hint', 'data-testid': 'eth-to-hint' });
   const assetSel = h('select', { class: 'input', 'aria-label': 'What to send', 'data-testid': 'eth-send-asset' });
   const assetField = h('label', { class: 'field hidden' }, 'What to send', assetSel);
@@ -130,6 +132,23 @@ export default function ethSend(app) {
       addr.focus();
     }
   });
+  scanBtn.addEventListener('click', async () => {
+    const r = await scanEthAddress();
+    if (!r) return;
+    if (r.paste) return pasteBtn.click();
+    addr.value = draft.to = r.to;
+    const t = r.token ? TOKENS.find((x) => x.address === r.token.toLowerCase()) : null;
+    if (t) {
+      draft.symbol = t.symbol;
+      assetSel.value = t.symbol;
+    }
+    if (r.valueWei && !r.token) {
+      draft.symbol = 'ETH';
+      assetSel.value = 'ETH';
+      amount.value = draft.amount = toInputString(BigInt(r.valueWei), 18);
+    }
+    evaluate();
+  });
   amount.addEventListener('input', () => {
     draft.amount = amount.value;
     evaluate();
@@ -172,7 +191,7 @@ export default function ethSend(app) {
       actions: [cta],
     },
     assetField,
-    h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: 'To' }), pasteBtn), addr),
+    h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: 'To' }), scanBtn, pasteBtn), addr),
     addrHint,
     h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: 'Amount' }), unitLabel), h('div', { class: 'input-wrap' }, amount, maxBtn)),
     amountHint,

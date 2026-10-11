@@ -1,16 +1,16 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.2.11",
+ "version": "0.2.12",
  "files": [
   {
    "path": "app.js",
-   "sha256": "5e0c70254906759dc042ea6169872440e06e3710c108409c6865016f3f40118c",
-   "size": 17889
+   "sha256": "c89c8c6a6ef2816043d7f716173621bd21aa3f2f3deaaed4d5eaaa54bcc8f766",
+   "size": 18000
   },
   {
    "path": "css/app.css",
-   "sha256": "687a0cec6e1fff42f2d99ac43ea87e4bf7ed2bf297988e804b4cddb56025611e",
-   "size": 62026
+   "sha256": "efdde0b72c4d9e6c5b308b77aa821eec7d62b260726886f6b6976fc479250123",
+   "size": 63328
   },
   {
    "path": "css/payments.css",
@@ -419,8 +419,8 @@
   },
   {
    "path": "lib/contracts.js",
-   "sha256": "112c8e87d26ee06d476bc4f18d29e7e3949257cf876bda5000680de64244deeb",
-   "size": 30550
+   "sha256": "6e298666316477c1701eddacb8742467334f6fbf9c708eb3ff103adac1822d46",
+   "size": 30991
   },
   {
    "path": "lib/dapps/catalogue.js",
@@ -444,13 +444,18 @@
   },
   {
    "path": "lib/dapps/installed.js",
-   "sha256": "2415aaff2870c8bd7678f58357fa2eeb262fb82c1c6ac432b757fa06b3bad7d6",
-   "size": 6165
+   "sha256": "50ed260a2a1cb07b3f2d9ff49d74b35f4af1fa009538323f8ac99b2568d9f976",
+   "size": 7379
   },
   {
    "path": "lib/dapps/invoke_data.js",
    "sha256": "4e01024a237ca14c9764521186d5ba07777375e4f73cfd2307c708f84eac1f65",
    "size": 6880
+  },
+  {
+   "path": "lib/dapps/ipfs_hash.js",
+   "sha256": "ce6f66c39c1a9a5a88cfef6d2978455ec38594382e312e53fb633e2aae1c8094",
+   "size": 4359
   },
   {
    "path": "lib/dapps/messages.js",
@@ -486,6 +491,16 @@
    "path": "lib/dapps/session.js",
    "sha256": "5303c59a90f7c184c8c5a2bc937054b9238eb17dd9d1140fc82cabb285c5da86",
    "size": 7645
+  },
+  {
+   "path": "lib/dapps/store.js",
+   "sha256": "5679f352dbfe7901516fb705d5c38ec871cdca14a432e9b4bfb958b1aff35718",
+   "size": 14485
+  },
+  {
+   "path": "lib/dapps/store_install.js",
+   "sha256": "bf4a1c0b81694fba0554c4ce20e0e9b0b892527a61db91bfcffd5bd92375b05e",
+   "size": 9935
   },
   {
    "path": "lib/dapps/zip.js",
@@ -828,6 +843,11 @@
    "size": 5260
   },
   {
+   "path": "lib/scan_recognize.js",
+   "sha256": "ab108cdd8125f92fc4109332c8a3f8232c14cd2237397253cefeb8662d6bfbc0",
+   "size": 4939
+  },
+  {
    "path": "lib/selftest.js",
    "sha256": "c2f672e988e67eb33c764a724f64c40b274047ff6ef9b7923ce6611711475e43",
    "size": 19314
@@ -839,8 +859,8 @@
   },
   {
    "path": "lib/shaders.js",
-   "sha256": "a655f662d4e7bb8c5f78aa18ffa1c632e2b197bc3810a57025a66979e03d760d",
-   "size": 4537
+   "sha256": "0a04c24e4c1575b6825e813842563efe96d677add284e084d5967d8b95e408e0",
+   "size": 4984
   },
   {
    "path": "lib/storage.js",
@@ -899,7 +919,7 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "29904efb9796b1f1544984a3dc8c8bd2fed704254afdf5843a66f0891158da31",
+   "sha256": "db4e51a5cdd145c35575fd8e9362b8a12ed0c453b7aa5260989197e88bb31813",
    "size": 1276
   },
   {
@@ -969,8 +989,8 @@
   },
   {
    "path": "screens/airdrop.js",
-   "sha256": "7cbb0e69c77aaab6d3c36f6dbb7d1580a33fcc519220eff8c5fdc1685bce0577",
-   "size": 13942
+   "sha256": "888c52426252db98fb808443f095768417f8408dcb9e1afba854df72849acbac",
+   "size": 14372
   },
   {
    "path": "screens/airdrop_batches.js",
@@ -1084,8 +1104,8 @@
   },
   {
    "path": "screens/consent.js",
-   "sha256": "af48f2c8ef771990e06d4cb4b43840c2375e81fb50760cc12422888e53bfd665",
-   "size": 21531
+   "sha256": "9d3914c27f110f169f480ee5631d7a904d992ee277e1ccc150eaa719b9b45299",
+   "size": 21817
   },
   {
    "path": "screens/contacts.js",
@@ -1093,9 +1113,14 @@
    "size": 13557
   },
   {
+   "path": "screens/dapp_store.js",
+   "sha256": "beb1720d49308527cf49e7320d33f19aa3557a9cb2194fe3163b3bffd1ccb809",
+   "size": 19532
+  },
+  {
    "path": "screens/dapps.js",
-   "sha256": "b38d9e27efa45808bd7e02d478a92765208d33506cb14679cdb33ef5e81c7a7c",
-   "size": 34930
+   "sha256": "d322a39226d18c3636b11fbe40b5ec878f626984fb39091b9ae9562ad3c6fcab",
+   "size": 36427
   },
   {
    "path": "screens/delete_wallet.js",
@@ -1144,8 +1169,8 @@
   },
   {
    "path": "screens/eth_send.js",
-   "sha256": "7ee3b7198d770e578ec51bcbf95dc51768bd566584437324984f0254eec03c87",
-   "size": 8789
+   "sha256": "ba918949f352a739251fe4a40f4a8bb6ad138532bfa47e4924a4582b2fd02970",
+   "size": 9571
   },
   {
    "path": "screens/eth_settings.js",
@@ -1199,8 +1224,8 @@
   },
   {
    "path": "screens/home.js",
-   "sha256": "ae713ce599de3bbfd00561e4eda436ee7b0e80906d95750e8756378d1919297c",
-   "size": 17095
+   "sha256": "ac86a1b0ea61f77a4cc3241474cf1e2f5a16b8e867c5c98570973a84b5d7d8fb",
+   "size": 17486
   },
   {
    "path": "screens/import_wallet.js",
@@ -1388,9 +1413,14 @@
    "size": 8134
   },
   {
+   "path": "screens/scan_go.js",
+   "sha256": "c799b441c049ab66ec56fdb792759be256c8f156258cbeb35a22aaaaf3ce2353",
+   "size": 5327
+  },
+  {
    "path": "screens/scan_sheet.js",
-   "sha256": "a102fe74bb4d7d1280e7375a5e683dfd58df0b212c6fa049beb0b51d13985c8a",
-   "size": 4789
+   "sha256": "5e7534a8613c70bb23368b7cf113a08dd169897396b86a9162f7cbd9924f2cd6",
+   "size": 7883
   },
   {
    "path": "screens/send.js",
@@ -1416,6 +1446,11 @@
    "path": "screens/split_review.js",
    "sha256": "4225799c5b80e7fdcf119cc3cd125d2489975df166524e09afda25012e564490",
    "size": 7735
+  },
+  {
+   "path": "screens/store_screens.js",
+   "sha256": "b0658ab74dc933aaab15586ea5ab5d9864bf4c493c16ae6bb7834997783443af",
+   "size": 1487
   },
   {
    "path": "screens/swap.js",
@@ -1483,6 +1518,11 @@
    "size": 3271
   },
   {
+   "path": "shaders/dapps_store_app.wasm",
+   "sha256": "14d9d11bb0f6f66d290e7fd3d2949599867b3446e1bf3432544d87109476b95b",
+   "size": 9788
+  },
+  {
    "path": "shaders/minter_app.wasm",
    "sha256": "95b37fc5708fbad7b323d52ef32e02c40d572433251d8ab6d1e88c80ba4b0fe1",
    "size": 7430
@@ -1498,9 +1538,9 @@
    "size": 5876
   },
   {
-   "path": "sw-6bbd4c175f01375b.js",
-   "sha256": "6bbd4c175f01375b24518fa9994c34316cb0aa9ab371a4858db1c4c1711051dc",
-   "size": 58512
+   "path": "sw-6e63c15b4ed77b73.js",
+   "sha256": "6e63c15b4ed77b739b2aa4b5b6cfb357f30f46680087d36db19bbe087f8fba4b",
+   "size": 60171
   },
   {
    "path": "theme-boot.js",

@@ -293,7 +293,18 @@ export default function home(app) {
 
   const el = screen(
     // The title is the open wallet's name: a tap opens the switcher (screens/wallets.js).
-    { brand: walletChip(app), tabs: 'home', app, right: h('button', { class: 'icon-btn', 'aria-label': 'Lock', onclick: () => app.lock('manual'), 'data-testid': 'lock' }, icon('lock')) },
+    {
+      brand: walletChip(app),
+      tabs: 'home',
+      app,
+      right: h(
+        'div',
+        { class: 'top-actions' },
+        // Scan: any QR code, recognized, then the screen for it (screens/scan_go.js, loaded on the tap).
+        h('button', { class: 'icon-btn', 'aria-label': 'Scan a QR code', 'data-testid': 'home-scan', onclick: () => import('./scan_go.js').then((m) => m.scanAndGo(app)) }, icon('scan')),
+        h('button', { class: 'icon-btn', 'aria-label': 'Lock', onclick: () => app.lock('manual'), 'data-testid': 'lock' }, icon('lock')),
+      ),
+    },
     chainSwitch(app, 'beam'),
     bannerBox,
     balanceBox,

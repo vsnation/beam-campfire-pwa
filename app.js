@@ -60,6 +60,7 @@ import { MINTER_SCREENS } from './screens/minter_screens.js';
 import { COINS_SCREENS } from './screens/coins_screens.js';
 import { installPaymentNotices } from './screens/payment_notices.js';
 import notifications from './screens/notifications.js';
+import { STORE_SCREENS } from './screens/store_screens.js';
 import { consentLog, contractsState } from './lib/contracts.js';
 import walletsScreen from './screens/wallets.js';
 import addWallet from './screens/add_wallet.js';
@@ -79,11 +80,12 @@ const SCREENS = {
   ...DEX_SCREENS,
   ...MINTER_SCREENS,
   ...COINS_SCREENS,
+  ...STORE_SCREENS,
   wallets: walletsScreen,
   addWallet,
 };
 // Screens that need an unlocked, running wallet.
-const NEEDS_WALLET = new Set(['wallets', 'home', 'send', 'review', 'txStatus', 'receive', 'activity', 'settings', 'nodeSettings', 'ownNode', 'changePassword', 'about', 'ownerKey', 'swap', 'dapps', 'names', 'airdrop', 'airdropCreate', 'airdropBatches', 'airdropCodes', 'contacts', 'addresses', 'checkProof', 'notifications', ...Object.keys(NAME_SCREENS), ...Object.keys(ETH_SCREENS), ...Object.keys(BUY_SCREENS), ...Object.keys(TOKEN_SCREENS), ...Object.keys(DEX_SCREENS), ...Object.keys(MINTER_SCREENS), ...Object.keys(COINS_SCREENS)]);
+const NEEDS_WALLET = new Set(['wallets', 'home', 'send', 'review', 'txStatus', 'receive', 'activity', 'settings', 'nodeSettings', 'ownNode', 'changePassword', 'about', 'ownerKey', 'swap', 'dapps', 'names', 'airdrop', 'airdropCreate', 'airdropBatches', 'airdropCodes', 'contacts', 'addresses', 'checkProof', 'notifications', ...Object.keys(NAME_SCREENS), ...Object.keys(ETH_SCREENS), ...Object.keys(BUY_SCREENS), ...Object.keys(TOKEN_SCREENS), ...Object.keys(DEX_SCREENS), ...Object.keys(MINTER_SCREENS), ...Object.keys(COINS_SCREENS), ...Object.keys(STORE_SCREENS)]);
 
 const root = document.getElementById('app');
 
