@@ -10,6 +10,9 @@
  *     only a trusted app should be approved.
  *   - "Why can't I approve?" -> "Not enough BEAM" with how much is needed and one tap to add it.
  *   - "What if I leave?" -> closing, locking or leaving the screen is a No: nothing is sent.
+ * The wallet's own token features read as themselves: "Pay 60 BEAM and create CFBC" (with what does not
+ *   come back said above the button), "Mint 1,000 CFBC", and a burn: "Burn 5 FOMO forever", its row
+ *   "Destroyed for good" and "Nobody can undo this".
  * A move through BEAM's bridge (the wallet's own request, intent.action 'bridge') reads as one:
  *   "Confirm your move" - what leaves, the bridge fee, the network fee, what arrives on Ethereum and
  *   in which wallet, about an hour, and that it is public on both chains - with the button
@@ -62,12 +65,62 @@ function intentLabel(intent, pay, get) {
       return one(get) && !pay.length ? `Claim ${get[0]}` : null;
     case 'airdropCancel':
       return one(get) && !pay.length ? `Take back ${get[0]}` : null;
+    case 'poolAdd':
+      return pay.length === 2 && get.length === 1 ? `Add ${pay.join(' + ')} to the pool` : null;
+    case 'poolWithdraw':
+      return one(pay) && get.length ? `Withdraw ${get.join(' + ')}` : null;
+    case 'poolCreate':
+      return one(pay) && !get.length ? `Lock ${pay[0]} and create the pool` : null;
+    case 'tokenCreate':
+      return one(pay) && !get.length ? `Pay ${pay[0]} and create ${intent.ticker}` : null;
+    case 'tokenMint':
+      return one(get) && !pay.length ? `Mint ${get[0]}` : null;
+    case 'burn':
+      return one(pay) && !get.length ? `Burn ${pay[0]} forever` : null;
+    case 'nameTransfer':
+      return !pay.length && !get.length ? `Transfer ${intent.name}` : null;
+    case 'nameSell':
+      return !pay.length && !get.length ? `List ${intent.name} for sale` : null;
+    case 'nameUnlist':
+      return !pay.length && !get.length ? `Stop selling ${intent.name}` : null;
+    case 'nameBuy':
+      return one(pay) && !get.length ? `Pay ${pay[0]} and buy ${intent.name}` : null;
+    case 'nameClaim':
+      return !pay.length && get.length ? (one(get) ? `Claim ${get[0]}` : 'Claim all') : null;
     default:
       return null;
   }
 }
 
-const TITLES = { nameRegister: 'Confirm your name', nameRenew: 'Confirm the renewal', namePay: 'Approve this payment', airdropCreate: 'Confirm your codes', airdropClaim: 'Confirm your claim', airdropCancel: 'Take back unclaimed codes' };
+const TITLES = { nameRegister: 'Confirm your name', nameRenew: 'Confirm the renewal', namePay: 'Approve this payment', airdropCreate: 'Confirm your codes', airdropClaim: 'Confirm your claim', airdropCancel: 'Take back unclaimed codes', poolAdd: 'Confirm your deposit', poolWithdraw: 'Confirm your withdrawal', poolCreate: 'Confirm the new pool', tokenCreate: 'Confirm your new token', tokenMint: 'Confirm the mint', burn: 'Burn for good', nameTransfer: 'Confirm the transfer', nameSell: 'Confirm the listing', nameUnlist: 'Stop selling', nameBuy: 'Confirm your purchase', nameClaim: 'Confirm your claim' };
+
+/** What the rows call what leaves and what arrives, for the wallet's own DEX pool moves. */
+const ROW_WORDS = { poolAdd: ['You add', 'You get'], poolWithdraw: ['You return', 'You get back'], poolCreate: ['Deposit (locked)', 'You receive'] };
+
+/**
+ * The wallet's own features may add to the sheet (native requests only; a dApp's
+ * intent is always null): rows [[label, text]] under the fee, a warning, a
+ * statement the person must tick before the approve button works, and notes
+ * (plain lines under the card).
+ */
+export function intentExtras(req) {
+  const i = req && req.native ? req.intent : null;
+  if (!i) return { rows: [], warn: null, ack: null };
+  const text = (v) => (typeof v === 'string' ? v.slice(0, 300) : null);
+  const rows = Array.isArray(i.rows) ? i.rows.filter((r) => Array.isArray(r) && text(r[0]) && text(r[1])).slice(0, 4).map((r) => [text(r[0]), text(r[1])]) : [];
+  const notes = Array.isArray(i.notes) ? i.notes.map(text).filter(Boolean).slice(0, 4) : [];
+  return notes.length ? { rows, warn: text(i.warn), ack: text(i.ack), notes } : { rows, warn: text(i.warn), ack: text(i.ack) };
+}
+
+/** What the wallet's own token features say before approving: where the BEAM goes, and that a burn is forever. */
+function intentNote(intent) {
+  if (!intent) return null;
+  if (intent.action === 'tokenCreate' && intent.issueFee != null && intent.deposit != null) {
+    return notice('warn', h('strong', { text: `${formatAmount(BigInt(intent.issueFee) + BigInt(intent.deposit))} BEAM do not come back. ` }), `${formatAmount(BigInt(intent.issueFee))} BEAM go to the BEAM DAO as the issuance fee and ${formatAmount(BigInt(intent.deposit))} BEAM stay locked with the token, even if you never mint it.`);
+  }
+  if (intent.action === 'burn') return notice('error', h('strong', { text: 'Nobody can undo this. ' }), 'The tokens are locked in a contract that has no way to give anything back.');
+  return null;
+}
 
 /**
  * Which asset is short, measured against this wallet's balances: the words for
@@ -98,6 +151,7 @@ function title(req, bridge) {
   if (req.kind === 'send') return 'Approve this payment';
   if (req.intent && req.intent.action === 'swap') return 'Confirm your swap';
   if (req.intent && TITLES[req.intent.action]) return TITLES[req.intent.action];
+  if (req.native && nameTitle(req.intent)) return nameTitle(req.intent);
   return 'Approve this request';
 }
 
@@ -147,6 +201,9 @@ function showConsent(app, req, bridge, t) {
   for (const id of ids) if (id !== 0 && !wallet.assetNamed.has(id) && wallet.session) wallet.loadAsset(id);
   const unit = (id) => wallet.label(id).unit;
   let busy = false;
+  const extras = intentExtras(req);
+  const words = (req.native && req.intent && ROW_WORDS[req.intent.action]) || null;
+  let acked = !extras.ack;
 
   return new Promise((resolve) => {
     const sheet = openSheet(
@@ -174,7 +231,7 @@ function showConsent(app, req, bridge, t) {
         const notListed = bridge ? [] : [...req.spends, ...req.receives].filter((a) => a.assetId !== 0 && !wallet.label(a.assetId).verified);
 
         const approve = async () => {
-          if (busy) return;
+          if (busy || !acked) return;
           busy = true;
           const ok = await confirmIdentity(app, { title: 'Confirm it is you', detail: label, cta: 'Confirm' });
           busy = false;
@@ -197,15 +254,36 @@ function showConsent(app, req, bridge, t) {
             : h(
                 'div',
                 { class: 'card' },
-                ...req.spends.map((a, i) => row(req.kind === 'send' ? 'You send' : 'You pay', a, `consent-pay-${i}`, '')),
-                ...req.receives.map((a, i) => row(req.intent && req.intent.action === 'swap' ? 'You get' : 'You receive', a, `consent-get-${i}`, '')),
+                ...req.spends.map((a, i) => row(words ? (i ? '' : words[0]) : req.kind === 'send' ? 'You send' : req.intent && req.intent.action === 'burn' ? 'Destroyed for good' : 'You pay', a, `consent-pay-${i}`, '')),
+                ...req.receives.map((a, i) => row(words ? (i ? '' : words[1]) : req.intent && req.intent.action === 'swap' ? 'You get' : 'You receive', a, `consent-get-${i}`, '')),
                 req.address ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'To' }), h('span', { class: 'v mono', text: shorten(req.address, 10, 8) })) : null,
                 req.intent && req.intent.action === 'namePay' ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'To' }), h('span', { class: 'v', 'data-testid': 'consent-to', text: `${req.intent.name}.beam` })) : null,
                 h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Network fee' }), h('span', { class: 'v', 'data-testid': 'consent-fee', text: `${formatAmount(req.fee)} BEAM` })),
                 showTotal ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Total BEAM out' }), h('span', { class: 'v', 'data-testid': 'consent-total', text: `${formatAmount(beamOut)} BEAM` })) : null,
+                ...extras.rows.map(([k, v], i) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), h('span', { class: 'v', 'data-testid': `consent-extra-${i}`, text: v }))),
               ),
+          extras.warn ? h('div', { 'data-testid': 'consent-warn' }, notice('warn', extras.warn)) : null,
+          extras.ack && enough
+            ? h(
+                'label',
+                { class: 'check-row', 'data-testid': 'consent-ack' },
+                h('input', {
+                  type: 'checkbox',
+                  'data-testid': 'consent-ack-box',
+                  checked: acked,
+                  onchange: (e) => {
+                    acked = e.target.checked;
+                    const b = e.target.closest('.consent').querySelector('[data-testid="consent-approve"]');
+                    if (b) b.disabled = !acked;
+                  },
+                }),
+                h('span', { text: extras.ack }),
+              )
+            : null,
           // Said before approving; when it cannot be approved, what is missing comes first.
           bridge && bridge.kind === 'send' && enough ? h('div', { 'data-testid': 'consent-bridge-public' }, notice('info', t.PUBLIC_NOTE)) : null,
+          native && req.intent && intentNote(req.intent) ? h('div', { 'data-testid': 'consent-intent-note' }, intentNote(req.intent)) : null,
+          ...(extras.notes || []).map((t, i) => h('p', { class: 'small', 'data-testid': `consent-note-${i}`, text: t })),
           !native && req.comment ? h('p', { class: 'small', text: `The app describes it as: “${req.comment}”` }) : null,
           notListed.length ? h('p', { class: 'small', 'data-testid': 'consent-unlisted', text: `${notListed.map((a) => `${wallet.label(a.assetId).symbol} is asset #${a.assetId}`).join('; ')}: not on BEAM Campfire's list of known assets. Check the number if the name matters to you.` }) : null,
           !native ? notice('warn', `Only approve if you trust ${req.appName}. Approving lets it move what is listed above.`) : null,
@@ -226,7 +304,7 @@ function showConsent(app, req, bridge, t) {
             'div',
             // A move's sheet is long: its button stays in sight.
             { class: bridge ? 'actions sheet-actions' : 'actions' },
-            enough ? h('button', { class: 'btn btn-primary wrap', 'data-testid': 'consent-approve', onclick: approve }, label) : null,
+            enough ? h('button', { class: 'btn btn-primary wrap', 'data-testid': 'consent-approve', onclick: approve, disabled: !acked }, label) : null,
             // The wallet's own swap: the way out of "not enough" is one tap away. (A dApp stays open; its text says where.)
             !enough && native
               ? h(

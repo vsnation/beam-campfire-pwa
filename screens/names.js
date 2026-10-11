@@ -1,13 +1,19 @@
 /* BEAM names
  * Spec: ONE job: get a short name people can pay instead of a long address, and keep it.
- *       Primary CTA: "Register alice for 1 year" (the approve sheet that follows shows the exact BEAM).
+ *       Primary CTA: "Register alice for 1 year" ("Buy alice for 500 BEAM" when its owner sells it);
+ *       the approve sheet that follows shows the exact BEAM.
  *       Taps from app open: 1 (Home -> BEAM names), type a name, 2 ("Register ..."), then approve.
+ *       A name of mine: 2 (its row), where Renew, Transfer and Sell are.
  * Exit-intent reasons and answers:
  *   - "What does a name cost?" -> the dollar prices by length are on screen before typing; the BEAM
  *     amount appears with the result, and the approve sheet shows it exactly.
  *   - "Is it free?" -> checked on the wallet's own node 0.4 s after typing stops, with when a taken
- *     name could become free.
- *   - "Am I about to lose my name?" -> My names shows each expiry, a warning once it lapsed, and Renew.
+ *     name could become free; a name its owner sells shows its price and Buy.
+ *   - "Am I about to lose my name?" -> My names shows each expiry, a warning 30 days before and once it
+ *     lapsed, with Renew one tap away.
+ *   - "Someone paid my name (or bought it): where is the money?" -> a card at the top with what waits
+ *     and Claim; when this version cannot see it, that is said plainly with what can be checked.
+ *   - "How do I get a name someone gives me?" -> "Receive a name from another wallet" shows the key.
  *   - "Why is the button grey?" -> the reason is written right above it.
  */
 import { h, put } from '../lib/dom.js';
@@ -19,6 +25,12 @@ import {
   bansFor, tryName, normaliseName, nameProblem, describeNameProblem, usdPerPeriod, priceEstimate, STATUS, canRegister, holdEndHeight, dateOf, display,
   maxExtendPeriods, expiryAfterRegister, expiryAfterExtend, NAME_CALL_FEE, NAME_MAX, MAX_PERIODS,
 } from '../lib/bans.js';
+import { isEmpty, VISIBILITY, amountsText, balanceChange } from '../lib/bans_inbox.js';
+import { nameInbox, runClaim, setNamesHint } from './names_claim.js';
+import { statusWords, pendingWords, pendingDone, priceText, needsRenewal, daysBetween, inDays } from './name_parts.js';
+import { rememberNames } from '../lib/notify.js';
+
+const PENDING_FORGET_MS = 30 * 60000;
 
 const LOOKUP_DEBOUNCE_MS = 400;
 
@@ -39,7 +51,7 @@ export function nameProblemText(e, what) {
   if (code === 'rejected') return 'Cancelled. Nothing was sent.';
   if (code === 'timeout') return 'The wallet did not answer in time. Check Activity before trying again.';
   if (code === 'load' || code === 'mismatch') return e.message;
-  if (code === 'refused' || code === 'unexpected' || code === 'priceMoved' || code === 'ownerChanged' || code === 'invalidName' || code === 'notMine') return e.message;
+  if (code === 'refused' || code === 'unexpected' || code === 'priceMoved' || code === 'ownerChanged' || code === 'invalidName' || code === 'notMine' || code === 'invalidKey' || code === 'claimUnsupported') return e.message;
   const m = String((e && e.message) || e || 'unknown error');
   return `The ${what} was not sent: ${m}${/\.$/.test(m) ? '' : '.'} Nothing left your wallet.`;
 }
@@ -75,6 +87,10 @@ export default function names(app) {
   let seq = 0;
   let timer = null;
   let alive = true;
+  const inbox = nameInbox();
+  let claiming = false;
+  let claimMsg = null; // { ok, code, text }
+  const moneyBox = h('div', { 'aria-live': 'polite' });
 
   const input = h('input', { class: 'input name-input', type: 'text', autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', maxlength: String(NAME_MAX + 5), placeholder: 'alice', 'aria-label': 'Name', 'data-testid': 'names-input' });
   input.value = draft.text;
@@ -83,8 +99,8 @@ export default function names(app) {
   const quoteBox = h('div');
   const notes = h('div', { class: 'swap-notes' });
   const reason = h('p', { class: 'hint center', 'data-testid': 'names-reason', 'aria-live': 'polite' });
-  const cta = primary('Register a name', register, { disabled: true, 'data-testid': 'names-cta' });
-  const mineBox = h('div');
+  const cta = primary('Register a name', () => primaryAction(), { disabled: true, 'data-testid': 'names-cta' });
+  const mineBox = h('div', { class: 'names-mine-box' });
   const lead = h('p', { class: 'lead', text: 'A name lets people pay you as alice.beam instead of a long address.' });
 
   const name = () => tryName(input.value);
@@ -104,6 +120,17 @@ export default function names(app) {
     const res = lookup.res;
     if (!canRegister(res.status)) {
       if (res.ownerKey && mine.key && res.ownerKey === mine.key) return { off: `${display(n)} is already yours. Renew it under My names.` };
+      const price = forSale(res);
+      if (price) {
+        const label = `Buy ${n} for ${priceText(price)}`;
+        if (preparing) return { off: 'Building the purchase…', label };
+        if (!wallet.state.sync.canSend) return { off: `Buying is paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.`, label };
+        const need = price.assetId === 0 ? price.amount + NAME_CALL_FEE : price.amount;
+        const have = wallet.available(price.assetId);
+        if (have < need) return { off: `Not enough ${wallet.label(price.assetId).unit}. ${display(n)} costs ${priceText(price)}${price.assetId === 0 ? ', plus the 0.011 BEAM network fee' : ''}. You have ${formatAmount(have)} ${wallet.label(price.assetId).unit}.`, receive: true, label };
+        if (price.assetId !== 0 && wallet.available(0) < NAME_CALL_FEE) return { off: `You need ${formatAmount(NAME_CALL_FEE)} BEAM for the network fee. You have ${formatAmount(wallet.available(0))} BEAM.`, receive: true, label };
+        return { off: null, buy: price, label };
+      }
       return { off: `${display(n)} is taken. Try another name.` };
     }
     if (!wallet.state.sync.canSend) return { off: `Registering is paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.` };
@@ -114,6 +141,14 @@ export default function names(app) {
     const have = wallet.available(0);
     if (have < need) return { off: `Not enough BEAM. ${display(n)} costs about ${beamAbout(midpoint(e) + NAME_CALL_FEE)} BEAM for ${years(draft.years)}, network fee included. You have ${formatAmount(have)} BEAM.`, receive: true };
     return { off: null };
+  }
+
+  /** The price of a name someone else sells (still theirs, not long expired), or null. */
+  function forSale(res) {
+    const d = res && res.domain;
+    if (!d || !d.salePrice || res.status === STATUS.availableAgain) return null;
+    if (mine.key && res.ownerKey === mine.key) return null;
+    return d.salePrice;
   }
 
   function resultCard() {
@@ -142,6 +177,19 @@ export default function names(app) {
         res.inSync ? null : h('p', { class: 'small', text: 'Your wallet was still catching up when this was checked, so it may be out of date.' }),
       );
     const isMine = res.ownerKey && mine.key && res.ownerKey === mine.key;
+    const price = forSale(res);
+    if (price) {
+      return h(
+        'div',
+        { class: 'card name-result good', 'data-testid': 'names-result', 'data-state': 'forSale' },
+        h('div', { class: 'name-line' }, icon('swap', 'name-ico'), h('strong', { 'data-testid': 'names-result-title', text: `${display(n)} is for sale: ${priceText(price)}` })),
+        h(
+          'p',
+          { class: 'small', 'data-testid': 'names-sale-detail', text: res.status === STATUS.onHold ? `Its registration lapsed. Buying does not renew it: renew it by ${day(dateOf(holdEndHeight(res.domain.expireHeight), clock))} or anyone can take it.` : `Buying it gives you the time left on it, until ${day(dateOf(res.domain.expireHeight, clock))}. It does not renew it.` },
+        ),
+        res.inSync ? null : h('p', { class: 'small', text: 'Your wallet was still catching up when this was checked, so it may be out of date.' }),
+      );
+    }
     switch (res.status) {
       case STATUS.available:
         return card('available', `${display(n)} is available`, null, true);
@@ -152,11 +200,15 @@ export default function names(app) {
           ? card('mine', `${display(n)} is yours, but it expired`, `Renew it by ${day(dateOf(holdEndHeight(res.domain.expireHeight), clock))} under My names, or anyone can take it.`, false)
           : card('taken', `${display(n)} is taken`, `Its registration lapsed, but its owner can still renew it until ${day(dateOf(holdEndHeight(res.domain.expireHeight), clock))}. After that anyone can register it.`, false);
       default:
-        if (isMine) return card('mine', `${display(n)} is already yours`, `Registered until ${day(dateOf(res.domain.expireHeight, clock))}.`, false);
+        if (isMine) {
+          const c = card('mine', `${display(n)} is already yours`, `Registered until ${day(dateOf(res.domain.expireHeight, clock))}.`, false);
+          c.appendChild(h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'names-manage', onclick: () => app.go('nameDetail', { name: n }) }, `Manage ${n}`));
+          return c;
+        }
         return card(
           'taken',
           `${display(n)} is taken`,
-          `Registered until ${day(dateOf(res.domain.expireHeight, clock))}. If it is not renewed, anyone can register it after ${day(dateOf(holdEndHeight(res.domain.expireHeight), clock))}.${res.status === STATUS.forSale ? ' Its owner has listed it for sale; buying names is not in BEAM Campfire yet.' : ''}`,
+          `Registered until ${day(dateOf(res.domain.expireHeight, clock))}. If it is not renewed, anyone can register it after ${day(dateOf(holdEndHeight(res.domain.expireHeight), clock))}.`,
           false,
         );
     }
@@ -218,45 +270,195 @@ export default function names(app) {
     }
     put(notes, ...sheetNotes);
     cta.disabled = Boolean(st.off);
-    cta.textContent = n && lookup.name === n && lookup.state === 'done' && canRegister(lookup.res.status) ? `Register ${n} for ${years(draft.years)}` : 'Register a name';
+    cta.textContent = st.label || (n && lookup.name === n && lookup.state === 'done' && canRegister(lookup.res.status) ? `Register ${n} for ${years(draft.years)}` : 'Register a name');
     put(reason, st.off || '', st.receive ? ' ' : null, st.receive ? h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'names-receive', onclick: () => app.go('receive') }, 'Receive BEAM') : null);
     reason.classList.toggle('hidden', !st.off);
     renderMine();
+    renderMoney();
+  }
+
+  // ------------------------------------------------------------ money waiting for my names
+  function renderMoney() {
+    if (!alive) return;
+    const s = inbox.latest;
+    const fmt = (g) => formatAmount(g);
+    const unit = (id) => wallet.label(id).unit;
+    const msg = claimMsg ? h('div', { 'data-testid': 'names-claim-msg', 'data-code': claimMsg.code }, notice(claimMsg.ok ? 'success' : claimMsg.calm || claimMsg.code === 'nothing' ? 'info' : 'error', claimMsg.text)) : null;
+    if (inbox.claiming) {
+      const r = inbox.claiming.receives;
+      return put(moneyBox, msg || notice('info', `Claim on its way: ${[...r.keys()].map((id) => `+${fmt(r.get(id))} ${unit(id)}`).join(', ')}. It shows in your balance once confirmed.`));
+    }
+    if (s && s.visibility === VISIBILITY.unsupported) {
+      return put(
+        moneyBox,
+        h(
+          'div',
+          { 'data-testid': 'names-claim-unsupported' },
+          notice(
+            'info',
+            h('strong', { text: "This version can't see payments to your names yet. " }),
+            'They are safe in the BEAM vault. Money from a name you sold can be claimed now. ',
+            h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'names-check-sale', disabled: claiming, onclick: checkSale }, claiming ? 'Checking…' : 'Check for money from a sale'),
+          ),
+        ),
+        msg,
+      );
+    }
+    if (!s || isEmpty(s)) return put(moneyBox, msg);
+    const amounts = amountsText(s.totals, fmt, unit);
+    const title = s.paymentCount && s.saleCount ? `${amounts} is waiting for your names` : s.paymentCount ? `People paid your names: ${amounts} is waiting` : `You sold a name: ${amounts} is waiting for you`;
+    const detail = s.names.length ? `Sent to ${s.names.map(display).join(', ')}. Claim it to move it into your balance.` : 'Claim it to move it into your balance.';
+    const one = s.totals.size === 1 ? `Claim ${amounts}` : 'Claim all';
+    put(
+      moneyBox,
+      h(
+        'div',
+        { class: 'card names-money', 'data-testid': 'names-money' },
+        h('div', { class: 'name-line' }, icon('gift', 'name-ico'), h('strong', { 'data-testid': 'names-money-title', text: title })),
+        h('p', { class: 'small', text: detail }),
+        h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'names-claim', disabled: claiming, onclick: claim }, claiming ? 'Preparing…' : one),
+      ),
+      msg,
+    );
+  }
+
+  async function claim() {
+    if (claiming) return;
+    claiming = true;
+    claimMsg = null;
+    renderMoney();
+    const r = await runClaim(app, inbox);
+    claiming = false;
+    if (!alive) return;
+    claimMsg = r;
+    renderMoney();
+  }
+
+  /** Where the inbox cannot be read: building a claim of sale proceeds shows whether anything waits. */
+  async function checkSale() {
+    if (claiming) return;
+    claiming = true;
+    claimMsg = null;
+    renderMoney();
+    const assets = [...new Set([0, ...mine.list.filter((d) => d.salePrice).map((d) => d.salePrice.assetId)])];
+    let done = { ok: false, code: 'nothing', text: 'Nothing from a name sale is waiting for this wallet.' };
+    for (const aid of assets) {
+      try {
+        await bans().claimSaleProceeds(aid, {
+          words: (b) => ({
+            rows: [['From', 'A name you sold'], ['Your balance changes by', balanceChange(b.receives, b.fee, (g) => formatAmount(g), (id) => wallet.label(id).unit)]],
+            notes: [aid === 0 ? 'Pays its own fee: it comes out of the BEAM you are claiming.' : "The fee is paid from this wallet's BEAM."],
+          }),
+        });
+        done = { ok: true, code: 'sent', text: 'Claim sent. It shows in your balance once the network confirms it, usually within a few minutes.' };
+        wallet.refreshTxs();
+        break;
+      } catch (e) {
+        if (e && (e.refusal === 'noFunds' || e.refusal === 'nothingToClaim')) continue;
+        done = { ok: false, code: (e && e.code) || 'error', text: e && e.code === 'rejected' ? 'Cancelled. Nothing was claimed; it is still waiting for you.' : nameProblemText(e, 'claim') };
+        break;
+      }
+    }
+    claiming = false;
+    if (!alive) return;
+    claimMsg = done;
+    renderMoney();
+  }
+
+  async function loadInbox() {
+    await inbox.refresh({ force: true });
+    const s = inbox.latest;
+    if (s && s.visibility === VISIBILITY.visible) setNamesHint(app, s.owns || !isEmpty(s) || mine.list.length > 0);
+    if (alive) renderMoney();
   }
 
   function renderMine() {
     const tip = mine.tip;
+    // When each name expires, for the reminders 7 days and 1 day before (lib/notify.js).
+    if (tip) rememberNames(mine.list.map((d) => ({ name: d.name, expiresAt: dateOf(d.expireHeight, tip) })));
     const rows = [];
     for (const [pn, p] of pending) {
-      if (mine.list.some((d) => d.name === pn && (p.kind === 'register' || d.expireHeight > p.expireBefore))) continue;
-      rows.push(h('div', { class: 'row asset-row', 'data-testid': 'names-pending' }, h('span', { class: 'ico' }, icon('clock')), h('span', { class: 'main' }, h('div', { class: 't', text: display(pn) }), h('div', { class: 's', text: p.kind === 'register' ? 'Registering: shows here once confirmed, usually within 2 minutes' : 'Renewing: the new date shows once confirmed' }))));
+      if (Date.now() - p.at > PENDING_FORGET_MS) continue;
+      if (mine.list.some((d) => d.name === pn)) continue; // shown on its own row below
+      if (p.kind !== 'register' && p.kind !== 'buy') continue;
+      rows.push(h('div', { class: 'row asset-row', 'data-testid': 'names-pending' }, h('span', { class: 'ico' }, icon('clock')), h('span', { class: 'main' }, h('div', { class: 't', text: display(pn) }), h('div', { class: 's', text: pendingWords(p) }))));
     }
     for (const d of mine.list) {
       const lapsed = d.status === STATUS.onHold;
       const gone = d.status === STATUS.availableAgain;
-      const sub = !tip
-        ? ''
-        : gone
-          ? `Expired on ${day(dateOf(d.expireHeight, tip))}; anyone can register it now`
-          : lapsed
-            ? `Expired. Renew by ${day(dateOf(holdEndHeight(d.expireHeight), tip))} to keep it`
-            : `Until ${day(dateOf(d.expireHeight, tip))}`;
+      const p = pending.get(d.name);
+      const w = tip ? statusWords(d, tip) : null;
+      const sub = p && Date.now() - p.at <= PENDING_FORGET_MS ? pendingWords(p) : !tip ? '' : gone ? `Expired on ${day(dateOf(d.expireHeight, tip))}; anyone can register it now` : lapsed ? `Expired. Renew by ${day(dateOf(holdEndHeight(d.expireHeight), tip))} to keep it` : w.text;
+      const open = () => app.go('nameDetail', { name: d.name });
       rows.push(
         h(
           'div',
-          { class: 'row asset-row', 'data-testid': 'names-mine-row', 'data-name': d.name },
+          {
+            class: 'row asset-row name-row',
+            role: 'button',
+            tabindex: '0',
+            'aria-label': `${display(d.name)}: details, renew, transfer or sell`,
+            'data-testid': 'names-mine-row',
+            'data-name': d.name,
+            onclick: open,
+            onkeydown: (ev) => {
+              if (ev.key === 'Enter') open();
+            },
+          },
           h('span', { class: `ico ${lapsed || gone ? 'fail' : 'in'}` }, icon(lapsed || gone ? 'alert' : 'check')),
-          h('span', { class: 'main' }, h('div', { class: 't', text: display(d.name) }), h('div', { class: 's', text: sub })),
-          gone ? null : h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'names-renew', onclick: () => renew(d) }, 'Renew'),
+          h('span', { class: 'main' }, h('div', { class: 't', text: display(d.name) }), h('div', { class: 's', 'data-testid': 'names-mine-status', text: sub }), d.salePrice && !p ? h('div', { class: 's sale', 'data-testid': 'names-mine-sale', text: `For sale at ${priceText(d.salePrice)}` }) : null),
+          gone
+            ? h('span', { class: 'chev' }, icon('chevron'))
+            : h(
+                'button',
+                {
+                  class: 'btn btn-secondary btn-small',
+                  type: 'button',
+                  'data-testid': 'names-renew',
+                  onclick: (ev) => {
+                    ev.stopPropagation();
+                    renew(d);
+                  },
+                },
+                'Renew',
+              ),
         ),
       );
     }
     let body;
     if (mine.state === 'loading' && !rows.length) body = h('div', { class: 'card empty' }, h('div', { class: 'spinner' }), h('p', { class: 'small', text: 'Reading your names from the BEAM network…' }));
     else if (mine.state === 'error' && !rows.length) body = notice('error', `Your names could not be read: ${mine.error.message} `, h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: loadMine }, 'Try again'));
-    else if (!rows.length) body = h('p', { class: 'small', 'data-testid': 'names-mine-empty', text: 'Names you register show here, with when to renew them.' });
+    else if (!rows.length) body = h('p', { class: 'small', 'data-testid': 'names-mine-empty', text: 'Names you register, buy or receive show here, with when to renew them.' });
     else body = h('div', { class: 'card list', 'data-testid': 'names-mine' }, ...rows);
-    put(mineBox, h('p', { class: 'section-title', text: 'My names' }), body, mine.list.length > 1 ? h('p', { class: 'small', text: 'Every name in this wallet shares one key, so anyone can see they belong together.' }) : null);
+    put(
+      mineBox,
+      renewWarning(),
+      h('p', { class: 'section-title', text: 'My names' }),
+      body,
+      mine.list.length > 1 ? h('p', { class: 'small', text: 'Every name in this wallet shares one key, so anyone can see they belong together.' }) : null,
+      h('button', { class: 'btn btn-text btn-small names-receive-link', type: 'button', 'data-testid': 'names-receive-name', onclick: () => app.go('nameKey') }, 'Receive a name from another wallet'),
+    );
+  }
+
+  /** The soonest name to renew (expired, or within 30 days), with Renew one tap away. */
+  function renewWarning() {
+    const tip = mine.tip;
+    if (!tip) return null;
+    const due = mine.list.filter((d) => needsRenewal(d, tip.tipHeight) && !pending.has(d.name)).sort((a, b) => a.expireHeight - b.expireHeight);
+    if (!due.length) return null;
+    const d = due[0];
+    const more = due.length > 1 ? ` (and ${due.length - 1} more)` : '';
+    const lapsed = d.status === STATUS.onHold;
+    return h(
+      'div',
+      { 'data-testid': 'names-renew-warning' },
+      notice(
+        'warn',
+        h('strong', { text: lapsed ? `${d.name} has expired${more}. ` : `${d.name} expires ${inDays(daysBetween(tip.tipHeight, d.expireHeight))}${more}. ` }),
+        lapsed ? `Renew it by ${day(dateOf(holdEndHeight(d.expireHeight), tip))} to keep it. After that anyone can take it. ` : 'Renew it to keep it. After it expires you still have 90 days. ',
+        h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'names-renew-warning-action', onclick: () => renew(d) }, `Renew ${d.name}`),
+      ),
+    );
   }
 
   // ------------------------------------------------------------ lookups
@@ -311,7 +513,8 @@ export default function names(app) {
       const r = await bans().myNames();
       if (!alive) return;
       mine = { state: 'done', list: r.names.slice().sort((a, b) => a.expireHeight - b.expireHeight), key: r.key, tip: { tipHeight: r.tipHeight, tipTime: r.tipTime } };
-      for (const [pn, p] of [...pending]) if (r.names.some((d) => d.name === pn && (p.kind === 'register' || d.expireHeight > p.expireBefore))) pending.delete(pn);
+      for (const [pn, p] of [...pending]) if (pendingDone(p, pn, r.names) || Date.now() - p.at > PENDING_FORGET_MS) pending.delete(pn);
+      if (r.names.length) setNamesHint(app, true);
     } catch (e) {
       if (!alive) return;
       mine = { ...mine, state: 'error', error: e };
@@ -320,6 +523,45 @@ export default function names(app) {
   }
 
   // ------------------------------------------------------------ actions
+  /** The primary button: Register, or Buy when the name is for sale. */
+  function primaryAction() {
+    const st = ctaState();
+    if (st.off) return;
+    if (st.buy) buy(st.buy);
+    else register();
+  }
+
+  async function buy(price) {
+    const n = name();
+    if (!n || preparing) return;
+    const res = lookup.res;
+    const until = day(dateOf(res.domain.expireHeight, { tipHeight: res.tipHeight, tipTime: res.tipTime }));
+    preparing = true;
+    result = null;
+    render();
+    try {
+      await bans().buy(n, {
+        expectedPrice: price,
+        words: { rows: [['Name', display(n)], ['Yours until', `about ${until}`]], notes: ['Buying does not renew the name: you get the time left on it. Renew it under BEAM names to keep it longer.'] },
+      });
+      if (!alive) return;
+      pending.set(n, { kind: 'buy', at: Date.now() });
+      setNamesHint(app, true);
+      result = { kind: 'success', code: 'sent', text: `${display(n)} is on its way to you. It shows under My names once the network confirms it, usually within 2 minutes.` };
+      input.value = '';
+      draft.text = '';
+      lookup = { state: 'idle' };
+      wallet.refreshTxs();
+      wallet.refreshStatus();
+    } catch (err) {
+      if (!alive) return;
+      result = { kind: err.code === 'rejected' ? 'info' : 'error', code: err.code || 'error', text: nameProblemText(err, 'purchase') };
+      if (err.code === 'priceMoved') lookupNow();
+    }
+    preparing = false;
+    render();
+  }
+
   async function register() {
     const n = name();
     if (!n || preparing || ctaState().off) return;
@@ -332,6 +574,7 @@ export default function names(app) {
       await bans().register(n, y, { estimate: e });
       if (!alive) return;
       pending.set(n, { kind: 'register', at: Date.now() });
+      setNamesHint(app, true);
       result = { kind: 'success', code: 'sent', text: `${display(n)} is on its way to you. It shows under My names once the network confirms it, usually within 2 minutes.` };
       input.value = '';
       draft.text = '';
@@ -412,12 +655,14 @@ export default function names(app) {
 
   input.addEventListener('input', onInput);
   input.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Enter') register();
+    if (ev.key === 'Enter') primaryAction();
   });
   const off = wallet.onChange(() => render());
+  const offInbox = inbox.onChange(() => renderMoney());
   render();
   loadParams();
   loadMine();
+  loadInbox();
   if (name()) lookupNow();
 
   const el = screen(
@@ -429,6 +674,7 @@ export default function names(app) {
       },
       cls: 'names feature',
     },
+    moneyBox,
     lead,
     h('label', { class: 'field' }, 'Find a name', h('div', { class: 'input-wrap suffix' }, input, h('span', { class: 'suffix-text', 'aria-hidden': 'true', text: '.beam' }))),
     hint,
@@ -444,6 +690,7 @@ export default function names(app) {
       alive = false;
       clearTimeout(timer);
       off();
+      offInbox();
     },
   };
 }

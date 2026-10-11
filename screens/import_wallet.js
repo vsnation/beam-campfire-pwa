@@ -22,14 +22,16 @@ import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, notice, focusSoon } from '../lib/ui.js';
 import { stageImport, checkImportPassword, discardImport } from '../lib/engine.js';
-import { prepareImport, importWallet } from '../lib/session.js';
+import { prepareImport, importWallet, isAdding } from '../lib/session.js';
 import { passkeyAvailable } from '../lib/passkey.js';
 import { checkWalletFile, importPasswordProblem, formatFileSize, IMPORT_TEXT, IMPORT_PROBLEM } from '../lib/wallet_file.js';
 
 const INPUT_ID = 'import-file-input';
 
 export default function importWalletScreen(app) {
-  if (app.record) {
+  // Adding another wallet (screens/add_wallet.js) brings a wallet.db in beside the ones there are.
+  const adding = isAdding(app);
+  if (app.record && !adding) {
     queueMicrotask(() => app.go('unlock'));
     return { el: h('div') };
   }
@@ -67,7 +69,7 @@ export default function importWalletScreen(app) {
 
   const body = h('div', { class: 'content' });
   const actions = h('div', { class: 'actions' });
-  const el = screen({ title: IMPORT_TEXT.title, back: () => app.go('welcome') });
+  const el = screen({ title: IMPORT_TEXT.title, back: () => app.go(adding ? 'addWallet' : 'welcome') });
   // screen() made an empty .content; this screen re-renders its own body and actions.
   el.querySelector('.content').replaceWith(body);
   el.appendChild(actions);
@@ -198,7 +200,7 @@ export default function importWalletScreen(app) {
       destroyed = true;
       pw.value = '';
       // Leaving before the wallet was added: the staged copy goes too.
-      if (staged && !app.record) discardImport().catch(() => {});
+      if (staged) discardImport().catch(() => {});
     },
   };
 }

@@ -6,12 +6,18 @@
  *   - "Where are my codes kept?" -> only on this device, encrypted in this wallet: said at the top.
  *   - "Did it work?" -> right after creating: sent, and the codes start working once confirmed.
  *   - "Which ones were claimed?" -> each code shows what the network last said about it.
+ *   - "I need them in a spreadsheet / somewhere safe" -> "Save as CSV" (the desktop's columns) to the share
+ *     sheet or a download, with a word that the file holds the keys in plain text.
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, primary, secondary, notice, copyText } from '../lib/ui.js';
+import { screen, primary, secondary, notice, copyText, toast } from '../lib/ui.js';
 import { batchTotal, CODE_STATUS, TX_STATUS } from '../lib/airdrop.js';
 import { airdrop, amountText } from './airdrop.js';
+import { csvFile } from '../lib/airdrop_csv.js';
+import { deliverExport } from '../lib/export.js';
+import { formatAmount } from '../lib/amount.js';
+import { wallet } from '../lib/wallet.js';
 
 const STATUS_TEXT = { [CODE_STATUS.available]: 'Not claimed', [CODE_STATUS.claimed]: 'Claimed', [CODE_STATUS.notFound]: 'Not on the network', [CODE_STATUS.unknown]: '' };
 
@@ -51,9 +57,10 @@ export default function airdropCodes(app, p = {}) {
       h('p', { class: 'lead', 'data-testid': 'codes-summary', text: same ? `${n} ${n === 1 ? 'code' : 'codes'} · ${amountText(batch.assetId, BigInt(batch.codes[0].value))} each` : `${n} codes · ${amountText(batch.assetId, batchTotal(batch))} in total` }),
       batch.txStatus === TX_STATUS.failed
         ? null
-        : notice('warn', h('strong', { text: 'These codes are the only key to the locked funds. ' }), 'Anyone who has a code can claim it, so send each one only to its person. They are kept only on this device, in this wallet: copy them somewhere safe.'),
+        : notice('warn', h('strong', { text: 'These codes are the only key to the locked funds. ' }), 'Anyone who has a code can claim it, so send each one only to its person. They are kept only on this device, in this wallet: copy them or save the file somewhere safe.'),
       // Copying is the job: the button sits above the list, however long it is.
       h('div', { class: 'btn-row' }, copyAll, typeof navigator.share === 'function' ? secondary('Share', () => navigator.share({ text: all }).catch(() => {}), { 'data-testid': 'codes-share' }) : null),
+      h('button', { class: 'btn btn-text link-left', type: 'button', 'data-testid': 'codes-csv', onclick: () => saveCsv(batch) }, icon('download'), 'Save as CSV file'),
       h(
         'div',
         { class: 'card list codes-list', 'data-testid': 'codes-list' },
@@ -69,6 +76,18 @@ export default function airdropCodes(app, p = {}) {
       ),
     );
     put(actions, h('button', { class: 'btn btn-text', onclick: toBatches }, 'My batches'));
+  }
+
+  /** The codes as the desktop's CSV, to the share sheet (iPhone: Save to Files) or a download. Made on the tap, kept nowhere. */
+  async function saveCsv(b) {
+    try {
+      const file = csvFile(b, { formatValue: (v) => formatAmount(v), assetLabel: wallet.label(b.assetId).unit });
+      const how = await deliverExport(file, { title: 'Airdrop codes' });
+      if (how === 'cancelled') return;
+      toast(`${how === 'shared' ? 'Shared' : 'Saved'} ${file.name}. Anyone who opens it can claim the codes: keep it private.`, 6000);
+    } catch {
+      toast("Couldn't save the file. Try Copy all codes instead.");
+    }
   }
 
   async function load() {

@@ -10,7 +10,7 @@
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, notice } from '../lib/ui.js';
-import { createWallet, passwordProblem } from '../lib/session.js';
+import { createWallet, passwordProblem, isAdding } from '../lib/session.js';
 import { passkeyAvailable } from '../lib/passkey.js';
 
 export default function setPassword(app) {
@@ -64,7 +64,7 @@ export default function setPassword(app) {
   const el = screen(
     { title: 'Protect this wallet', back: () => app.go(restoring ? 'restore' : 'confirmWords'), actions: [cta] },
     h('p', { class: 'step', text: restoring ? 'Step 2 of 2' : 'Step 3 of 3' }),
-    h('p', { class: 'lead', text: 'Choose a password for this device. Next you can turn on Face ID or Touch ID, and use the password when they are not available.' }),
+    h('p', { class: 'lead', text: isAdding(app) && app.setup.name ? `Choose a password for ${app.setup.name}. It can differ from your other wallets'. Next you can turn on Face ID or Touch ID for it.` : 'Choose a password for this device. Next you can turn on Face ID or Touch ID, and use the password when they are not available.' }),
     h('label', { class: 'field' }, 'Password', h('div', { class: 'input-wrap' }, pw, showBtn)),
     h('label', { class: 'field' }, 'Repeat password', pw2),
     hint,

@@ -9,6 +9,8 @@
  *     before any history index knows of it.
  *   - "Empty, now what?" -> the primary button becomes Receive ETH; the empty list says so.
  *   - "How do I get WBEAM?" -> Buy WBEAM is the primary as soon as there is ETH to pay with.
+ *   - "I have BTC, not ETH" -> "Pay with BTC, ZEC or LTC" under the buttons (NEAR Intents), which also
+ *     shows a swap still on its way.
  *   - "Where's my BEAM?" -> the switcher at the top is one tap back.
  *   - "Why no history?" -> when History from Stack Wallet is off, a line says so and where to turn it on.
  */
@@ -19,7 +21,10 @@ import { ethWallet, ethPrefs } from '../lib/eth/wallet.js';
 import { TOKENS } from '../lib/eth/tokens.js';
 import { formatUnits } from '../lib/eth/units.js';
 import { chainSwitch, bridgeEntry } from './eth_screens.js';
+import { payWithCoinEntry } from './near_intents_entry.js';
+import { intentsFor, openSwaps } from '../lib/intents/wiring.js';
 import { ethBadge, compactAmountText, exactText, serverProblem, activityRow } from './eth_ui.js';
+import { rememberNearSwaps } from '../lib/notify.js';
 
 const REFRESH_MS = 30000;
 const FOLLOW_MS = 4000;
@@ -30,6 +35,8 @@ export default function ethHome(app, params = {}) {
   const actionsBox = h('div', { class: 'actions eth-actions' });
   const tokensBox = h('div');
   const activityBox = h('div');
+  // NEAR Intents: nothing is asked of it here; the row reads this device's swaps under way.
+  const intentsBox = h('div', {}, payWithCoinEntry(app, { testid: 'eth-pay-other-coin', swaps: intentsFor(app).then((c) => (c ? openSwaps(c.store) : [])).then((l) => (rememberNearSwaps(l), l)) }));
   let w = null;
   let off = null;
   let dead = false;
@@ -149,6 +156,7 @@ export default function ethHome(app, params = {}) {
     problemBox,
     actionsBox,
     bridgeEntry(app),
+    intentsBox,
     tokensBox,
     activityBox,
   );

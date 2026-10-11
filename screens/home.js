@@ -9,16 +9,22 @@
  *   - "Where did my payment go?" -> recent payments with plain status right below.
  *   - "Empty wallet, now what?" -> the primary button becomes Receive; Buy is beside it.
  *   - "How do I get BEAM?" -> Buy opens a choice: BEAM in this wallet (buybeam.my) or WBEAM on Ethereum.
+ *   - "What is this BEAM/FOMO LP?" -> a pool share's row opens its pool: your share, what it is worth, take it out.
  *   - "Can I get a short name, or claim a code I was given?" -> BEAM names and Airdrop codes, on one line with
  *     dApps under the buttons, one tap each.
+ *   - "Can I make my own token?" -> Tokens, at the end of that line: create one, mint more, burn.
+ *   - "Why can't I spend what I was sent privately?" -> a line under the balance says it arrived privately and
+ *     in how many hours it can be spent; "Coins" beside the balance lists each coin and splits them (screens/coins.js).
  *   - "My own node is down" -> the sync line says so, with "Use random nodes" right under it (never automatic).
+ *   - "What is all this worth?" -> BEAM in dollars once allowed (asked once: CoinGecko sees the IP), a total
+ *     with the tokens valued from BEAM's DEX; a token row opens its page; spam can be hidden (screens/token_ui.js).
  *   - "What if this phone or this app's web address is gone?" -> a wallet imported from wallet.db has
  *     no 12 words: until it is exported once, a banner asks for a copy outside this device (one tap
  *     to Backup; "Later" for a week).
  */
 import { h, fmtDate, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, notice, primary, secondary, assetBadge } from '../lib/ui.js';
+import { screen, notice, primary, secondary } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
 import { wallet, txStatusText, isPendingTx, isContractTx, contractMoves, contractLabel, contractStatusText } from '../lib/wallet.js';
 import { needsBackupPrompt } from '../lib/session.js';
@@ -28,8 +34,17 @@ import { chainSwitch } from './eth_screens.js';
 import { openBuyChooser } from './buy_screens.js';
 import { loaderBehind } from '../lib/loader.js';
 import { switchToRandom } from './node.js';
-import { VERIFIED, metadataOf, tokenSubtitle, copyWarning } from '../lib/meta.js';
+import { VERIFIED, metadataOf } from '../lib/meta.js';
 import { needsPoolCheck, checkPools } from '../lib/dex_pools.js';
+import { homeTokens } from './token_ui.js';
+import { rowExtra } from './payment_extras.js';
+import { loadContacts } from '../lib/contacts.js';
+import { openTokensMenu } from './minter.js';
+import { walletChip } from './wallets.js';
+import { coinsLink, privateLine, maturingParts, splitRow } from './coins_ui.js';
+import { isSplitTx } from '../lib/coins.js';
+import { namesHomeLine } from './names_claim.js';
+import { awayNow, dismissAway } from '../lib/notify.js';
 
 export function syncLine(sync) {
   const cls = sync.state === 'synced' ? 'ok' : sync.state === 'offline' || sync.state === 'stalled' || sync.state === 'behind' ? 'bad' : 'wait';
@@ -42,7 +57,11 @@ function contractRow(app, tx, onclick) {
   const failed = Number(tx.status) === 4 || Number(tx.status) === 2;
   const get = m.receives[0];
   const pay = m.spends[0];
-  const amt = (a, sign) => `${sign}${formatAmount(a.amount)} ${app.wallet.label(a.assetId).unit}`;
+  // A pool share is "LP" here, as in the token list: the title already names the pool move.
+  const amt = (a, sign) => {
+    const l = app.wallet.label(a.assetId);
+    return `${sign}${formatAmount(a.amount)} ${l.pool ? 'LP' : l.unit}`;
+  };
   const title = contractLabel(tx);
   const app2 = tx.appname && tx.appname !== 'BEAM Campfire' && tx.appname !== title ? ` · ${tx.appname}` : '';
   const state = Number(tx.status) === 3 ? '' : `${contractStatusText(tx)} · `;
@@ -86,6 +105,7 @@ function nameTokens(app, ids, s) {
 
 export function txRow(app, tx, onclick) {
   if (isContractTx(tx)) return contractRow(app, tx, onclick);
+  if (isSplitTx(tx)) return splitRow(app, tx, onclick);
   const label = app.wallet.label(tx.asset_id || 0);
   const income = Boolean(tx.income);
   const failed = Number(tx.status) === 4 || Number(tx.status) === 2;
@@ -94,14 +114,15 @@ export function txRow(app, tx, onclick) {
     'button',
     { class: 'row', onclick, 'data-txid': tx.txId },
     h('span', { class: `ico ${failed ? 'fail' : income ? 'in' : 'out'}` }, icon(isPendingTx(tx) ? 'clock' : income ? 'receive' : 'send')),
-    h('span', { class: 'main' }, h('div', { class: 't', text: txStatusText(tx) }), h('div', { class: 's', text: fmtDate(tx.create_time) })),
+    h('span', { class: 'main' }, h('div', { class: 't', text: txStatusText(tx) }), h('div', { class: 's', text: [fmtDate(tx.create_time), rowExtra(tx)].filter(Boolean).join(' · ') })),
     h('span', { class: `end${income && !failed ? ' in' : ''}`, text: `${income ? '+' : '−'}${formatAmount(value)} ${label.unit}` }),
   );
 }
 
 export default function home(app) {
   const balanceBox = h('div');
-  const assetsBox = h('div');
+  const tokens = homeTokens(app);
+  const assetsBox = tokens.el;
   const txBox = h('div');
   const bannerBox = h('div');
   const actionsBox = h('div', { class: 'actions' });
@@ -111,15 +132,20 @@ export default function home(app) {
     const pend = [];
     if (beam.receiving > 0n) pend.push(`+${formatAmount(beam.receiving)} incoming`);
     if (beam.sending > 0n) pend.push(`−${formatAmount(beam.sending)} outgoing`);
-    if (beam.maturing > 0n) pend.push(`${formatAmount(beam.maturing)} maturing`);
+    // Private (max-privacy) coins BEAM still holds back get their own line, with when they can be spent.
+    pend.push(...maturingParts(beam, { withPrivate: false }));
     const known = Boolean(s.status) && !s.importing;
     put(balanceBox, 
       h(
         'div',
         { class: 'card balance' },
         h('div', { class: 'label', text: 'Available' }),
+        coinsLink(app),
         h('div', { class: 'amount', 'data-testid': 'balance' }, known ? formatAmount(beam.available) : '—', h('span', { class: 'unit', text: 'BEAM' })),
+        tokens.fiatLine(s),
         pend.length ? h('div', { class: 'pending', text: pend.join(' · ') }) : null,
+        privateLine(app, s, 0, 'BEAM'),
+        ...tokens.totalLines(s),
         syncLine(s.sync),
         h('p', { class: 'small', 'data-testid': 'sync-detail', text: s.sync.detail }),
         s.sync.state === 'offline' && s.sync.ownNode
@@ -128,46 +154,10 @@ export default function home(app) {
       ),
     );
 
-    // Every other asset this wallet has anything of: available, on its way, or maturing.
-    // Named and drawn as the desktop app's asset list does (lib/meta.js).
-    const others = [...s.totals.entries()]
-      .filter(([id, t]) => id !== 0 && (t.available > 0n || t.receiving > 0n || t.sending > 0n || t.maturing > 0n))
-      .map(([id, t]) => [id, t, app.wallet.label(id)])
-      .sort(([a, , la], [b, , lb]) => (la.verified === lb.verified ? a - b : la.verified ? -1 : 1));
-    put(assetsBox,
-      ...(others.length
-        ? [
-            h('p', { class: 'section-title', text: 'Tokens' }),
-            h(
-              'div',
-              { class: 'card list', 'data-testid': 'tokens' },
-              ...others.map(([id, t, l]) => {
-                const pending = [];
-                if (t.receiving > 0n) pending.push(`+${formatAmount(t.receiving)} incoming`);
-                if (t.sending > 0n) pending.push(`−${formatAmount(t.sending)} outgoing`);
-                if (t.maturing > 0n) pending.push(`${formatAmount(t.maturing)} maturing`);
-                const warning = copyWarning(l);
-                // Two held assets with one ticker (CHAD #187 and #190) show their numbers.
-                const sub = tokenSubtitle(l);
-                const shownSub = app.wallet.distinctUnit(id) !== l.unit && !sub.includes(`#${id}`) ? `${sub} · #${id}` : sub;
-                return h(
-                  'div',
-                  { class: 'row asset-row', 'data-testid': 'token-row', 'data-asset-id': String(id) },
-                  assetBadge(l),
-                  h(
-                    'span',
-                    { class: 'main' },
-                    h('div', { class: 't', 'data-testid': 'token-name', text: l.name }),
-                    h('div', { class: 's', 'data-testid': 'token-sub', text: shownSub }),
-                    warning ? h('div', { class: 'warn-line', 'data-testid': 'token-warning', text: warning }) : null,
-                  ),
-                  h('span', { class: 'end' }, h('div', { 'data-testid': 'token-balance', text: `${formatAmount(t.available)} ${l.pool ? 'LP' : l.symbol}` }), pending.length ? h('div', { class: 'small', text: pending.join(' · ') }) : null),
-                );
-              }),
-            ),
-          ]
-        : []),
-    );
+    // Every other asset this wallet has anything of, named and drawn as the desktop app's asset
+    // list does (lib/meta.js), valued from the DEX; each opens its page (screens/token_ui.js).
+    tokens.render(s);
+    const others = [...s.totals.entries()].filter(([id, t]) => id !== 0 && (t.available > 0n || t.receiving > 0n || t.sending > 0n || t.maturing > 0n));
     nameTokens(app, others.map(([id]) => id), s);
 
     const recent = s.txs.slice(0, 5);
@@ -254,8 +244,10 @@ export default function home(app) {
   import('../lib/buy/wiring.js').then((m) => m.followBuys(app)).catch(() => {});
   render(wallet.state);
   renderBanner();
+  // Contact names on the payment rows (sealed per wallet; read once per unlock).
+  loadContacts(app).then(() => render(wallet.state), () => {});
 
-  // dApps, BEAM names and airdrop codes share one line, no taller than the dApps row it took over:
+  // dApps, BEAM names, airdrop codes and Tokens share one line, no taller than the dApps row it took over:
   // Home scrolls no further than before. Each is one tap away.
   const tile = (testid, ico, text, to, label = null) =>
     h('button', { class: 'tile', type: 'button', onclick: () => app.go(to), 'data-testid': testid, 'aria-label': label }, h('span', { class: 'ico' }, icon(ico)), h('span', { class: 't', text }));
@@ -265,13 +257,48 @@ export default function home(app) {
     tile('open-dapps', 'apps', 'dApps', 'dapps', 'dApps: Beam DEX, NFT Gallery and more'),
     tile('names', 'at', 'BEAM names', 'names'),
     tile('airdrop', 'gift', 'Airdrop codes', 'airdrop'),
+    h('button', { class: 'tile', type: 'button', onclick: () => openTokensMenu(app), 'data-testid': 'tokens-entry', 'aria-label': 'Tokens: create your own, mint more, burn' }, h('span', { class: 'ico' }, icon('coins')), h('span', { class: 't', text: 'Tokens' })),
   );
 
+  // Money waiting for this wallet's names: a line under the balance, only when something waits.
+  const namesLine = namesHomeLine(app);
+
+  // What happened while the person was away (lib/notify.js): one line until it is closed or seen.
+  const awayBox = h('div', { class: 'hidden' });
+  let awayShown = null;
+  function renderAway() {
+    const line = awayNow();
+    if (line === awayShown) return;
+    awayShown = line;
+    // Empty, it takes no room (the screen's gap included).
+    awayBox.classList.toggle('hidden', !line);
+    if (!line) return put(awayBox);
+    const close = () => {
+      dismissAway();
+      renderAway();
+    };
+    put(
+      awayBox,
+      h(
+        'div',
+        { class: 'notice info away-line', 'data-testid': 'home-away' },
+        icon('clock'),
+        h('div', { class: 'grow' }, h('span', { 'data-testid': 'home-away-text', text: line }), ' ', h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'home-away-open', onclick: () => (dismissAway(), app.go('activity')) }, 'See Activity')),
+        h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Close', onclick: close, 'data-testid': 'home-away-close' }, icon('close')),
+      ),
+    );
+  }
+  const offAway = wallet.onChange(renderAway);
+  renderAway();
+
   const el = screen(
-    { brand: true, tabs: 'home', app, right: h('button', { class: 'icon-btn', 'aria-label': 'Lock', onclick: () => app.lock('manual'), 'data-testid': 'lock' }, icon('lock')) },
+    // The title is the open wallet's name: a tap opens the switcher (screens/wallets.js).
+    { brand: walletChip(app), tabs: 'home', app, right: h('button', { class: 'icon-btn', 'aria-label': 'Lock', onclick: () => app.lock('manual'), 'data-testid': 'lock' }, icon('lock')) },
     chainSwitch(app, 'beam'),
     bannerBox,
     balanceBox,
+    awayBox,
+    namesLine.el,
     actionsBox,
     moreRow,
     assetsBox,
@@ -282,6 +309,8 @@ export default function home(app) {
     destroy() {
       off();
       offU();
+      namesLine.destroy();
+      offAway();
       clearTimeout(bannerLater);
       if (navigator.serviceWorker) navigator.serviceWorker.removeEventListener('controllerchange', onController);
     },

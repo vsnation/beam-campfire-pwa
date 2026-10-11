@@ -10,8 +10,10 @@
 import { h, put } from '../lib/dom.js';
 import { screen, primary, notice } from '../lib/ui.js';
 import { isAllowedWord, isValidPhrase, loadEngine } from '../lib/engine.js';
+import { isAdding } from '../lib/session.js';
 
 export default function restore(app) {
+  const adding = isAdding(app);
   const inputs = [];
   const boxes = [];
   const msg = h('div', { 'aria-live': 'polite' });
@@ -108,13 +110,14 @@ export default function restore(app) {
   async function submit() {
     const words = inputs.map((x) => x.value.trim().toLowerCase());
     if (!(await isValidPhrase(words))) return validate();
-    app.setup = { mode: 'restore', words };
+    // Adding a wallet: its name and "adding" go along.
+    app.setup = { ...(adding ? app.setup : {}), mode: 'restore', words };
     for (const x of inputs) x.value = '';
     app.go('setPassword');
   }
 
   const el = screen(
-    { title: 'Restore your wallet', back: () => app.go('welcome'), actions: [cta] },
+    { title: 'Restore your wallet', back: () => app.go(adding ? 'addWallet' : 'welcome'), actions: [cta] },
     h('p', { class: 'step', text: 'Step 1 of 2' }),
     h('p', { class: 'lead', text: 'Enter your 12 words in order. You can paste all of them into the first box.' }),
     h('div', { class: 'words' }, ...boxes),

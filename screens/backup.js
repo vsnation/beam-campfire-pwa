@@ -17,6 +17,8 @@
  *   - "Where are my 12 words?" (imported) -> there are none here; the file and its password are the backup.
  *   - "What if this website disappears?" -> Export wallet.db: the file and the password open the wallet
  *     anywhere BEAM runs. Said plainly: file + password = the wallet, keep it private.
+ *   - "My names, notes and history?" -> card "Move names, notes and history" (screens/wallet_data.js):
+ *     BEAM's wallet data file, saved and brought in; the words bring back coins only.
  *   - "I run my own node" -> Show owner key (secondary, last): the key a node needs to find every
  *     payment, offline and max-privacy ones too; it sees, it cannot spend.
  *   - "Can it go to iCloud?" -> optional card "Keep a copy in iCloud Drive" (other platforms: "your
@@ -28,10 +30,11 @@ import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, notice, openSheet, toast, focusSoon } from '../lib/ui.js';
 import { generatePhrase } from '../lib/engine.js';
-import { isImported, openWithPasswordFor, markExported } from '../lib/session.js';
+import { isImported, openWithPasswordFor, markExported, isAdding } from '../lib/session.js';
 import { prepareExport, deliverExport, cloudPlatform, CLOUD_MIN_PASSWORD } from '../lib/export.js';
 import { NO_PHRASE_NOTICE, formatFileSize } from '../lib/wallet_file.js';
 import { OWNER_KEY_TEXT } from '../lib/owner_key.js';
+import { walletDataCard } from './wallet_data.js';
 
 /**
  * Recovery words in a grid that stays blurred until tapped (no shoulder
@@ -53,8 +56,10 @@ export function wordReveal(onReveal) {
 }
 
 export default function backup(app) {
-  // A wallet already lives on this device: never make new words here.
-  if (app.record) return existingBackup(app);
+  // A wallet already lives on this device: never make new words here, unless another is being made
+  // (Add a wallet -> Create a new wallet).
+  const adding = isAdding(app) && app.setup.mode === 'create';
+  if (app.record && !adding) return existingBackup(app);
   const cta = primary('I wrote them down', () => app.go('confirmWords'), { disabled: true, 'data-testid': 'wrote-down' });
   const reveal = wordReveal(() => (cta.disabled = false));
   const status = h('p', { class: 'small', text: 'Making your words…' });
@@ -75,7 +80,7 @@ export default function backup(app) {
       title: 'Your 12 words',
       back: () => {
         app.setup = null;
-        app.go('welcome');
+        app.go(adding ? 'addWallet' : 'welcome');
       },
       actions: [cta],
     },
@@ -126,6 +131,7 @@ function existingBackup(app) {
     exportCard,
     cloudCard(app),
     notice('warn', h('strong', { text: 'The file and your password are your wallet. ' }), 'Anyone who has both can take your money. Keep the file somewhere private.'),
+    walletDataCard(app),
     h(
       'div',
       { class: 'card', 'data-testid': 'owner-key-card' },

@@ -14,6 +14,10 @@ import { screen, openSheet, primary, secondary, notice, copyText } from '../lib/
 import { formatAmount } from '../lib/amount.js';
 import { wallet, txStatusText, isContractTx, contractMoves, contractLabel, contractStatusText } from '../lib/wallet.js';
 import { txRow } from './home.js';
+import { splitDetail } from './coins_ui.js';
+import { isSplitTx } from '../lib/coins.js';
+import { noteRow, paymentExtras } from './payment_extras.js';
+import { loadContacts } from '../lib/contacts.js';
 
 export default function activity(app, params = {}) {
   const listBox = h('div');
@@ -36,11 +40,12 @@ export default function activity(app, params = {}) {
     openSheet((close, rerender) => {
       const t = wallet.state.txs.find((x) => x.txId === txId);
       if (!t) return [h('h2', { text: 'Payment' }), h('p', { text: 'This payment is no longer in the list.' })];
-      if (isContractTx(t)) return contractDetail(t, close);
+      if (isContractTx(t)) return contractDetail(app, t, close, rerender);
+      if (isSplitTx(t)) return splitDetail(app, t, close, (k, v, opts = {}) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, `${k} copied`), text: v }) : h('span', { class: 'v', text: v })));
       const unit = wallet.label(t.asset_id || 0).unit;
       const s = Number(t.status);
       const canCancel = !t.income && (s === 0 || s === 1);
-      const kv = (k, v, opts = {}) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, `${k} copied`), text: v }) : h('span', { class: `v${opts.mono ? ' mono' : ''}`, text: v }));
+      const kv = (k, v, opts = {}) => h('div', { class: 'kv', 'data-testid': opts.testid }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, `${k} copied`), text: v }) : h('span', { class: `v${opts.mono ? ' mono' : ''}`, text: v }));
       const other = t.income ? t.sender : t.receiver;
       const msg = h('div');
       // An arriving payment: the sender's wallet finishes it (it puts it on the blockchain).
@@ -62,9 +67,10 @@ export default function activity(app, params = {}) {
           t.kernel && /[1-9a-f]/.test(t.kernel) ? kv('Kernel ID', shorten(t.kernel, 10, 8), { copy: t.kernel }) : null,
           t.confirmations != null ? kv('Confirmations', String(t.confirmations)) : null,
           t.failure_reason ? kv('Reason', t.failure_reason) : null,
-          t.comment ? kv('Note', t.comment) : null,
+          noteRow(t, kv),
         ),
         msg,
+        ...paymentExtras(app, t, { close, rerender, msg }),
         canCancel
           ? secondary('Cancel payment', async () => {
               try {
@@ -83,12 +89,15 @@ export default function activity(app, params = {}) {
   const off = wallet.onChange(render);
   render(wallet.state);
   wallet.refreshTxs();
+  // Contact names on the rows and in the details (sealed per wallet; read once per unlock).
+  loadContacts(app).then(() => render(wallet.state), () => {});
   const el = screen({ title: 'Activity', tabs: 'activity', app }, listBox);
   return { el, destroy: () => off() };
 }
 
 /** A swap or other contract call: what left, what arrived, the fee, which app. */
-function contractDetail(t, close) {
+function contractDetail(app, t, close, rerender) {
+  const msg = h('div');
   const m = contractMoves(t);
   const kv = (k, v, opts = {}) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, `${k} copied`), text: v }) : h('span', { class: 'v', text: v }));
   const amt = (a) => `${formatAmount(a.amount)} ${wallet.label(a.assetId).unit}`;
@@ -109,6 +118,8 @@ function contractDetail(t, close) {
       t.confirmations != null ? kv('Confirmations', String(t.confirmations)) : null,
       t.failure_reason ? kv('Reason', t.failure_reason) : null,
     ),
+    msg,
+    ...paymentExtras(app, t, { close, rerender, msg }),
     h('button', { class: 'btn btn-text', onclick: () => close() }, 'Close'),
   ];
 }

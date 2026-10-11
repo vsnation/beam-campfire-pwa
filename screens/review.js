@@ -16,6 +16,8 @@ import { wallet, sendModeFor } from '../lib/wallet.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
 import { checkCode, display } from '../lib/bans.js';
 import { bans, nameProblemText } from './names.js';
+import { contactNameFor } from '../lib/contacts.js';
+import { cleanNote } from '../lib/payments.js';
 
 export default function review(app, p) {
   if (p && p.kind === 'name' && p.name && p.ownerKey && p.amount != null) return nameReview(app, p);
@@ -30,6 +32,8 @@ export default function review(app, p) {
   const msg = h('div', { 'aria-live': 'polite' });
   const label = `Send ${formatAmount(p.amount)} ${unit}`;
   const cta = primary(label, confirm, { 'data-testid': 'confirm-send' });
+  const note = cleanNote(p.note);
+  const contact = contactNameFor(p.address);
 
   async function confirm() {
     if (!wallet.state.sync.canSend) {
@@ -44,7 +48,7 @@ export default function review(app, p) {
     }
     cta.textContent = 'Sending…';
     try {
-      const txId = await wallet.send({ address: p.address, amount: p.amount, assetId: p.assetId, mode });
+      const txId = await wallet.send({ address: p.address, amount: p.amount, assetId: p.assetId, mode, comment: note });
       app.sendDraft = null;
       app.go('txStatus', { txId, amount: p.amount, fee: p.fee, assetId: p.assetId, address: p.address, mustBeOnline: mode.receiverMustBeOnline }, { replace: true });
     } catch (e) {
@@ -61,10 +65,13 @@ export default function review(app, p) {
     h(
       'div',
       { class: 'card' },
-      h('div', { class: 'kv' }, h('span', { class: 'k', text: 'To' }), h('span', { class: 'v mono', 'data-testid': 'review-to', text: shorten(p.address, 10, 8) })),
+      contact
+        ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'To' }), h('span', { class: 'v list' }, h('span', { 'data-testid': 'review-contact', text: contact }), h('span', { class: 'mono', 'data-testid': 'review-to', text: shorten(p.address, 10, 8) })))
+        : h('div', { class: 'kv' }, h('span', { class: 'k', text: 'To' }), h('span', { class: 'v mono', 'data-testid': 'review-to', text: shorten(p.address, 10, 8) })),
       h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Address type' }), h('span', { class: 'v', text: mode.label })),
       h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Network fee' }), h('span', { class: 'v', 'data-testid': 'review-fee', text: `${formatAmount(p.fee)} BEAM` })),
       h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Total' }), h('span', { class: 'v', 'data-testid': 'review-total', text: total })),
+      note ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Note (only you see it)' }), h('span', { class: 'v', 'data-testid': 'review-note', text: note })) : null,
     ),
     notice('info', mode.explanation, mode.receiverMustBeOnline ? ' Keep BEAM Campfire open until it completes. If nobody accepts it, it is cancelled and the money stays yours.' : ''),
     msg,

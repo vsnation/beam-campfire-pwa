@@ -70,6 +70,8 @@ export const ETH_SCREENS = {
   bridgeMove: lazyScreen(() => import('./bridge_move.js')),
   bridgeCrossing: lazyScreen(() => import('./bridge_crossing.js')),
   bridgeList: lazyScreen(() => import('./bridge_list.js')),
+  nearIntents: lazyScreen(() => import('./near_intents.js')),
+  nearIntentsDeposit: lazyScreen(() => import('./near_intents_deposit.js')),
 };
 
 let moveButton = null;

@@ -1,12 +1,15 @@
 /* Unlock
  * Spec: ONE job: open the wallet.
- *       Primary CTA: "Unlock with Face ID" when a passkey is set up, else "Unlock" (password).
- *       Taps from app open: 1.
+ *       Primary CTA: "Unlock with Face ID" when this wallet has a passkey, else "Unlock" (password).
+ *       Taps from app open: 1. With several wallets, the one last opened is shown; its name opens
+ *       the list (1) and a tap picks another (2), which then unlocks with its own password or Face ID.
  * Exit-intent reasons and answers:
  *   - "Face ID failed" -> says it was cancelled; the password is one tap away.
  *   - "Wrong password?" -> says so without blaming, and keeps the field.
  *   - "I forgot my password" -> the way back with the 12 words (or, for an imported wallet, its
  *     wallet.db file and password), stated plainly.
+ *   - "Which wallet is this?" -> with several, its name is in the title and on the picker, which
+ *     shows names only: a locked phone shows no amounts.
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
@@ -15,6 +18,8 @@ import { hasPasskey, openWithPasswordFor, openWithPasskeyFor, scanEnabled } from
 import { wallet } from '../lib/wallet.js';
 import { resumeBridgeIfAny } from './eth_screens.js';
 import { takeSwitchNote } from '../lib/own_node.js';
+import { nameOf, rememberOpened } from '../lib/wallets.js';
+import { unlockPicker } from './wallets.js';
 
 export default function unlock(app, params = {}) {
   if (!app.record) {
@@ -26,11 +31,13 @@ export default function unlock(app, params = {}) {
   const going = params.keptRunning ? " Your payment keeps going: leave BEAM Campfire open until it's done." : '';
   if (params.reason === 'timeout') put(msg, h('div', { 'data-testid': 'locked-notice' }, notice('info', `Locked after ${app.prefs.autoLockMin} minute${app.prefs.autoLockMin === 1 ? '' : 's'} without use.${going}`)));
   else if (params.reason === 'manual') put(msg, h('div', { 'data-testid': 'locked-notice' }, notice('info', `Locked.${going}`)));
+  else if (params.reason === 'switch' && params.from) put(msg, h('div', { 'data-testid': 'locked-notice' }, notice('info', `${params.from} is locked.${params.keptRunning ? ' Its payment keeps going until you open this wallet.' : ''}`)));
+  else if (params.reason === 'deleted' && params.deleted) put(msg, h('div', { 'data-testid': 'deleted-notice' }, notice('success', `${params.deleted} was deleted from this device. Your other wallets are here.`)));
   else if (params.updated) put(msg, h('div', { 'data-testid': 'updated-notice' }, notice('success', params.updated)));
   const switched = takeSwitchNote();
   if (switched) put(msg, notice('info', `Unlock to connect through your node, ${switched}.`));
   // A bridge screen was open when it locked: say where its move was, and go back to it after unlock.
-  const follow = app.afterUnlock ? h('div', { 'data-testid': 'unlock-follow' }, notice('info', h('strong', { text: 'Unlock to follow your move. ' }), app.afterUnlock.note || 'BEAM Campfire goes back to it once the wallet is open.')) : null;
+  const follow = app.afterUnlock ? h('div', { 'data-testid': 'unlock-follow' }, notice('info', h('strong', { text: app.afterUnlock.lead || 'Unlock to follow your move. ' }), app.afterUnlock.note || 'BEAM Campfire goes back to it once the wallet is open.')) : null;
 
   const pw = h('input', { class: 'input', type: 'password', autocomplete: 'current-password', 'aria-label': 'Password', 'data-testid': 'unlock-pw', placeholder: 'Password' });
   const pwBtn = primary('Unlock', () => withPassword(), { 'data-testid': 'unlock-submit' });
@@ -41,6 +48,7 @@ export default function unlock(app, params = {}) {
   async function opened(dbPass) {
     app.dbPass = dbPass;
     pw.value = '';
+    rememberOpened(app);
     if (!app.record.setupDone) return app.go('fastStart', { first: true });
     put(msg, notice('info', 'Opening your wallet…'));
     try {
@@ -109,9 +117,17 @@ export default function unlock(app, params = {}) {
   const actions = h('div', { class: 'actions' });
   put(actions, ...(passkey ? [faceBtn, usePw, forgot] : [pwBtn, forgot]));
 
+  // Several wallets: which one this is, and the way to another (names only, no amounts).
+  const lead = h('p', { 'data-testid': 'unlock-lead', text: 'Unlock your wallet' });
+  const picker = h('div');
+  unlockPicker(app, picker, (list) => {
+    if (list.length > 1 && app.record) lead.textContent = `Unlock ${nameOf(app.record)}`;
+  });
+
   const el = screen(
     { topbar: false },
-    h('div', { class: 'hero' }, h('img', { src: 'img/logo.svg', alt: '' }), h('h1', { text: 'BEAM Campfire' }), h('p', { text: 'Unlock your wallet' })),
+    h('div', { class: 'hero' }, h('img', { src: 'img/logo.svg', alt: '' }), h('h1', { text: 'BEAM Campfire' }), lead),
+    picker,
     follow,
     pwBlock,
     msg,

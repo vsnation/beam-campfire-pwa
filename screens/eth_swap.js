@@ -12,6 +12,7 @@
  *   - "Will I get a bad price?" -> the rate in plain words, the price change from the swap (amber
  *     from 3%, a tick box from 10%), and "at least …" under the price protection.
  *   - "What does it cost?" -> the network fee in ETH before anything is signed.
+ *   - "I have BTC, not ETH" -> "Pay with BTC, ZEC or LTC" at the top (NEAR Intents brings it in as ETH).
  *   - "I wanted BEAM in my BEAM wallet" -> one link at the top.
  *   - "Which pools?" -> beside the form on a wide screen; one tap away on a phone.
  */
@@ -26,6 +27,7 @@ import { DEFAULT_SLIPPAGE, IMPACT_WARNING, IMPACT_BLOCK, PERMIT_GAS, UniPriceMov
 import { EthRpcError } from '../lib/eth/rpc.js';
 import { SWAP_TOKENS, WBEAM_TOKEN, uniswapFor, walletAsset } from '../lib/eth/uniswap_app.js';
 import { serverProblem } from './eth_ui.js';
+import { payWithCoinEntry } from './near_intents_entry.js';
 import { amtShown, short, ethAbout, bipsText, rateText, routeText, routeNote, kv, tokenBadge, loadPools, poolsList, pickSlippage, openAllowSheet, openReviewSheet, impactBlock } from './eth_swap_parts.js';
 
 const QUOTE_DELAY_MS = 500;
@@ -426,6 +428,7 @@ export default function ethSwap(app, params = {}) {
     'div',
     { class: 'uni-form' },
     intro,
+    payWithCoinEntry(app, { testid: 'uni-pay-other-coin' }),
     wantBeam,
     h(
       'div',

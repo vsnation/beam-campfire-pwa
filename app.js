@@ -1,7 +1,9 @@
 // BEAM Campfire - app controller: boot, screen routing, lock and auto-lock.
 import { h, clear } from './lib/dom.js';
 import { engineSupport, loadEngine, nodeGuard, walletFiles, onEngineAbort } from './lib/engine.js';
-import { getPrefs, setPrefs, getWalletRecord } from './lib/store.js';
+import { getPrefs } from './lib/store.js';
+import { listWallets, initialWallet, loadPrefs, savePrefs, scopeTo, watchBalances, nameOf, dbPathOf } from './lib/wallets.js';
+import { setScopeOpen } from './lib/wallet_scope.js';
 import { wallet } from './lib/wallet.js';
 import { updates, takeJustUpdated } from './lib/update.js';
 import { installBack } from './lib/back.js';
@@ -44,27 +46,64 @@ import airdrop from './screens/airdrop.js';
 import airdropCreate from './screens/airdrop_create.js';
 import airdropBatches from './screens/airdrop_batches.js';
 import airdropCodes from './screens/airdrop_codes.js';
+import contacts from './screens/contacts.js';
+import addresses from './screens/addresses.js';
+import checkProof from './screens/check_proof.js';
+import { NAME_SCREENS } from './screens/name_screens.js';
 import { installConsent } from './screens/consent.js';
 import { ETH_SCREENS } from './screens/eth_screens.js';
 import { BUY_SCREENS } from './screens/buy_screens.js';
+import { TOKEN_SCREENS } from './screens/token_screens.js';
+import { DEX_SCREENS } from './screens/dex_screens.js';
+import { MINTER_SCREENS } from './screens/minter_screens.js';
+import { COINS_SCREENS } from './screens/coins_screens.js';
+import { installPaymentNotices } from './screens/payment_notices.js';
+import notifications from './screens/notifications.js';
 import { consentLog, contractsState } from './lib/contracts.js';
+import walletsScreen from './screens/wallets.js';
+import addWallet from './screens/add_wallet.js';
 
 const SCREENS = {
   welcome, backup, confirmWords, restore, importWallet, setPassword, passkeySetup, ipNotice, fastStart, unlock,
   home, send, review, txStatus, receive, activity, settings, nodeSettings, ownNode, changePassword, about, deleteWallet, ownerKey, problem, install, swap, dapps,
   names, airdrop, airdropCreate, airdropBatches, airdropCodes,
+  contacts, addresses, checkProof, notifications,
+  ...NAME_SCREENS,
   ...ETH_SCREENS,
   ...BUY_SCREENS,
+  ...TOKEN_SCREENS,
+  ...DEX_SCREENS,
+  ...MINTER_SCREENS,
+  ...COINS_SCREENS,
+  wallets: walletsScreen,
+  addWallet,
 };
 // Screens that need an unlocked, running wallet.
-const NEEDS_WALLET = new Set(['home', 'send', 'review', 'txStatus', 'receive', 'activity', 'settings', 'nodeSettings', 'ownNode', 'changePassword', 'about', 'ownerKey', 'swap', 'dapps', 'names', 'airdrop', 'airdropCreate', 'airdropBatches', 'airdropCodes', ...Object.keys(ETH_SCREENS), ...Object.keys(BUY_SCREENS)]);
+const NEEDS_WALLET = new Set(['wallets', 'home', 'send', 'review', 'txStatus', 'receive', 'activity', 'settings', 'nodeSettings', 'ownNode', 'changePassword', 'about', 'ownerKey', 'swap', 'dapps', 'names', 'airdrop', 'airdropCreate', 'airdropBatches', 'airdropCodes', 'contacts', 'addresses', 'checkProof', 'notifications', ...Object.keys(NAME_SCREENS), ...Object.keys(ETH_SCREENS), ...Object.keys(BUY_SCREENS), ...Object.keys(TOKEN_SCREENS), ...Object.keys(DEX_SCREENS), ...Object.keys(MINTER_SCREENS), ...Object.keys(COINS_SCREENS)]);
 
 const root = document.getElementById('app');
 
 export const app = {
   prefs: null,
-  record: null,
-  dbPass: null,
+  // The selected wallet's record (several wallets: lib/wallets.js) and, while it is unlocked, its
+  // database password. Setting them also points the store's per-wallet keys and the engine's
+  // database at that wallet (lib/wallet_scope.js), so nothing can read or write another one.
+  _record: null,
+  _dbPass: null,
+  get record() {
+    return this._record;
+  },
+  set record(r) {
+    this._record = r || null;
+    scopeTo(this._record);
+  },
+  get dbPass() {
+    return this._dbPass;
+  },
+  set dbPass(v) {
+    this._dbPass = v || null;
+    setScopeOpen(Boolean(this._dbPass));
+  },
   setup: null,
   current: null,
   currentName: null,
@@ -125,19 +164,28 @@ export const app = {
     if (focus && canAutofocus()) focus.focus();
   },
 
+  /** Whether this release has a screen called `name` (a feature built elsewhere may not be here yet). */
+  has(name) {
+    return Object.prototype.hasOwnProperty.call(SCREENS, name);
+  },
+
   /** Back to the screen the person came from, or to `fallback` when there is none (after a reload or an unlock). */
   back(fallback = 'home', fallbackParams = {}) {
     const t = this.nav.backTarget(fallback, fallbackParams);
     return this.go(t.name, t.params, t.opts);
   },
 
+  /** Saves preferences: the open wallet's own to it, the rest to the app (lib/wallets.js). */
   async setPrefs(patch) {
-    this.prefs = await setPrefs(patch);
+    this.prefs = await savePrefs(this.record, patch);
     return this.prefs;
   },
 
-  /** Stops the engine and forgets the database password. */
-  async lock(reason) {
+  /**
+   * Stops the engine and forgets the database password. beforeUnlock: runs before the unlock
+   * screen opens (a switch selects the next wallet there); params: more for that screen.
+   */
+  async lock(reason, { beforeUnlock = null, params = {} } = {}) {
     const wasOpen = Boolean(this.dbPass);
     this.dbPass = null;
     if (this.setup) this.setup = null;
@@ -148,7 +196,8 @@ export const app = {
     const keptRunning = reason !== 'node' && wallet.paymentUnderWay();
     if (keptRunning) wallet.keepRunningLocked();
     else await wallet.stop();
-    if (wasOpen || this.currentName !== 'unlock') this.go('unlock', { reason, keptRunning });
+    if (beforeUnlock) await beforeUnlock();
+    if (wasOpen || this.currentName !== 'unlock') this.go('unlock', { ...params, reason, keptRunning });
   },
 
   /**
@@ -196,6 +245,9 @@ onEngineAbort((why) => {
 
 // Every contract request that spends is shown on the approve sheet; without it, all are refused.
 installConsent(app);
+
+// A banner (and, when allowed, a system notification) when a payment arrives while the app is open.
+installPaymentNotices(app);
 
 window.addEventListener('pointerdown', () => app.touch(), { passive: true });
 window.addEventListener('keydown', () => app.touch(), { passive: true });
@@ -247,7 +299,10 @@ app.continueBoot = async function continueBoot() {
   app.prefs = await getPrefs();
   // The person's own node must be in this page's policy before the engine can reach it.
   if (BUILT && (await reconcileOwnNode(app))) return;
-  app.record = (await getWalletRecord()) || null;
+  // Several wallets: the one last opened comes first (a single-wallet device: its one wallet, as it was).
+  app.record = initialWallet(await listWallets(), app.prefs);
+  app.prefs = await loadPrefs(app.record);
+  watchBalances(app);
   loadEngine().catch((e) => console.warn('[campfire] engine', e.message)); // warm up
   refreshPersistence(app, { request: Boolean(app.record) });
 
@@ -316,5 +371,7 @@ window.__campfire = Object.freeze({
   contracts: () => contractsState(),
   // Counters of the running dApp frames (requests, refused, dropped messages); nothing a dApp sent.
   dapps: () => runnerStats(),
+  // Every wallet on this device: names and flags, never an envelope.
+  wallets: async () => (await listWallets()).map((r) => ({ id: r.id, name: nameOf(r), slot0: Boolean(r.slot0), selected: Boolean(app.record && app.record.id === r.id), open: Boolean(app.dbPass && app.record && app.record.id === r.id), running: Boolean(wallet.run && wallet.run.dbPath === dbPathOf(r)), imported: Boolean(r.imported), restored: Boolean(r.restored), passkey: Boolean(r.envelopes && r.envelopes.passkey) })),
   record: () => (app.record ? { imported: Boolean(app.record.imported), restored: Boolean(app.record.restored), scan: app.record.scan !== false, setupDone: Boolean(app.record.setupDone), passkey: Boolean(app.record.envelopes && app.record.envelopes.passkey) } : null),
 });

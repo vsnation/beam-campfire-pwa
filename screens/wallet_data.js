@@ -1,0 +1,205 @@
+/* Move names, notes and history (a card on Settings -> Backup, issue #55)
+ * Spec: ONE job: carry what the 12 words do not bring back (address names, payment notes, contacts,
+ *       payment history) to another wallet of the same 12 words, as BEAM's desktop wallet does.
+ *       Primary CTA: none on the card (Backup's primary is "Export wallet.db"); two outcome buttons,
+ *       "Save wallet data" and "Bring in wallet data". In each sheet one primary: "Save the file" /
+ *       "Bring it in".
+ *       Taps from app open: Settings -> Backup (2) -> Save wallet data (3) -> password or Face ID ->
+ *       Save the file (4). Bring in: Backup (2) -> Bring in wallet data (3) -> pick the file ->
+ *       Bring it in (4).
+ * Exit-intent reasons and answers:
+ *   - "Is this my backup?" -> the first line says what the words do and do not bring back; the
+ *     file holds no keys, so it is never the backup.
+ *   - "Who can see this?" -> said on the card and again before saving: whoever gets the file sees
+ *     every payment, amount, note and address; nobody can spend with it. Identity first.
+ *   - "Will it mess up my wallet?" -> before bringing in, what the file holds and that nothing
+ *     already here is changed; twice adds nothing; a file of other 12 words adds nothing and says so.
+ *   - "Which file?" -> the problems name it: the file from "Save wallet data" (BEAM's desktop wallet
+ *     calls it export….dat).
+ *   - "Too big to save" -> said before anything stops, with the way that works: Export wallet.db.
+ *   - "Did it work?" -> the counts that came in, and a way to see the payments.
+ */
+import { h } from '../lib/dom.js';
+import { icon } from '../lib/icons.js';
+import { notice, openSheet, toast, progressBar } from '../lib/ui.js';
+import { confirmIdentity } from '../lib/auth_ui.js';
+import { isImported } from '../lib/session.js';
+import { deliverExport } from '../lib/export.js';
+import { formatFileSize } from '../lib/wallet_file.js';
+import { DATA_TEXT as T, summaryRows, addedText, bookSkippedText, planEmpty } from '../lib/wallet_data.js';
+import { prepareDataExport, previewImport, runImport } from '../lib/wallet_data_io.js';
+
+const INPUT_ID = 'wallet-data-file-input';
+// The import sheet on screen: a file picked from it replaces it (it stays while the picker is open,
+// so cancelling the picker leaves the person where they were).
+let openImport = null;
+
+const kv = (k, v) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), h('span', { class: 'v', text: v }));
+// Buttons stay at the bottom of a sheet, in view on a small phone however long the sheet is.
+const actions = (...b) => h('div', { class: 'sheet-actions' }, ...b);
+const rowsCard = (counts, testid) => h('div', { class: 'card', 'data-testid': testid }, ...summaryRows(counts).map(([k, v]) => kv(k, v)));
+
+/** A button that opens the file picker in the same tap (iOS opens it only for a direct tap). */
+function chooseButton(cls, label, testid) {
+  const b = h('label', { class: `btn ${cls}`, for: INPUT_ID, role: 'button', tabindex: '0', 'data-testid': testid }, icon('file'), h('span', { text: label }));
+  b.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      document.getElementById(INPUT_ID)?.click();
+    }
+  });
+  return b;
+}
+
+/** The card on Settings -> Backup. */
+export function walletDataCard(app) {
+  // No `accept` attribute: iOS greys out every file whose type it does not know (".dat" has none).
+  // The file is checked after it is picked instead.
+  const input = h('input', { type: 'file', id: INPUT_ID, class: 'file-input', tabindex: '-1', 'aria-hidden': 'true', 'data-testid': 'data-file' });
+  input.addEventListener('change', () => {
+    const f = input.files && input.files[0];
+    input.value = ''; // the same file again still counts as a pick
+    if (f) importSheet(app, f);
+  });
+  return h(
+    'div',
+    { class: 'card', 'data-testid': 'data-card' },
+    h('h3', { text: T.title }),
+    h('p', { 'data-testid': 'data-lead', text: isImported(app) ? T.leadImported : T.lead }),
+    h('p', { class: 'small', 'data-testid': 'data-reveals', text: T.reveals }),
+    h('button', { class: 'btn btn-secondary card-btn', onclick: () => exportFlow(app), 'data-testid': 'data-save' }, icon('download'), T.saveCta),
+    chooseButton('btn-secondary card-btn', T.importCta, 'data-import'),
+    input,
+  );
+}
+
+/** Save wallet data: who is asking -> make the file -> a fresh tap hands it out. */
+async function exportFlow(app) {
+  if (!(await confirmIdentity(app, { title: T.confirmTitle, detail: T.reveals, cta: T.confirmCta }))) return;
+  let st = { step: 'busy' };
+  const sheet = openSheet((close) => {
+    if (st.step === 'busy')
+      return [h('h2', { text: T.confirmTitle }), h('p', { class: 'small', 'data-testid': 'data-busy', text: T.preparing }), progressBar(null)];
+    if (st.step === 'error')
+      return [
+        h('h2', { text: st.code === 'too_big' ? 'Too much history for one file here' : 'The file could not be made' }),
+        h('div', { 'data-testid': 'data-export-problem' }, notice(st.code === 'too_big' ? 'info' : 'error', st.message)),
+        actions(h('button', { class: 'btn btn-primary', onclick: () => close() }, 'Done')),
+      ];
+    const { file, summary, left } = st;
+    return [
+      h('h2', { text: T.readyTitle }),
+      h('div', { class: 'card file-card' }, h('span', { class: 'ico' }, icon('file')), h('span', { class: 'main' }, h('div', { class: 't', 'data-testid': 'data-name', text: file.name }), h('div', { class: 's', 'data-testid': 'data-what', text: `${formatFileSize(file.size)} · ${addedText(summary)}` }))),
+      notice('warn', T.keepPrivate),
+      ...left.map((t) => h('p', { class: 'small', text: t })),
+      h('p', { class: 'small', text: T.opensIn }),
+      actions(
+        h(
+          'button',
+          {
+            class: 'btn btn-primary',
+            'data-testid': 'data-save-file',
+            onclick: async () => {
+              const how = await deliverExport(file, { title: 'BEAM wallet data' });
+              if (how === 'cancelled') return;
+              toast(how === 'shared' ? 'Wallet data shared' : 'Wallet data saved to your downloads');
+              close();
+            },
+          },
+          icon('download'),
+          T.saveFile,
+        ),
+        h('button', { class: 'btn btn-text', onclick: () => close() }, 'Done'),
+      ),
+    ];
+  }, { label: T.confirmTitle });
+  try {
+    st = { step: 'ready', ...(await prepareDataExport(app)) };
+  } catch (e) {
+    st = { step: 'error', code: e.code, message: e.message || 'The wallet data could not be read. Try again.' };
+  }
+  if (!sheet.closed) sheet.rerender();
+}
+
+/** Bring in wallet data: read and plan -> what it holds -> bring it in -> what came in. */
+function importSheet(app, file) {
+  if (openImport && !openImport.closed) openImport.close();
+  let st = { step: 'reading' };
+  let sheet = null;
+  const show = (next) => {
+    st = next;
+    if (sheet && !sheet.closed) sheet.rerender();
+  };
+  const start = async () => {
+    const p = st.preview;
+    show({ step: 'importing', preview: p, progress: null });
+    let r;
+    try {
+      r = await runImport(app, p, { onProgress: (progress) => show({ step: 'importing', preview: p, progress }) });
+    } catch (e) {
+      r = { added: { own: 0, contacts: 0, txs: 0, book: 0, people: 0, hiddenTokens: 0 }, refused: { own: 0, contacts: 0, txs: 0 }, otherWallet: false, stopped: e.message };
+    }
+    show({ step: 'done', preview: p, result: r });
+    if (sheet.closed) toast(r.otherWallet ? 'Nothing was added: that file is from another wallet.' : `Added ${addedText(r.added)}.`, 5000);
+  };
+  sheet = openSheet((close) => {
+    const other = () => chooseButton('btn-secondary', T.chooseOther, 'data-choose-other');
+    const cancel = (label = 'Cancel') => h('button', { class: 'btn btn-text', onclick: () => close(), 'data-testid': 'data-close' }, label);
+    if (st.step === 'reading') return [h('h2', { text: T.importCta }), h('p', { class: 'small', text: T.reading }), progressBar(null)];
+    if (st.step === 'problem')
+      return [h('h2', { text: 'This file can’t be brought in' }), h('div', { 'data-testid': 'data-problem' }, notice('warn', st.message)), actions(chooseButton('btn-primary', T.chooseOther, 'data-choose-other'), cancel())];
+    const p = st.preview;
+    const fileLine = h('p', { class: 'small', 'data-testid': 'data-file-line', text: `${p.name} · ${formatFileSize(p.size)}` });
+    if (st.step === 'preview') {
+      const empty = planEmpty(p.plan);
+      const skipped = bookSkippedText(p.plan.book.skipped);
+      return [
+        h('h2', { text: empty ? 'Already in this wallet' : T.previewTitle }),
+        fileLine,
+        rowsCard(p.summary, 'data-summary'),
+        empty
+          ? h('div', { 'data-testid': 'data-all-here' }, notice('info', T.allHere))
+          : h('p', { 'data-testid': 'data-new', text: `New here: ${addedText(p.plan.counts)}. ${T.nothingChanged}` }),
+        p.bookBlocked ? h('p', { class: 'small', text: 'Your address book could not be opened here, so contacts from the file are left out.' }) : null,
+        skipped ? h('p', { class: 'small', 'data-testid': 'data-book-skipped', text: skipped }) : null,
+        actions(
+          empty
+            ? h('button', { class: 'btn btn-primary', onclick: () => close(), 'data-testid': 'data-done' }, 'Done')
+            : h('button', { class: 'btn btn-primary', onclick: start, 'data-testid': 'data-bring' }, icon('download'), T.bringIn),
+          other(),
+          empty ? null : cancel(),
+        ),
+      ];
+    }
+    if (st.step === 'importing') {
+      const pr = st.progress;
+      const what = pr && pr.step === 'txs' ? `Payments: ${pr.done.toLocaleString('en-US')} of ${pr.total.toLocaleString('en-US')}` : pr && pr.step === 'book' ? 'Contacts…' : 'Addresses…';
+      return [h('h2', { text: T.bringing }), fileLine, h('p', { class: 'small', 'data-testid': 'data-progress', text: what }), progressBar(pr && pr.total ? pr.done / pr.total : null)];
+    }
+    // done
+    const r = st.result;
+    if (r.otherWallet)
+      return [h('h2', { 'data-testid': 'data-result-title', text: T.otherWalletTitle }), fileLine, h('div', { 'data-testid': 'data-other-wallet' }, notice('error', T.otherWallet)), actions(chooseButton('btn-primary', T.chooseOther, 'data-choose-other'), cancel('Done'))];
+    const refusedAll = r.refused.own + r.refused.contacts + r.refused.txs;
+    const any = Object.values(r.added).some(Boolean);
+    const part = refusedAll > 0 || Boolean(r.stopped);
+    return [
+      h('h2', { 'data-testid': 'data-result-title', text: part ? (any ? T.partTitle : 'Nothing came in') : T.doneTitle }),
+      fileLine,
+      h('div', { 'data-testid': 'data-result' }, notice(any ? 'success' : 'warn', any ? `Added ${addedText(r.added)}. ${T.nothingChanged}` : 'Nothing was added.')),
+      refusedAll ? h('div', { 'data-testid': 'data-refused' }, notice('warn', `BEAM did not take ${addedText({ own: r.refused.own, people: r.refused.contacts, txs: r.refused.txs })}: they belong to another wallet or are damaged. The rest is in.`)) : null,
+      r.stopped ? h('div', { 'data-testid': 'data-stopped' }, notice('warn', `It stopped part way: ${r.stopped.replace(/\.$/, '')}. Bring the same file in again; what is already here is skipped.`)) : null,
+      actions(
+        r.added.txs
+          ? h('button', { class: 'btn btn-primary', onclick: () => { close(); app.go('activity'); }, 'data-testid': 'data-see-activity' }, T.seeActivity)
+          : h('button', { class: 'btn btn-primary', onclick: () => close(), 'data-testid': 'data-done' }, 'Done'),
+        r.added.txs ? cancel('Done') : null,
+      ),
+    ];
+  }, { label: T.importCta });
+  openImport = sheet;
+  previewImport(app, file).then(
+    (preview) => show({ step: 'preview', preview }),
+    (e) => show({ step: 'problem', message: e.message || 'This file could not be read. Choose it again.' }),
+  );
+}

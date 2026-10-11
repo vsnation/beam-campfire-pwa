@@ -113,7 +113,7 @@ export function openBuyChooser(app) {
         title: 'WBEAM on Ethereum',
         tag: 'Public',
         tagCls: 'public',
-        text: 'BEAM as a token on Ethereum, in your Ethereum wallet. Pay with ETH.',
+        text: 'BEAM as a token on Ethereum, in your Ethereum wallet. Pay with ETH, or with BTC, ZEC or LTC.',
         action: hasEth === false ? 'Create an Ethereum wallet first' : 'Buy WBEAM',
         onclick: () => {
           close(true);

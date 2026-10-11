@@ -60,7 +60,7 @@
 'use strict';
 
 const RELEASE_PUBLIC_JWK = {"kty":"EC","crv":"P-256","x":"nHc0TAS1zffyZvN4tSmEyelt5vpEB-QDUEgHSNztzpc","y":"hHBISFLKDalMgMsjuW78PAMirodfcnlZ5N3-9A9Pa9A"};
-const SECURITY_HEADERS = {"Cross-Origin-Opener-Policy":"same-origin","Cross-Origin-Embedder-Policy":"require-corp","Cross-Origin-Resource-Policy":"same-origin","Content-Security-Policy":"default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self' wss://eu-node02.mainnet.beam.mw:8200 wss://eu-node03.mainnet.beam.mw:8200 wss://eu-node04.mainnet.beam.mw:8200 wss://eu-nodes.mainnet.beam.mw:8200 wss://eu-node01.mainnet.beam.mw:8200 https://raw.githubusercontent.com/BeamMW/beam-ui/2f36c21ed010dee350c052ffce9097b23f69ecfb/ui/apps/mainnet/ https://eth2.stackwallet.com https://ethereum-rpc.publicnode.com https://eth.drpc.org https://rpc.mevblocker.io https://eth-mainnet.public.blastapi.io https://api.coingecko.com/api/v3/simple/price https://buybeam.my/api/v1/buy/ https://pwa.buybeam.my/recovery/; img-src 'self' data: blob:; style-src 'self'; font-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'","Referrer-Policy":"no-referrer","X-Content-Type-Options":"nosniff","Permissions-Policy":"camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()"};
+const SECURITY_HEADERS = {"Cross-Origin-Opener-Policy":"same-origin","Cross-Origin-Embedder-Policy":"require-corp","Cross-Origin-Resource-Policy":"same-origin","Content-Security-Policy":"default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self' wss://eu-node02.mainnet.beam.mw:8200 wss://eu-node03.mainnet.beam.mw:8200 wss://eu-node04.mainnet.beam.mw:8200 wss://eu-nodes.mainnet.beam.mw:8200 wss://eu-node01.mainnet.beam.mw:8200 https://raw.githubusercontent.com/BeamMW/beam-ui/2f36c21ed010dee350c052ffce9097b23f69ecfb/ui/apps/mainnet/ https://eth2.stackwallet.com https://ethereum-rpc.publicnode.com https://eth.drpc.org https://rpc.mevblocker.io https://eth-mainnet.public.blastapi.io https://api.coingecko.com/api/v3/simple/price https://buybeam.my/api/v1/buy/ https://1click.chaindefuser.com/v0/ https://pwa.buybeam.my/recovery/; img-src 'self' data: blob:; style-src 'self'; font-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'","Referrer-Policy":"no-referrer","X-Content-Type-Options":"nosniff","Permissions-Policy":"camera=(self), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()"};
 const MIME = {".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".mjs":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".json":"application/json",".webmanifest":"application/manifest+json",".wasm":"application/wasm",".svg":"image/svg+xml",".png":"image/png",".ttf":"font/ttf",".woff2":"font/woff2",".txt":"text/plain; charset=utf-8",".sig":"text/plain; charset=utf-8",".jwk":"application/json"};
 
 // ---- inlined from lib/release.js
@@ -696,7 +696,7 @@ const LOADER_API = 2;
 // Hash of what this loader does to pages (security headers, MIME types, dApp
 // frame policy, the own-node policy, LOADER_API), filled in by the build; release.json carries the
 // same value for the release's own loader (see loaderCompatible()).
-const LOADER_COMPAT = "0f379a80ac39543e7e4934be0065524d33a2b5a5fc3ad637cb714658bad30900";
+const LOADER_COMPAT = "4da06086d3edcfe57114cde14650eb766d851a385b62bf758a5ff09ebf822164";
 const LOADER_NAME = self.location.pathname.split('/').pop();
 
 let stateCache = null;
@@ -1162,4 +1162,100 @@ self.addEventListener('message', (event) => {
       }
     })(),
   );
+});
+
+// ---------------------------------------------------------------- notifications (lib/notify.js)
+//
+// Everything a notification says is worked out by the page, on this device, from the wallet's own
+// data; nothing comes from a server (there is no push subscription). Two things happen here:
+//   - a tap on a notification opens the app (or brings it to front) at the screen it names: only
+//     "#open=<screen>[&tx=<hex>]" within this app's scope, nothing else;
+//   - when the browser wakes this worker for Periodic Background Sync (Chrome / Edge, an installed
+//     app), the reminders the page left for later ('w:<id>:notify-reminders' in the app's own
+//     store) that are due are shown, if notifications are still on, and then forgotten.
+
+const OPEN_LINK = /^#open=[a-zA-Z]+(&tx=[0-9a-f]{1,128})?$/;
+const APP_DB = 'beam-campfire-app';
+const APP_STORE = 'kv';
+const REMINDERS_SUFFIX = ':notify-reminders';
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const data = event.notification.data || {};
+  const link = typeof data.url === 'string' && OPEN_LINK.test(data.url) ? data.url : '#open=home';
+  event.waitUntil(
+    (async () => {
+      const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const inScope = wins.filter((c) => c.url.startsWith(scopeUrl.href));
+      if (inScope.length) {
+        const c = inScope.find((w) => w.focused) || inScope[0];
+        c.postMessage({ type: 'campfire-open', url: link });
+        try {
+          await c.focus();
+        } catch {
+          /* already in front, or not allowed: the message still opens the screen */
+        }
+        return;
+      }
+      await self.clients.openWindow(new URL(link, scopeUrl).href);
+    })(),
+  );
+});
+
+/** The app's own store, opened the way the app opens it (lib/store.js), so a first open here creates it the same. */
+function appDb() {
+  return new Promise((resolve, reject) => {
+    const r = indexedDB.open(APP_DB, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(APP_STORE);
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+    r.onblocked = () => reject(new Error('blocked'));
+  });
+}
+
+const idb = (r) =>
+  new Promise((resolve, reject) => {
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+
+async function showDueReminders(now = Date.now()) {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return 0;
+  const db = await appDb();
+  try {
+    const read = db.transaction(APP_STORE, 'readonly').objectStore(APP_STORE);
+    const prefs = (await idb(read.get('prefs'))) || {};
+    const n = prefs.notify || {};
+    const on = n.on === true || (n.on === undefined && prefs.paymentNotifications === true);
+    const keys = (await idb(read.getAllKeys(IDBKeyRange.bound('w:', 'w:\uffff')))).filter((k) => typeof k === 'string' && k.endsWith(REMINDERS_SUFFIX));
+    let shown = 0;
+    for (const k of keys) {
+      const list = (await idb(db.transaction(APP_STORE, 'readonly').objectStore(APP_STORE).get(k))) || [];
+      const due = list.filter((r) => r && r.at <= now);
+      if (!due.length) continue;
+      for (const r of due) {
+        const kindOn = !n.kinds || n.kinds[r.kind] !== false;
+        if (!on || !kindOn) continue;
+        await self.registration.showNotification(String(r.title).slice(0, 120), {
+          body: String(r.body || '').slice(0, 240),
+          tag: `campfire-${String(r.id).slice(0, 100)}`,
+          icon: 'icons/icon-192.png',
+          lang: 'en',
+          data: { url: OPEN_LINK.test(r.url) ? r.url : '#open=home' },
+        });
+        shown++;
+      }
+      const keep = list.filter((r) => r && r.at > now);
+      await idb(db.transaction(APP_STORE, 'readwrite').objectStore(APP_STORE).put(keep, k));
+    }
+    if (shown && self.navigator && typeof self.navigator.setAppBadge === 'function') self.navigator.setAppBadge(shown).catch(() => {});
+    return shown;
+  } finally {
+    db.close();
+  }
+}
+
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag !== 'campfire-reminders') return;
+  event.waitUntil(showDueReminders().catch(() => 0));
 });

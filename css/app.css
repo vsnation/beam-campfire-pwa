@@ -536,6 +536,38 @@ details.more.card { padding: 12px 16px; }
 /* Names are shown exactly as registered: Inter would draw "0x4" as "0×4". */
 .names, .consent, .plain { font-feature-settings: 'calt' 0; }
 .names .row .main .s { white-space: normal; }
+/* BEAM names: a name's own screens, the money waiting for names (screens/name_*.js, names_claim.js). */
+.names-home:empty { display: none; }
+.names-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 14px; }
+.names-line .grow { flex: 1; min-width: 0; }
+.names-line .btn { flex: none; width: auto; }
+.names-line .ico { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface-2); flex: none; }
+.names-line .ico svg { width: 16px; height: 16px; }
+.names-line-msg { flex: 1 1 100%; }
+.names-line-msg.bad { color: var(--error); }
+.name-stack { display: flex; flex-direction: column; gap: 14px; }
+.name-stack:empty { display: none; }
+.names-mine-box { display: flex; flex-direction: column; gap: 8px; }
+.name-head { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; }
+.name-head .name-line { justify-content: space-between; }
+.name-title { font-size: 22px; font-weight: 700; margin: 0; overflow-wrap: anywhere; }
+.tone-soon { color: var(--on-secondary); }
+.tone-bad { color: var(--error); }
+.kv .v.bad { color: var(--error); }
+.check-code { font-size: 20px; font-weight: 600; letter-spacing: 0.5px; word-break: normal; overflow-wrap: anywhere; color: var(--text); margin: 2px 0; }
+.check-card, .key-card, .names-money { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; }
+.key-card .qr { max-width: 220px; margin: 0 auto; }
+.key-card .mono.small { font-size: 12px; word-break: break-all; }
+.names-money .btn { align-self: flex-start; width: auto; }
+.name-row { cursor: pointer; }
+.name-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: 8px; }
+.name-row .main .s.sale { color: var(--info); }
+.names-receive-link { align-self: flex-start; width: auto; padding-left: 4px; }
+.paste-btn { align-self: flex-start; width: auto; }
+.paste-btn svg { width: 16px; height: 16px; }
+.sell-fields { display: flex; gap: 8px; }
+.sell-fields .input:first-child { flex: 1; min-width: 0; }
+.sell-fields .sell-asset { width: 112px; flex: none; }
 /* Buy (screens/buy_*.js): Home's fourth action, the chooser sheet, Buy BEAM and its buys. */
 .btn-row.four { gap: 8px; }
 .btn-row.four .btn { padding: 8px 2px; font-size: 14px; }
@@ -676,3 +708,170 @@ details.more.card { padding: 12px 16px; }
 .node-status-box:empty { display: none; }
 .own-node .key-card { padding: 4px 16px; }
 .balance .sync-action { margin-top: 10px; }
+/* Tokens (screens/token.js, token_ui.js, hidden_tokens.js): Home's rows open a token's page; values and the total. */
+.balance .fiat { font-size: 16px; font-weight: 600; color: var(--text-2); margin-top: 2px; }
+.balance .total-line { color: var(--text-2); }
+.token-home { display: flex; flex-direction: column; gap: 14px; }
+.token-home:empty { display: none; }
+.asset-row.tap { cursor: pointer; }
+.asset-row.tap:active { background: var(--surface-2); }
+.asset-row.is-hidden .asset-badge, .asset-row.is-hidden .main, .asset-row.is-hidden .end { opacity: 0.55; }
+.token-hidden-toggle { align-self: center; margin-top: -6px; }
+.token-hidden-toggle svg { width: 18px; height: 18px; }
+.price-ask { padding: 14px; }
+.price-ask h3 { font-size: 15px; }
+.asset-badge.large { width: 48px; height: 48px; font-size: 16px; }
+.token-head { padding: 18px 16px; display: flex; flex-direction: column; gap: 2px; }
+.token-head .token-id { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.token-head .token-id .main { min-width: 0; }
+.token-head .token-id .t { font-weight: 700; font-size: 18px; overflow-wrap: anywhere; }
+.token-head .token-id .s { font-size: 14px; color: var(--muted); }
+.token-head .label { font-size: 14px; color: var(--muted); font-weight: 500; }
+.token-head .amount { font-size: 30px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.15; word-break: break-all; }
+.token-head .amount .unit { font-size: 18px; font-weight: 600; color: var(--muted); margin-left: 6px; }
+.token-head .token-value { font-size: 15px; font-weight: 600; color: var(--text-2); margin-top: 2px; }
+.token-head .token-note { font-size: 14px; color: var(--muted); margin-top: 10px; display: flex; gap: 6px; align-items: flex-start; }
+.token-head .token-note.ok { color: var(--success); font-weight: 500; }
+.token-head .token-note svg { width: 16px; height: 16px; flex: none; margin-top: 2px; }
+.token-head .warn-line { font-size: 14px; color: var(--error); font-weight: 600; margin-top: 6px; }
+.token-actions { display: flex; flex-direction: column; gap: 6px; }
+.token-balances { padding: 2px 16px; }
+.token-balances .kv { padding: 8px 0; }
+.kv .v.in { color: var(--success); }
+.kv .v.muted { color: var(--subtle); font-weight: 500; }
+.token-hide { display: flex; justify-content: center; }
+.token-hide .btn-text svg { width: 18px; height: 18px; }
+.token-hide > div { width: 100%; }
+.token-page .topbar h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+[data-testid="hidden-token-row"] { cursor: default; }
+.row .row-open { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; background: none; border: 0; padding: 0; color: inherit; text-align: left; cursor: pointer; }
+.row .row-open .main .s { white-space: normal; }
+/* A payment row (Home, Activity, a token's history) whose amount names a long unit ("−0.044 BEAM/BEAMX LP")
+   wraps the amount, never its title one word per line. */
+.row[data-txid] .main { min-width: 42%; }
+.row[data-txid] .end { white-space: normal; overflow-wrap: anywhere; min-width: 0; }
+
+/* DEX pools (screens/pools.js, pool.js, pool_create.js, pool_status.js). */
+.swap .topbar .pools-btn { flex: none; color: var(--on-secondary); }
+.loading-line { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 14px; color: var(--muted); padding: 16px 0; }
+.pool-card { padding: 0; overflow: hidden; }
+.pool-card .pool-open { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 12px 12px 6px 14px; background: none; border: 0; text-align: left; font: inherit; color: var(--text); cursor: pointer; }
+.pool-card .pool-open .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pool-card .pool-open .chev { align-self: center; color: var(--subtle); }
+.pool-card .pool-open .chev svg { width: 18px; height: 18px; }
+.pool-card .line { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pool-card .warn-line, .pool-head .warn-line { font-size: 13px; color: var(--error); }
+.pool-title { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 600; }
+.pool-title .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pool-title.big { font-size: 18px; font-weight: 700; }
+.pool-title.big .name { flex: 1; }
+.fee-chip { flex: none; font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: var(--surface-2); color: var(--muted); }
+.mine, .kv .v.mine { font-size: 13px; font-weight: 600; color: var(--success); }
+.kv .v.mine, .kv .v .mine { font-size: inherit; }
+.pool-rate { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 40px; padding: 2px 14px 10px 66px; background: none; border: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--on-secondary); cursor: pointer; text-align: left; }
+.pool-rate svg, .rate-btn svg { width: 14px; height: 14px; flex: none; }
+.kv .rate-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 12px 0 12px 16px; margin: -12px 0; font: inherit; font-weight: 600; color: var(--on-secondary); cursor: pointer; text-align: right; }
+.pool-head { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 4px; }
+.pool-head .kvs .kv { padding: 8px 0; }
+.pool-position { padding: 4px 14px; }
+.pool-position .kv { padding: 8px 0; }
+.choices.four { grid-template-columns: repeat(4, 1fr); }
+.asset-pick.static { cursor: default; padding-right: 10px; }
+.swap-box.computed .swap-input { color: var(--text-2); }
+.pool-create .create-pair { display: flex; align-items: center; gap: 8px; }
+.pool-create .create-pair .slash { color: var(--muted); font-weight: 600; }
+.asset-pick.wide { flex: 1; max-width: none; min-height: 46px; justify-content: flex-start; padding: 8px 10px; }
+.asset-pick.wide > svg:last-child { margin-left: auto; }
+.asset-pick .muted { color: var(--muted); }
+.pool-create .card.list .row { padding: 12px 4px; }
+.pool .actions .hint, .pools .actions .hint, .pool-create .actions .hint { min-height: 0; }
+.kv .v .line { display: block; }
+.pool-head .kv .k, .pool-position .kv .k { white-space: nowrap; }
+
+/* Tokens: create a token, My tokens, a token's page, Mint more, Burn (screens/minter*.js, burn.js). */
+.feature div.field { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 500; color: var(--text-2); }
+.field-head .btn-small { min-height: 28px; padding: 2px 6px; }
+.two-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: start; }
+.two-fields.wide-second { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+.two-fields .hint { min-height: 0; }
+.minter-create .content, .burn .content, .minter-mint .content, .minter-token .content, .minter-tokens .content { gap: 12px; }
+.minter-create label.field .hint:empty { display: none; }
+.swatch-wrap .input { padding-right: 44px; }
+.swatch { position: absolute; right: 12px; width: 22px; height: 22px; border-radius: 6px; background: var(--swatch, transparent); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15); pointer-events: none; }
+.swatch.inline-swatch { position: static; display: inline-block; width: 14px; height: 14px; border-radius: 4px; vertical-align: -2px; margin-right: 6px; }
+.meta-text { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); white-space: pre-wrap; word-break: break-all; font-feature-settings: 'calt' 0; }
+.token-title { padding: 0; border-bottom: 0; }
+.token-card { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; }
+.token-open { display: flex; align-items: center; gap: 8px; width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.token-open .token-title { flex: 1; min-width: 0; }
+.token-open .chev svg { width: 18px; height: 18px; color: var(--subtle); }
+.token-bar { height: 6px; }
+.token-bar > div { background: var(--green); }
+.token-card-foot { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.token-card-foot .btn { flex: none; }
+.token-card .row .ico { width: 36px; height: 36px; }
+.tokens-menu-row .ico { background: var(--secondary); color: var(--on-secondary); }
+.token-preview { padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.swatch-v { display: inline-flex; align-items: center; }
+/* Home's line with a fourth tile (Tokens): each tile as wide as its words, the rest shared, so no label is cut on a 360 px phone. */
+.more-entry:has(.tile:nth-child(4)) .tile { flex: 1 1 auto; padding: 7px 2px; }
+.token-head { padding: 12px 14px; }
+/* Several wallets (screens/wallets.js, add_wallet.js): Home's title is the open wallet's name */
+.topbar .brand .wallet-chip { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; background: none; border: 0; padding: 6px 8px 6px 0; margin: -6px 0; border-radius: 10px; color: var(--text); font: inherit; font-weight: 700; font-size: 18px; cursor: pointer; }
+.topbar .brand .wallet-chip:active { background: var(--surface-2); }
+.topbar .brand .wallet-chip .name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar .brand .wallet-chip .chev { width: 18px; height: 18px; flex: none; color: var(--muted); }
+.topbar .brand { min-width: 0; }
+.card.row.wallet-pick { padding: 10px 14px; border-bottom: 0; }
+.wallet-pick .chev svg { color: var(--muted); }
+.wallet-open-tag { margin-left: 8px; vertical-align: 1px; }
+
+/* Coins and Split coins, More ways to receive, the payment banner
+   (screens/coins.js, split_review.js, coins_ui.js, receive_more.js, payment_notices.js). */
+.balance { position: relative; }
+.balance .coins-link { position: absolute; top: 12px; right: 8px; width: auto; min-height: 32px; padding: 4px 4px 4px 10px; gap: 0; font-size: 14px; }
+.balance .coins-link svg { width: 16px; height: 16px; }
+.private-line { display: flex; align-items: flex-start; gap: 8px; width: 100%; margin-top: 10px; padding: 8px 10px; border: 0; border-radius: 10px; background: var(--success-bg); color: var(--success); font: inherit; font-size: 14px; font-weight: 500; line-height: 1.35; text-align: left; cursor: pointer; }
+.private-line svg { width: 16px; height: 16px; flex: none; margin-top: 1px; }
+.private-line span { flex: 1; }
+.token-balances .private-line { margin: 4px 0 10px; }
+.stack.tight { gap: 6px; }
+.coins .content { gap: 12px; }
+.coins h2.title { font-size: 20px; margin-top: 0; }
+.coins .lead { font-size: 15px; }
+.split-asset, .more-ways-head { background: var(--surface); }
+.split-asset { padding: 12px 14px; border-bottom: 0; cursor: default; }
+.split-asset.tap { cursor: pointer; }
+.split-asset .chev svg { width: 18px; height: 18px; color: var(--muted); }
+.split-counts { display: flex; gap: 8px; }
+.split-counts .choice { flex: 1; min-width: 0; min-height: 44px; }
+.split-after { padding: 4px 14px; }
+.split-after .kv { padding: 8px 0; }
+.kv.total .k, .kv.total .v { font-weight: 700; color: var(--text); }
+.coin-list { padding: 2px 14px; }
+.coin-summary { padding: 10px 0 4px; }
+.coin-row { cursor: default; padding: 10px 0; }
+.coin-row .ico.private { background: var(--success-bg); color: var(--success); }
+.coin-row .main .t { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.coin-tag { background: var(--surface-2); color: var(--muted); }
+.coin-tag.private { background: var(--success-bg); color: var(--success); }
+.more-ways-wrap { margin-top: 14px; }
+.more-ways { display: flex; flex-direction: column; gap: 10px; }
+.more-ways-head { padding: 12px 14px; border-bottom: 0; }
+.more-ways-list { padding: 0 14px; }
+.type-row:disabled { cursor: not-allowed; }
+.type-row.off .main .t, .type-row.off .main .s, .type-row.off .chev svg { color: var(--subtle); }
+.sheet-qr { width: min(64vw, 240px); }
+.settings-note { margin: -4px 4px 0; }
+.pay-banner { position: fixed; top: calc(var(--safe-top) + 8px); left: 50%; transform: translateX(-50%); z-index: 85; width: min(calc(100vw - 24px), 496px); display: flex; align-items: center; gap: 2px; padding: 4px 6px 4px 4px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22); }
+.pay-banner-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 8px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.pay-banner .ico { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none; background: var(--success-bg); color: var(--success); }
+.pay-banner .ico svg { width: 18px; height: 18px; }
+.pay-banner .main { display: flex; flex-direction: column; min-width: 0; }
+.pay-banner .main .t { font-weight: 700; }
+.pay-banner .main .s { font-size: 13px; color: var(--muted); }
+.pay-banner .icon-btn { margin: 0; }
+/* Pay with BTC, ZEC or LTC (screens/near_intents*.js) */
+.intents-signed { color: var(--success); display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+.intents-signed svg { width: 14px; height: 14px; }
+.intents .link-left.wrap { text-align: left; }

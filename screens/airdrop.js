@@ -14,7 +14,7 @@ import { icon } from '../lib/icons.js';
 import { screen, primary, secondary, notice } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
-import { store } from '../lib/store.js';
+import { walletStore } from '../lib/wallet_scope.js';
 import { airdropFor, codeVault, normaliseCode, formatCode, isWellFormedCode, CALL_FEE, CODE_LENGTH } from '../lib/airdrop.js';
 
 const CHECK_DEBOUNCE_MS = 300;
@@ -24,7 +24,8 @@ export function airdrop(app) {
   return airdropFor(wallet.session, {
     vault: async () => {
       if (!app.dbPass || !app.record) throw Object.assign(new Error('Unlock the wallet first.'), { code: 'noCodeStore' });
-      return codeVault({ kv: store, walletId: app.record.id, secret: app.dbPass });
+      // Bound to this wallet: codes saved after a switch still go to their own wallet.
+      return codeVault({ kv: walletStore(app.record), walletId: app.record.id, secret: app.dbPass });
     },
   });
 }

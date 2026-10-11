@@ -18,6 +18,7 @@ import { icon } from '../lib/icons.js';
 import { notice, secondary, textButton } from '../lib/ui.js';
 import { wallet } from '../lib/wallet.js';
 import { store } from '../lib/store.js';
+import { walletStore } from '../lib/wallet_scope.js';
 import { ethWallet, ethPrefs, forgetEthWallet } from '../lib/eth/wallet.js';
 import { withEthKey } from '../lib/eth/vault.js';
 import { EthPipe } from '../lib/bridge/eth_pipe.js';
@@ -28,6 +29,7 @@ import { bridgeStoreFor } from '../lib/bridge/store.js';
 import { setMoveBadge } from './eth_screens.js';
 import { headline, crossingWords, lockedNote } from './bridge_words.js';
 import { ago } from './bridge_text.js';
+import { tellOther } from '../lib/notify.js';
 
 /** The bridge screens (registered in eth_screens.js). */
 export const BRIDGE_SCREENS = new Set(['bridgeMove', 'bridgeCrossing', 'bridgeList']);
@@ -41,6 +43,27 @@ export function pricesChoice(app) {
 let session = null; // {key, app, ctl, eth, w, off}
 let opening = null;
 let hookInstalled = false;
+
+/**
+ * Tells how a crossing went, once per change of its state seen in this run (the first look is
+ * history). Ready to collect and arrived on Ethereum: not BEAM transactions, so nothing else tells
+ * them. A BEAM send or claim done or failed is a contract call lib/notify.js already tells.
+ */
+function crossingTeller(app, ctl) {
+  let seen = null;
+  return () => {
+    const first = seen === null;
+    if (first) seen = new Map();
+    for (const c of ctl.crossings) {
+      const before = seen.get(c.id);
+      seen.set(c.id, c.state);
+      if (first || before === c.state) continue;
+      if (c.state === 'delivered') tellOther(app, { kind: 'moves', title: 'Your coins reached BEAM: collect them', body: 'Open the bridge and tap Collect to put them in this wallet.', tag: `bridge-${c.id}`, url: '#open=bridgeList', banner: !BRIDGE_SCREENS.has(app.currentName) });
+      else if (c.state === 'paid') tellOther(app, { kind: 'moves', title: 'Your coins reached your Ethereum wallet', body: 'The bridge paid them.', tag: `bridge-${c.id}`, url: '#open=bridgeList' });
+      else if (c.state === 'lockFailed') tellOther(app, { kind: 'moves', title: 'A move to BEAM did not go through', body: 'Nothing was locked. Tap to see why.', tag: `bridge-${c.id}`, url: '#open=bridgeList', banner: !BRIDGE_SCREENS.has(app.currentName) });
+    }
+  };
+}
 
 function badge(ctl) {
   const open = ctl.crossings.filter((c) => !['paid', 'failed', 'claimed', 'lockFailed'].includes(c.state));
@@ -94,13 +117,18 @@ export async function bridgeOf(app) {
       beam: beamSide({ pipe: new BeamPipe(), wallet }),
       eth,
       prices,
-      store: bridgeStoreFor(app, store),
+      // Bound to this wallet: a write that lands after a switch still goes to its own crossings.
+      store: bridgeStoreFor(app, walletStore(app.record)),
       beamWalletId: app.record.id,
       ethWalletId: w.ethId,
     });
     const activity = () => ctl.setActive({ visible: document.visibilityState === 'visible', unlocked: Boolean(app.dbPass) });
     document.addEventListener('visibilitychange', activity);
-    const offChange = ctl.onChange(() => setMoveBadge(badge(ctl)));
+    const tellCrossings = crossingTeller(app, ctl);
+    const offChange = ctl.onChange(() => {
+      setMoveBadge(badge(ctl));
+      tellCrossings();
+    });
     const s = {
       key,
       app,
