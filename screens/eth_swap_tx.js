@@ -11,6 +11,11 @@
  *   - "The app lost signal while sending" -> it was saved before sending; the same bytes go again by
  *     themselves, never a second swap.
  *   - "Can I check elsewhere?" -> the hash copies with a tap, and Etherscan is one tap.
+ *   - "The server says it was replaced, but shows nothing" -> "Not sure yet": don't swap again yet;
+ *     "Replaced" only once the server showed what took its place (lib/eth/send.js).
+ *   - "The server refused it - did it leave?" -> "Not sent yet": most likely not, checked for half
+ *     an hour before it says "Not sent", which is said as the server's word, Etherscan one tap away;
+ *     its receipt is asked again whenever this screen or Ethereum Home opens (release audit BM-2).
  */
 import { h, put, shorten, fmtDate } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
@@ -24,6 +29,7 @@ import { uniswapFor } from '../lib/eth/uniswap_app.js';
 import { uniTokenOf, ETH_TOKEN } from '../lib/eth/uniswap/models.js';
 import { exactUnits } from '../lib/compact.js';
 import { ethAbout, ethAtMost, short, amtShown } from './eth_swap_parts.js';
+import { notSentNotice, indexSaysNotice } from './eth_ui.js';
 
 const FOLLOW_MS = 4000;
 
@@ -53,7 +59,19 @@ export default function ethSwapTx(app, p = {}) {
     let cls;
     let ico;
     let lines = [];
-    if (state === 'signed' || state === 'pending') {
+    if ((state === 'signed' || state === 'pending') && entry.unsureSince) {
+      // The server says its place was taken but cannot show by what: it may still go through.
+      title = 'Not sure yet';
+      cls = 'wait';
+      ico = 'clock';
+      lines = [notice('warn', `Don't ${swap ? 'swap' : 'allow it'} again yet. Your Ethereum server says another transaction from this wallet took this one's place, but it can't show that transaction, so this one may still go through. The same transaction (never a second one) keeps being offered, and this screen updates by itself.`)];
+    } else if (state === 'signed' && entry.refusedAt) {
+      // The server refused the bytes, but may have passed them on first.
+      title = 'Not sent yet';
+      cls = 'wait';
+      ico = 'clock';
+      lines = [notice('warn', `Don't ${swap ? 'swap' : 'allow it'} again yet. Your Ethereum server refused this transaction, so it has most likely not left, but it may have passed it on before refusing. BEAM Campfire keeps checking it, and offering the same one (never a second), for half an hour; if it never reaches Ethereum, this then says "Not sent".${entry.error ? ` The server said: ${entry.error}` : ''}`)];
+    } else if (state === 'signed' || state === 'pending') {
       title = swap ? 'Swap sent: waiting for Ethereum…' : 'Waiting for Ethereum…';
       cls = 'wait';
       ico = 'clock';
@@ -81,17 +99,20 @@ export default function ethSwapTx(app, p = {}) {
       title = 'Replaced';
       cls = 'bad';
       ico = 'close';
-      lines = [notice('info', 'Another transaction from this wallet, sent from another device with the same words, took its place. This swap will not happen, and nothing left for it.')];
+      lines = [notice('info', 'Another transaction from this wallet, sent from this device or another one with the same words, took its place. This swap will not happen, and nothing left for it.')];
+      // A verified "Replaced" the history index contradicts: its word beside it (RE2-5).
+      const said = w ? w.indexSays(entry.hash) : null;
+      if (said) lines.push(indexSaysNotice(said, swap ? 'swap' : 'permission'));
     } else {
       title = 'Not sent';
       cls = 'bad';
       ico = 'close';
-      lines = [notice('error', `Ethereum's server refused it, so it never left. Nothing was spent.${entry.error ? ` The server said: ${entry.error}` : ''}`)];
+      lines = [notSentNotice(entry.hash, entry.error)];
     }
     put(
       body,
       h('div', { class: `status-icon ${cls}` }, icon(ico)),
-      h('h2', { class: 'title center', 'data-testid': 'uni-tx-title', 'data-state': state, text: title }),
+      h('h2', { class: 'title center', 'data-testid': 'uni-tx-title', 'data-state': state, 'data-unsure': entry.unsureSince ? 'true' : null, 'data-refused': entry.refusedAt && state === 'signed' ? 'true' : null, text: title }),
       swap ? h('div', { class: 'swap-amounts', 'data-testid': 'uni-tx-amounts' }, h('span', { class: 'nowrap', text: short(BigInt(entry.amount), asset) }), h('span', { class: 'arrow', text: '→' }), h('span', { class: 'nowrap', 'data-testid': 'uni-tx-received', 'data-units': received == null ? '' : String(received), title: received != null && out ? amt(received, out) : null, text: received != null && out ? short(received, out) : out ? out.symbol : '' })) : null,
       ...lines,
       h(
@@ -103,6 +124,7 @@ export default function ethSwapTx(app, p = {}) {
         entry.receipt ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Block' }), h('span', { class: 'v', text: Number(entry.receipt.blockNumber).toLocaleString('en-US') })) : null,
         h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Sent' }), h('span', { class: 'v', text: fmtDate(Math.floor(entry.createdAt / 1000)) })),
         h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Transaction' }), h('button', { class: 'v mono btn-text', 'data-testid': 'uni-tx-hash', 'data-hash': entry.hash, onclick: () => copyText(entry.hash, 'Transaction hash copied'), text: shorten(entry.hash, 10, 8) })),
+        state === 'replaced' && entry.replacedBy ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Replaced by' }), h('button', { class: 'v mono btn-text', 'data-testid': 'uni-tx-replaced-by', onclick: () => copyText(entry.replacedBy, 'Transaction hash copied'), text: shorten(entry.replacedBy, 10, 8) })) : null,
       ),
     );
   }
@@ -156,6 +178,12 @@ export default function ethSwapTx(app, p = {}) {
     }
     render();
     follow();
+    // "Not sent" (or settled from the index without a receipt yet): its receipt is asked again, once.
+    if (!(entry.state === 'signed' || entry.state === 'pending') && (await w.recheckRejected({ hash: entry.hash }).catch(() => false)) && !dead) {
+      entry = w.state.outbox.find((e) => e.hash === p.hash) || entry;
+      render();
+      readResult();
+    }
   })();
   render();
 

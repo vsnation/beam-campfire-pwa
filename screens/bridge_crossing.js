@@ -66,6 +66,8 @@ export default function bridgeCrossing(app, params = {}) {
     const done = c.state === STATES.paid || c.state === STATES.claimed;
     const kv = (k, v, tid = null) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), typeof v === 'string' ? h('span', { class: 'v', 'data-testid': tid, text: v }) : v);
     const collect = c.state === STATES.delivered;
+    // Found waiting on BEAM (no move of this device): what was sent, and from where, is not known here.
+    const found = c.origin === 'found';
     put(
       body,
       h('div', { class: `status-icon ${w.needsYou ? 'ok' : cls}` }, icon(w.needsYou ? 'download' : ico)),
@@ -80,14 +82,14 @@ export default function bridgeCrossing(app, params = {}) {
       h(
         'div',
         { class: 'card' },
-        kv('You moved', coin(c.amount, srcDec, srcSym), 'bridge-crossing-amount'),
-        kv(done ? 'Arrived' : 'Arrives', arrivesCoin(c), 'bridge-crossing-receive'),
-        kv('Bridge fee', coin(c.relayerFee, srcDec, srcSym)),
+        found ? null : kv('You moved', coin(c.amount, srcDec, srcSym), 'bridge-crossing-amount'),
+        kv(done ? 'Arrived' : found ? 'Waiting for you' : 'Arrives', arrivesCoin(c), 'bridge-crossing-receive'),
+        found ? null : kv('Bridge fee', coin(c.relayerFee, srcDec, srcSym)),
         kv(toEth ? 'BEAM network fee' : 'BEAM network fee, to collect it', coin(c.beamNetworkFee, BEAM_DECIMALS, 'BEAM')),
-        !toEth ? kv('Ethereum network fee', `up to ${ethMaxText(c.ethNetworkFee)}`) : null,
-        kv('Your Ethereum wallet', `${c.ethAddress.slice(0, 6)}…${c.ethAddress.slice(-4)}`, 'bridge-crossing-eth'),
+        !toEth && !found ? kv('Ethereum network fee', `up to ${ethMaxText(c.ethNetworkFee)}`) : null,
+        found ? null : kv('Your Ethereum wallet', `${c.ethAddress.slice(0, 6)}…${c.ethAddress.slice(-4)}`, 'bridge-crossing-eth'),
         c.msgId !== null ? kv('Bridge transfer', `#${c.msgId}`, 'bridge-crossing-number') : null,
-        kv('Started', ago(c.createdAt), 'bridge-crossing-started'),
+        kv(found ? 'Found' : 'Started', ago(c.createdAt), 'bridge-crossing-started'),
         c.lockHash
           ? kv('Ethereum transaction', h('button', { class: 'v mono btn-text', 'data-testid': 'bridge-crossing-lock', 'data-hash': c.lockHash, onclick: () => copyText(c.lockHash, 'Transaction hash copied'), text: `${c.lockHash.slice(0, 10)}…${c.lockHash.slice(-8)}` }))
           : null,

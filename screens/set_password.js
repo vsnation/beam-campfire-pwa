@@ -5,13 +5,19 @@
  * Exit-intent reasons and answers:
  *   - "Another password to remember?" -> Face ID comes next; the password is the fallback.
  *   - "What if I forget it?" -> said plainly: we can't reset it, the 12 words always can.
- *   - "Rules are annoying" -> one rule only: 8 characters.
+ *   - "Rules are annoying" -> 10 characters and not a common password; it says why (whoever copies
+ *     this device's data can guess at it, and Face ID does not change that), and what works: a few
+ *     unrelated words. Each problem is named as it is typed, never only after the tap.
+ *   - "Why won't the browser remember it?" -> one line: kept there, it would sit next to the wallet
+ *     it opens; Face ID / Touch ID (next) saves the typing.
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, notice } from '../lib/ui.js';
-import { createWallet, passwordProblem, isAdding } from '../lib/session.js';
+import { createWallet, passwordProblem, isAdding, MIN_PASSWORD } from '../lib/session.js';
+import { passwordWeakness } from '../lib/password_strength.js';
 import { passkeyAvailable } from '../lib/passkey.js';
+import { notSavedNote } from '../lib/auth_ui.js';
 
 export default function setPassword(app) {
   if (!app.setup || !app.setup.words) {
@@ -19,23 +25,29 @@ export default function setPassword(app) {
     return { el: h('div') };
   }
   const restoring = app.setup.mode === 'restore';
-  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'new-password', 'data-testid': 'pw1', 'data-autofocus': true, 'aria-label': 'Password' });
-  const pw2 = h('input', { class: 'input', type: 'password', autocomplete: 'new-password', 'data-testid': 'pw2', 'aria-label': 'Repeat password' });
+  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'data-testid': 'pw1', 'data-autofocus': true, 'aria-label': 'Password' });
+  const pw2 = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'data-testid': 'pw2', 'aria-label': 'Repeat password' });
   const showBtn = h('button', { class: 'btn btn-text btn-small inside', type: 'button', 'aria-label': 'Show password' }, icon('eye'));
   showBtn.addEventListener('click', () => {
     const t = pw.type === 'password' ? 'text' : 'password';
     pw.type = t;
     pw2.type = t;
   });
-  const hint = h('p', { class: 'hint', text: 'At least 8 characters.' });
+  const FIRST_HINT = `At least ${MIN_PASSWORD} characters. A few unrelated words are strong and easy to type.`;
+  const hint = h('p', { class: 'hint', 'data-testid': 'pw-hint', text: FIRST_HINT });
   const err = h('div', { 'aria-live': 'polite' });
   const cta = primary('Protect my wallet', save, { disabled: true, 'data-testid': 'save-password' });
 
+  // What the password still needs, as it is typed: the length first (no red while typing it), then
+  // what makes it guessable, then the second field.
   const update = () => {
-    const p = passwordProblem(pw.value, pw2.value);
-    cta.disabled = Boolean(p);
-    hint.textContent = pw.value.length >= 8 ? (pw2.value && pw.value !== pw2.value ? "The two passwords don't match yet." : 'Good.') : 'At least 8 characters.';
-    hint.className = 'hint' + (pw.value.length >= 8 && !(pw2.value && pw.value !== pw2.value) ? ' good' : '');
+    cta.disabled = Boolean(passwordProblem(pw.value, pw2.value));
+    const weak = passwordWeakness(pw.value);
+    const short = !pw.value || (weak && weak.code === 'short');
+    const mismatch = !weak && pw2.value && pw.value !== pw2.value;
+    hint.textContent = short ? FIRST_HINT : weak ? weak.text : mismatch ? "The two passwords don't match yet." : 'Good.';
+    hint.className = 'hint' + (short ? '' : weak ? ' bad' : mismatch ? '' : ' good');
+    hint.dataset.state = short ? 'short' : weak ? weak.code : mismatch ? 'mismatch' : 'good';
   };
   pw.addEventListener('input', update);
   pw2.addEventListener('input', update);
@@ -69,7 +81,9 @@ export default function setPassword(app) {
     h('label', { class: 'field' }, 'Repeat password', pw2),
     hint,
     err,
-    h('p', { class: 'small', text: "Nobody can reset this password, not even us. If you forget it, your 12 words bring the wallet back." }),
+    // Face ID / Touch ID is the next step, said in the lead.
+    notSavedNote(app, { faceId: false }),
+    h('p', { class: 'small', 'data-testid': 'pw-why', text: "Face ID only saves typing: this password guards the wallet if someone copies this device's data. Nobody can reset it, not even us. If you forget it, your 12 words bring the wallet back." }),
   );
   return { el };
 }

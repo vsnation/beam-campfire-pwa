@@ -6,6 +6,9 @@
  *   - "Is this address right?" -> checked by the wallet as you paste, with its type in words.
  *   - "Can I pay a name?" -> the same field takes alice.beam: it is looked up as you type, with
  *     its owner key and how a name payment arrives; an address always wins over a name.
+ *   - "Is it still the same person?" -> a name this wallet paid before is compared with the owner
+ *     key it was paid then; a different one stops here with both keys and an explicit choice
+ *     (a name can be sold or expire, and a node can lie about it: audit D-1).
  *   - "How much will it cost?" -> the network fee is shown under the amount, before review.
  *   - "Max leaves dust / fails" -> Max = available minus the fee, exactly.
  *   - "Why is the button grey?" -> the reason is always written next to it.
@@ -19,10 +22,12 @@ import { icon } from '../lib/icons.js';
 import { screen, primary, notice } from '../lib/ui.js';
 import { parseAmount, formatAmount, toInputString } from '../lib/amount.js';
 import { wallet, sendModeFor } from '../lib/wallet.js';
-import { classifyRecipient, describeNameProblem, canReceivePayments, display, fingerprint, dateOf, holdEndHeight, STATUS, NAME_CALL_FEE } from '../lib/bans.js';
+import { classifyRecipient, describeNameProblem, canReceivePayments, display, fingerprint, checkCode, pinVerdict, dateOf, holdEndHeight, STATUS, NAME_CALL_FEE } from '../lib/bans.js';
+import { readNamePin, NAME_PIN_UNREAD } from '../lib/contacts.js';
 import { bans, day } from './names.js';
 import { hiddenIds } from '../lib/hidden_tokens.js';
-import { recipientButtons, contactLine, noteField, scannedAmount } from './send_extras.js';
+import { recipientButtons, contactLine, noteField, scannedAmount, otherWalletHint } from './send_extras.js';
+import { listWallets } from '../lib/wallets.js';
 
 /** How a payment to a name goes out: through BEAM's name vault, a contract call. */
 const NAME_MODE = { fee: NAME_CALL_FEE, label: 'Name payment' };
@@ -36,6 +41,24 @@ export default function send(app) {
   addr.value = draft.address;
   const pasteBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'paste' }, icon('paste'), 'Paste');
   const addrHint = h('p', { class: 'hint', 'data-testid': 'address-hint' });
+  // Another wallet of this device as the receiver (re-audit RE1-12): how a regular payment to it goes.
+  const otherHint = h('p', { class: 'hint', 'data-testid': 'send-other-wallet-hint', hidden: true });
+  let walletCount = 1;
+  let checkedMode = null;
+  const showOtherHint = () => {
+    const t = otherWalletHint({ wallets: walletCount, mode: checkedMode });
+    otherHint.textContent = t || '';
+    otherHint.hidden = !t;
+  };
+  listWallets().then(
+    (l) => {
+      walletCount = l.length;
+      showOtherHint();
+    },
+    () => {},
+  );
+  // A name whose owner changed since this wallet paid it: both keys, and paying the new one is a choice.
+  const nameBox = h('div', { class: 'send-slot', 'aria-live': 'polite' });
   const contactInfo = contactLine(app);
   const note = noteField(draft);
   const pickBtns = recipientButtons(app, {
@@ -57,7 +80,7 @@ export default function send(app) {
   const maxBtn = h('button', { class: 'btn btn-secondary btn-small inside', type: 'button', 'data-testid': 'max' }, 'Max');
   const amountHint = h('p', { class: 'hint' });
   const feeLine = h('div', { class: 'kv' });
-  const syncMsg = h('div');
+  const syncMsg = h('div', { class: 'send-slot' });
   const cta = primary('Review payment', review, { disabled: true, 'data-testid': 'review' });
 
   function assets() {
@@ -82,6 +105,29 @@ export default function send(app) {
     return (check.state === 'ok' && sendModeFor(check.type)) || sendModeFor('regular');
   }
 
+  /** Both owner keys of a name that changed owner since this wallet paid it, and the choice to pay the new one. */
+  function ownerChangedCard(name, before, now) {
+    return h(
+      'div',
+      { class: 'card', 'data-testid': 'name-changed' },
+      h('div', { class: 'kv' }, h('span', { class: 'k', text: 'You paid before' }), h('span', { class: 'v mono', 'data-testid': 'name-before', text: checkCode(before) })),
+      h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Owner now' }), h('span', { class: 'v mono', 'data-testid': 'name-now', text: checkCode(now) })),
+      h(
+        'button',
+        {
+          class: 'btn btn-secondary btn-small',
+          type: 'button',
+          'data-testid': 'name-accept-new',
+          onclick: () => {
+            draft.acceptedOwner = { name, key: now };
+            validate();
+          },
+        },
+        'They confirmed it: pay the new owner',
+      ),
+    );
+  }
+
   /** A typed name: looked up on the wallet's own node; only a name that accepts payments is ok. */
   async function resolveName(name, seq) {
     check = { state: 'checking' };
@@ -91,16 +137,32 @@ export default function send(app) {
     try {
       const r = await bans().resolve(name);
       if (seq !== checkSeq) return;
-      if (canReceivePayments(r.status) && r.ownerKey) {
+      const payable = canReceivePayments(r.status) && Boolean(r.ownerKey);
+      // The owner key this wallet paid the name before, kept sealed with the contacts. Unreadable:
+      // nothing to compare with, and the person is told so (audit BC-3), never "as if never paid".
+      const pin = payable ? await readNamePin(app, name) : { key: null, unread: false };
+      const pinned = pin.key;
+      if (seq !== checkSeq) return;
+      const accepted = draft.acceptedOwner && draft.acceptedOwner.name === name ? draft.acceptedOwner.key : null;
+      const verdict = payable ? pinVerdict({ pinned, now: r.ownerKey, accepted }) : 'first';
+      if (verdict === 'changed') {
+        check = { state: 'bad' };
+        addrHint.textContent = `${display(name)} now has a different owner than when you last paid it. Names can be sold, given away or expire, and a node can answer wrongly: check with the person before you pay.`;
+        addrHint.className = 'hint bad';
+        put(nameBox, ownerChangedCard(name, pinned, r.ownerKey));
+      } else if (payable) {
         const clock = { tipHeight: r.tipHeight, tipTime: r.tipTime };
-        check = { state: 'ok', name, ownerKey: r.ownerKey };
+        check = { state: 'ok', name, ownerKey: r.ownerKey, pinnedKey: pinned, pinUnread: pin.unread, acceptedKey: verdict === 'accepted' ? r.ownerKey : null };
         const parts = [`${display(name)}: registered name, owner key ${fingerprint(r.ownerKey)}${r.status !== STATUS.onHold ? `, active until ${day(dateOf(r.domain.expireHeight, clock))}` : ''}.`];
+        if (verdict === 'same') parts.push('The same owner as your last payment to it.');
+        if (verdict === 'accepted') parts.push('You chose to pay its new owner.');
+        if (pin.unread) parts.push(NAME_PIN_UNREAD);
         parts.push('Anonymous name payment: the amount is visible on the blockchain, the recipient is not. They claim it from their wallet.');
         if (r.status === STATUS.onHold) parts.push(`This name has lapsed: payments still reach its owner, who can renew it until ${day(dateOf(holdEndHeight(r.domain.expireHeight), clock))}. If they don't, it can pass to someone else.`);
         if (r.status === STATUS.forSale) parts.push('It is listed for sale and may change owner before your payment arrives.');
         if (!r.inSync) parts.push('Your wallet was still catching up, so this may be out of date; it is checked again before anything is sent.');
         addrHint.textContent = parts.join(' ');
-        addrHint.className = r.status === STATUS.onHold ? 'hint' : 'hint good';
+        addrHint.className = r.status === STATUS.onHold || pin.unread ? 'hint' : 'hint good';
       } else {
         check = { state: 'bad' };
         addrHint.textContent =
@@ -159,7 +221,10 @@ export default function send(app) {
   async function validate() {
     const a = addr.value.trim();
     draft.address = a;
+    checkedMode = null;
+    showOtherHint();
     const seq = ++checkSeq;
+    put(nameBox);
     if (!a) {
       check = { state: 'empty' };
       addrHint.textContent = '';
@@ -185,6 +250,8 @@ export default function send(app) {
       const r = await wallet.validateAddress(a);
       if (seq !== checkSeq) return;
       const m = r && r.is_valid ? sendModeFor(r.type) : null;
+      checkedMode = m && !r.is_mine ? m : null;
+      showOtherHint();
       if (!m) {
         check = { state: 'bad' };
         addrHint.textContent = "This isn't a BEAM address. Copy it again from the person you're paying.";
@@ -246,7 +313,7 @@ export default function send(app) {
   function review() {
     const ok = evaluate();
     if (!ok) return;
-    if (check.name) return app.go('review', { kind: 'name', name: check.name, ownerKey: check.ownerKey, amount: ok.amount, fee: ok.fee, assetId: ok.assetId });
+    if (check.name) return app.go('review', { kind: 'name', name: check.name, ownerKey: check.ownerKey, pinnedKey: check.pinnedKey, pinUnread: Boolean(check.pinUnread), acceptedKey: check.acceptedKey, amount: ok.amount, fee: ok.fee, assetId: ok.assetId });
     app.go('review', { address: draft.address, amount: ok.amount, fee: ok.fee, assetId: ok.assetId, type: check.type, note: note.value() });
   }
 
@@ -263,10 +330,14 @@ export default function send(app) {
         app.back('home');
       },
       actions: [cta],
-      cls: 'plain',
+      // Sticky: a name's owner check, a look-alike warning or a note push the button down; it
+      // stays in view (one primary action, visible on a 375x667 phone without scrolling).
+      cls: 'plain sticky-actions',
     },
     h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: 'To' }), ...pickBtns, pasteBtn), addr),
     addrHint,
+    otherHint,
+    nameBox,
     contactInfo.el,
     assetField,
     h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: 'Amount' }), unitLabel), h('div', { class: 'input-wrap' }, amount, maxBtn)),

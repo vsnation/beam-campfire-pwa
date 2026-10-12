@@ -12,10 +12,62 @@
  *   - "I have a wallet.db but no words" -> its own button.
  *   - "Will I lose it if Safari clears data?" -> the Home Screen guide says when that happens.
  *   - "What does it cost?" -> nothing to install or sign up; network fees are shown before paying.
+ * On an address other websites share (<user>.github.io, .gitlab.io, .codeberg.page;
+ * lib/shared_origin.js) the ONE job is to get the wallet to a safe place: primary CTA "Go to
+ * pwa.buybeam.my" (1 tap). No Create there. "Restore with 12 words here" and "Import a wallet.db file
+ * here" stay, for when pwa.buybeam.my is gone, each behind a warning sheet (2 taps).
+ * Exit-intent: "Am I on the wrong site / is this a fake?" -> it says plainly why not here and where,
+ * without blame; "pwa.buybeam.my is gone or looks wrong" -> desktop and Android are named, and the
+ * line under the button says not to type the words there if it looks unexpected.
  */
 import { h } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, primary, secondary } from '../lib/ui.js';
+import { screen, primary, secondary, notice, openSheet } from '../lib/ui.js';
+import { onSharedOrigin, HOME_URL, SHARED_TEXT } from '../lib/shared_origin.js';
+
+/**
+ * In place of Create / Restore / Import on an address other websites share: why not here, the way
+ * to BEAM Campfire's own address, and Restore / Import here behind a warning (audit UPD-2).
+ * restore() and importDb() run only once the person confirmed it. A wallet already kept here still
+ * opens (unlock never comes this way).
+ */
+export function sharedOriginParts(app, { restore, importDb, testid = '' }) {
+  const here = typeof location !== 'undefined' ? location.hostname : '';
+  app.sharedOriginOk = false; // a warning confirmed earlier covered that attempt only
+  const warned = (kind, then) => () =>
+    openSheet(
+      (close) => [
+        h('h2', { 'data-testid': 'shared-warn-title', text: SHARED_TEXT.warnTitle[kind] }),
+        notice('warn', SHARED_TEXT.warn(here, kind)),
+        h('p', { class: 'lead', text: SHARED_TEXT.warnWhen }),
+        h(
+          'div',
+          { class: 'sheet-actions' },
+          h('button', {
+            class: 'btn btn-danger',
+            'data-testid': 'shared-warn-confirm',
+            onclick: () => {
+              app.sharedOriginOk = true;
+              close();
+              then();
+            },
+          }, SHARED_TEXT.confirm[kind]),
+          h('button', { class: 'btn btn-text', 'data-testid': 'shared-warn-cancel', onclick: () => close() }, SHARED_TEXT.cancel),
+        ),
+      ],
+      { label: SHARED_TEXT.warnTitle[kind] },
+    );
+  return {
+    body: h('div', { 'data-testid': 'shared-origin' }, notice('info', SHARED_TEXT.why(here))),
+    actions: [
+      h('a', { class: 'btn btn-primary', href: HOME_URL, rel: 'noopener noreferrer', 'data-testid': 'shared-origin-go' }, SHARED_TEXT.go),
+      h('p', { class: 'small center', 'data-testid': 'shared-origin-unexpected', text: SHARED_TEXT.unexpected }),
+      secondary(SHARED_TEXT.restoreHere, warned('restore', restore), { 'data-testid': `${testid}restore` }),
+      secondary(SHARED_TEXT.importHere, warned('import', importDb), { 'data-testid': `${testid}import` }),
+      h('p', { class: 'small center', 'data-testid': 'shared-origin-elsewhere', text: SHARED_TEXT.elsewhere }),
+    ],
+  };
+}
 
 export function isIosSafariTab() {
   const ua = navigator.userAgent;
@@ -25,35 +77,40 @@ export function isIosSafariTab() {
 }
 
 export default function welcome(app) {
-  const guide = isIosSafariTab() && !app.prefs.a2hsDismissed ? a2hsGuide(app) : null;
+  const restore = () => {
+    app.setup = { mode: 'restore' };
+    app.go('restore');
+  };
+  const importDb = () => {
+    app.setup = null;
+    app.go('importWallet');
+  };
+  const shared = onSharedOrigin() ? sharedOriginParts(app, { restore, importDb }) : null;
+  const guide = !shared && isIosSafariTab() && !app.prefs.a2hsDismissed ? a2hsGuide(app) : null;
   const el = screen(
     {
       topbar: false,
       cls: 'welcome',
-      actions: [
+      actions: shared ? shared.actions : [
         primary('Create a new wallet', () => {
           app.setup = { mode: 'create' };
           app.go('backup');
         }, { 'data-testid': 'create' }),
-        secondary('Restore with 12 words', () => {
-          app.setup = { mode: 'restore' };
-          app.go('restore');
-        }, { 'data-testid': 'restore' }),
-        secondary('Import a wallet.db file', () => {
-          app.setup = null;
-          app.go('importWallet');
-        }, { 'data-testid': 'import' }),
+        secondary('Restore with 12 words', restore, { 'data-testid': 'restore' }),
+        secondary('Import a wallet.db file', importDb, { 'data-testid': 'import' }),
         h('p', { class: 'small center', text: 'No sign-up. Your keys stay on this device.' }),
       ],
     },
     h(
       'div',
-      { class: `hero${guide ? ' compact' : ''}` },
+      // Compact when more must fit above the fold: the Home Screen guide, or the shared-address
+      // notice with the desktop / Android line under the buttons (375x667 without scrolling).
+      { class: `hero${guide || shared ? ' compact' : ''}` },
       h('img', { src: 'img/logo.svg', alt: '' }),
       h('h1', { text: 'BEAM Campfire' }),
       h('p', { text: 'Your privacy. Your wallet. Your BEAM.' }),
     ),
-    guide,
+    shared ? shared.body : guide,
   );
   return { el };
 }

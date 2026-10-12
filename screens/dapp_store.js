@@ -246,7 +246,7 @@ export function dappStoreItem(app, params = {}) {
       bar,
       btn,
       why,
-      h('p', { class: 'small settings-note', 'data-testid': 'store-item-note', text: `Downloaded from BEAM Campfire's copy of the store at this app's address, and installed only if it is exactly the file ${p ? p.name : 'its publisher'} recorded on the chain (IPFS ${d.cid.slice(0, 10)}…). It runs walled off from your wallet and asks before anything leaves it.` }),
+      h('p', { class: 'small settings-note', 'data-testid': 'store-item-note', text: `Downloaded from BEAM Campfire's copy of the store at this app's address, and installed only if it is exactly the file ${p ? p.name : 'its publisher'} recorded on the chain (IPFS ${d.cid.slice(0, 10)}…). It runs walled off from your wallet: it can see your balance, and asks before anything leaves it.` }),
     );
   }
 

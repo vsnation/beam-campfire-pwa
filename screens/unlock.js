@@ -10,6 +10,8 @@
  *     wallet.db file and password), stated plainly.
  *   - "Which wallet is this?" -> with several, its name is in the title and on the picker, which
  *     shows names only: a locked phone shows no amounts.
+ *   - "Why doesn't the browser fill my password?" -> one line under the field: a password kept in the
+ *     browser sits next to the wallet it opens; Face ID / Touch ID saves the typing instead.
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
@@ -20,6 +22,8 @@ import { resumeBridgeIfAny } from './eth_screens.js';
 import { takeSwitchNote } from '../lib/own_node.js';
 import { nameOf, rememberOpened } from '../lib/wallets.js';
 import { unlockPicker } from './wallets.js';
+import { resealAirdropCodes } from './airdrop.js';
+import { notSavedNote } from '../lib/auth_ui.js';
 
 export default function unlock(app, params = {}) {
   if (!app.record) {
@@ -39,9 +43,9 @@ export default function unlock(app, params = {}) {
   // A bridge screen was open when it locked: say where its move was, and go back to it after unlock.
   const follow = app.afterUnlock ? h('div', { 'data-testid': 'unlock-follow' }, notice('info', h('strong', { text: app.afterUnlock.lead || 'Unlock to follow your move. ' }), app.afterUnlock.note || 'BEAM Campfire goes back to it once the wallet is open.')) : null;
 
-  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'current-password', 'aria-label': 'Password', 'data-testid': 'unlock-pw', placeholder: 'Password' });
+  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'aria-label': 'Password', 'data-testid': 'unlock-pw', placeholder: 'Password' });
   const pwBtn = primary('Unlock', () => withPassword(), { 'data-testid': 'unlock-submit' });
-  const pwBlock = h('div', { class: passkey ? 'hidden' : '' }, h('label', { class: 'field' }, 'Password', pw));
+  const pwBlock = h('div', { class: passkey ? 'hidden' : '' }, h('label', { class: 'field' }, 'Password', pw), notSavedNote(app));
   pw.addEventListener('keydown', (e) => e.key === 'Enter' && withPassword());
 
   let busy = false;
@@ -59,6 +63,8 @@ export default function unlock(app, params = {}) {
       }
       // Moves through the bridge are followed again from where they were (only when there are any).
       resumeBridgeIfAny(app);
+      // An imported wallet's airdrop codes kept under the old, fast key derivation: sealed again now.
+      resealAirdropCodes(app);
       const next = app.afterUnlock;
       app.afterUnlock = null;
       app.go(next ? next.name : 'home', next ? next.params : {});

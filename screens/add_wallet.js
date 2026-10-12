@@ -11,16 +11,21 @@
  *     is said, with what to do.
  *   - "What happens to the open wallet?" -> it locks once the new one is ready; Home's wallet name
  *     opens it again.
+ * On an address other websites share (lib/shared_origin.js): no Create; primary CTA "Go to
+ * pwa.buybeam.my"; Restore and Import here each behind a warning sheet (screens/welcome.js).
  */
 import { h, put } from '../lib/dom.js';
 import { screen, primary, secondary, notice } from '../lib/ui.js';
 import { listWallets, nextName, nameProblem, nameOf, cleanName, MAX_NAME } from '../lib/wallets.js';
+import { onSharedOrigin } from '../lib/shared_origin.js';
+import { sharedOriginParts } from './welcome.js';
 
 export default function addWallet(app) {
   // A fresh start: words or a choice from an add flow left midway do not linger (Settings -> Backup
   // must never take a leftover "adding" for a new wallet).
   if (app.setup && Array.isArray(app.setup.words)) app.setup.words.fill('');
   app.setup = null;
+  const back = () => (app.dbPass ? app.back('home') : app.go('unlock'));
   let list = null;
   const msg = h('div', { 'aria-live': 'polite', 'data-testid': 'add-msg' });
   const input = h('input', { class: 'input', type: 'text', maxlength: String(MAX_NAME), autocomplete: 'off', autocapitalize: 'words', spellcheck: 'false', 'aria-label': 'Wallet name', 'data-testid': 'add-name' });
@@ -45,17 +50,23 @@ export default function addWallet(app) {
     app.go(to);
   }
 
+  // An address other websites share keeps the wallets it has and makes no new one; a restore or an
+  // import there comes after a warning (lib/shared_origin.js, audit UPD-2).
+  const shared = onSharedOrigin()
+    ? sharedOriginParts(app, { restore: () => go('restore', 'restore'), importDb: () => go('import', 'importWallet'), testid: 'add-' })
+    : null;
   const el = screen(
     {
       title: 'Add a wallet',
-      back: () => (app.dbPass ? app.back('home') : app.go('unlock')),
-      actions: [
+      back,
+      actions: shared ? shared.actions : [
         primary('Create a new wallet', () => go('create', 'backup'), { 'data-testid': 'add-create' }),
         secondary('Restore with 12 words', () => go('restore', 'restore'), { 'data-testid': 'add-restore' }),
         secondary('Import a wallet.db file', () => go('import', 'importWallet'), { 'data-testid': 'add-import' }),
       ],
     },
-    h('p', { class: 'lead', text: 'Your wallets stay as they are. The new one gets its own password, and its own Face ID if you turn it on.' }),
+    h('p', { class: 'lead', text: shared ? 'Your wallets here stay as they are and keep working.' : 'Your wallets stay as they are. The new one gets its own password, and its own Face ID if you turn it on.' }),
+    shared ? shared.body : null,
     h('label', { class: 'field' }, 'Name', input),
     msg,
     openNote,

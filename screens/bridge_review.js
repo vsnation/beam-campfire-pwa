@@ -15,13 +15,15 @@
  *   - "Who can see this?" -> said: moving is public on both chains.
  *   - "Can this coin be frozen?" -> said for WBEAM, USDT and WBTC; and it is checked again with
  *     Ethereum right before signing.
+ *   - An Ethereum payment, swap or permission of this wallet "Not sure yet" or "Not sent yet": nothing is
+ *     signed, and the sheet names it with the way out (lib/eth/doubt.js).
  */
 import { h } from '../lib/dom.js';
 import { openSheet, notice } from '../lib/ui.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
 import { CLAIM_FEE } from '../lib/bridge/routes.js';
 import { STEP_KINDS } from '../lib/bridge/eth_pipe.js';
-import { ethText, ethMaxText, groupedAddress } from './eth_ui.js';
+import { ethText, ethMaxText, groupedAddress, doubtNotice } from './eth_ui.js';
 import { coin, moveLabel, arrivesText, freezeNote, PUBLIC_NOTE, TO_BEAM } from './bridge_text.js';
 
 /** Priced again before signing when the review is older than this. */
@@ -61,6 +63,13 @@ export function openBridgeReview(app, s, first, { onStarted }) {
         busy = true;
         message = null;
         try {
+          // A transaction of this Ethereum wallet in doubt: nothing new is signed from it (lib/eth/doubt.js).
+          const doubt = await s.w.freshDoubt();
+          if (doubt) {
+            busy = false;
+            message = doubtNotice(app, doubt, { inSheet: true, testid: 'bridge-review-doubt' });
+            return rerender();
+          }
           // Older than a minute: priced again, and a higher fee is shown, not sent.
           if (Date.now() - p.at > FRESH_MS) {
             const fresh = await ctl.prepare(q);

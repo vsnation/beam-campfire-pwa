@@ -16,6 +16,9 @@
  *   - "Why does it want CoinGecko?" -> asked once, saying CoinGecko sees the IP; "Not now" still
  *     leaves WBEAM -> BEAM, which needs no price, and says so.
  *   - "Did my last move arrive?" -> an open move is one tap away at the top, with where it is.
+ *   - "Why can't I move to BEAM?" while an Ethereum payment, swap or permission is "Not sure yet" or
+ *     "Not sent yet": it is named with the way out (see it, or another server in Settings); the bridge
+ *     signs from that same account, so nothing new is signed until it is settled (lib/eth/doubt.js).
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
@@ -25,7 +28,7 @@ import { ROUTES, routeById, SEND_FEE, CLAIM_FEE } from '../lib/bridge/routes.js'
 import { ETH, tokenBySymbol } from '../lib/eth/tokens.js';
 import { BLOCKS } from '../lib/bridge/quote.js';
 import { isOpen } from '../lib/bridge/store.js';
-import { ethBadge } from './eth_ui.js';
+import { ethBadge, doubtNotice, followDoubt } from './eth_ui.js';
 import { openBridgeReview } from './bridge_review.js';
 import { bridgeOf, bridgeProblem, pricesChoice, priceQuestion, pricesOff } from './bridge_ui.js';
 import { headline, crossingWords } from './bridge_words.js';
@@ -51,6 +54,7 @@ import {
   ABOUT_TO_ETHEREUM_MS,
   ABOUT_TO_BEAM_MS,
 } from './bridge_text.js';
+import { confirmKeptHere } from './storage_warning.js';
 
 const QUOTE_DELAY_MS = 400;
 /** A quote older than this is worked out again when the button is tapped. */
@@ -134,6 +138,7 @@ export default function bridgeMove(app, params = {}) {
     if (!s) return { off: 'Opening the bridge…' };
     if (busy) return { off: 'Getting it ready…' };
     if (toEth() && !wallet.state.sync.canSend) return { off: `Moving to Ethereum is paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.` };
+    if (!toEth() && s.w.doubt()) return { off: 'Paused until your last Ethereum transaction is settled (above).' };
     const gate = priceGate();
     if (gate === 'ask') return { off: 'Allow prices above to see the bridge fee.' };
     if (gate === 'off') return { off: 'Prices are off, so this move cannot be priced.' };
@@ -239,6 +244,9 @@ export default function bridgeMove(app, params = {}) {
       if (gate === 'ask') n.push(priceQuestion({ allow: () => choosePrices(true), refuse: () => choosePrices(false) }));
       if (gate === 'off') n.push(pricesOff({ allow: () => choosePrices(true), useWbeam: () => pickRoute('beam', TO_BEAM) }));
       if (toEth() && !wallet.state.sync.canSend) n.push(notice('info', 'Your BEAM wallet is catching up with the network. Moving to Ethereum works once it is up to date.'));
+      // Moving to BEAM signs from the Ethereum wallet: a transaction of it in doubt holds this back.
+      const doubt = !toEth() ? s.w.doubt() : null;
+      if (doubt) n.push(doubtNotice(app, doubt, { testid: 'bridge-eth-doubt', onForgotten: () => render() }));
       // Collecting on BEAM needs BEAM: said before typing, not after.
       if (!toEth() && bal && balFor === key() && bal.beam < CLAIM_FEE && !(q && q.block && q.block.code === BLOCKS.noClaimFee)) {
         n.push(blockNotice({ code: BLOCKS.noClaimFee, title: `Your BEAM wallet needs ${coin(CLAIM_FEE, 8, 'BEAM')} to collect it`, detail: `Coins moved to BEAM are collected with a BEAM transaction. Your BEAM wallet has ${coin(bal.beam, 8, 'BEAM')}. Receive a little BEAM first, then move.` }));
@@ -403,6 +411,11 @@ export default function bridgeMove(app, params = {}) {
 
   async function onMove() {
     if (busy || ctaState().off) return;
+    // The move's record is kept only in this browser: where it may delete it, say so first (audit A-7).
+    busy = true;
+    const go = await confirmKeptHere(app, 'bridge');
+    busy = false;
+    if (!go || !alive) return;
     let q = quote;
     busy = true;
     error = null;
@@ -527,6 +540,8 @@ export default function bridgeMove(app, params = {}) {
   paint();
   render();
   start();
+  // An Ethereum transaction in doubt: followed while this screen is open, so the move opens up once it is settled.
+  const stopDoubt = followDoubt(app, () => (s && !toEth() ? s.w : null), () => render());
 
   const el = screen({ title: 'Move coins', back: () => app.back(back), right: history, cls: 'swap bridge' }, body);
   el.appendChild(actions);
@@ -536,6 +551,7 @@ export default function bridgeMove(app, params = {}) {
       alive = false;
       clearTimeout(timer);
       offWallet();
+      stopDoubt();
       if (offCtl) offCtl();
     },
   };

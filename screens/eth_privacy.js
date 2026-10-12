@@ -7,7 +7,8 @@
  *   - "A privacy wallet on a public chain?" -> said first and plainly: everything on Ethereum is public;
  *     the BEAM wallet stays private.
  *   - "Who sees my IP?" -> the one Ethereum server picked (Stack Wallet's by default), and how to hide it.
- *   - "Is there a fallback that leaks to more servers?" -> no: one server, picked by you.
+ *   - "Is there a fallback that leaks to more servers?" -> no: one server, picked by you, is asked
+ *     about your address. (A swap's price alone is asked again of a second listed server, said here.)
  *   - "Can I see my history without telling Stack Wallet?" -> the history switch, named here.
  */
 import { h, put } from '../lib/dom.js';
@@ -89,7 +90,7 @@ export default function ethPrivacy(app, params = {}) {
         { class: 'steps-list small' },
         h('li', { text: "Past payments come from Stack Wallet's history index, which is asked about your address. You can turn it off in Settings → Ethereum wallet." }),
         h('li', { text: "Moving coins between BEAM and Ethereum is public on both chains: your Ethereum address and the amount are written into BEAM's bridge, and moves from Ethereum carry the same bridge key every time, so they can be linked." }),
-        h('li', { text: 'Moving coins to Ethereum asks CoinGecko for prices, and CoinGecko sees your IP. You are asked first. Swaps on Uniswap contact no Uniswap server, only your Ethereum server.' }),
+        h('li', { text: 'Moving coins to Ethereum asks CoinGecko for prices, and CoinGecko sees your IP. You are asked first. Swaps on Uniswap contact no Uniswap server. Before a swap, its price is checked with a second server from the list, which sees your IP address and the swap\'s amount, never your address.' }),
       ),
     ),
     h('p', { class: 'small', text: 'To hide your IP address, turn on iCloud Private Relay or use a VPN, as for BEAM.' }),

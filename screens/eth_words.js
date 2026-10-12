@@ -5,7 +5,8 @@
  * Exit-intent reasons and answers:
  *   - "More words? I already wrote 12" -> said plainly: these are different from the BEAM words,
  *     and only they bring the Ethereum wallet back.
- *   - "Someone could see my screen" -> blurred until tapped (the same grid as the BEAM words).
+ *   - "Someone could see my screen" -> blurred until tapped, and again when the app is left (the same
+ *     grid as the BEAM words).
  *   - "Can I screenshot it?" -> no, and why (photos sync to the cloud).
  *   - "Can I see them later?" -> no: they are never stored; said here, before the person moves on.
  */
@@ -34,5 +35,5 @@ export default function ethWords(app) {
     reveal.el,
     h('p', { class: 'small', text: 'BEAM Campfire does not keep these words, so it cannot show them again.' }),
   );
-  return { el };
+  return { el, destroy: reveal.destroy };
 }

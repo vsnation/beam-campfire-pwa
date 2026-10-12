@@ -8,10 +8,12 @@
  *   - "How do I know the name comes to me?" -> the sender reads out 16 characters and this screen shows
  *     the same ones, large.
  *   - "It takes long" -> a spinner with what is happening; an error says what to tap.
+ *   - "Someone could see it in the app switcher" -> the key leaves the screen while the app is out
+ *     of sight and comes back by itself on return (it tells which names are this wallet's).
  */
 import { h, put, svg } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, notice, copyText } from '../lib/ui.js';
+import { screen, notice, copyText, onHidden, onShown } from '../lib/ui.js';
 import { encodeQr, qrSvgPath } from '../lib/qr.js';
 import { checkCode } from '../lib/bans.js';
 import { bans } from './names.js';
@@ -39,6 +41,11 @@ export default function nameKey(app) {
     }
     if (!alive) return;
     cta.disabled = false;
+    showKey();
+  }
+
+  function showKey() {
+    if (!key || !alive) return;
     put(
       box,
       h(
@@ -52,6 +59,11 @@ export default function nameKey(app) {
     );
   }
 
+  // Out of sight (the app switcher keeps a picture of the screen): the key leaves the page; back in
+  // sight, with the wallet still open, it is shown again from memory (nothing is asked again).
+  const offHidden = onHidden(() => key && put(box));
+  const offShown = onShown(() => app.dbPass && showKey());
+
   load();
   const el = screen(
     { title: 'Receive a name', back: () => app.back('names'), cls: 'names feature sticky-actions', actions: [cta] },
@@ -63,6 +75,8 @@ export default function nameKey(app) {
     el,
     destroy() {
       alive = false;
+      offHidden();
+      offShown();
     },
   };
 }

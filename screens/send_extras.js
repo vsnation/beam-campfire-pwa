@@ -12,6 +12,19 @@ import { pickContact, contactForm } from './contacts.js';
 import { scanAddress } from './scan_sheet.js';
 
 /**
+ * Paying another wallet of this device (re-audit RE1-12): one wallet runs in one tab at a time, and
+ * a regular payment needs the receiver's wallet open too. Which wallet an address is cannot be
+ * known while that wallet is locked (its addresses are only in its own encrypted file, and none
+ * are kept anywhere else), so this is said for a regular address whenever the device has another.
+ */
+export const OTHER_WALLET_HINT = 'Paying another of your wallets here? A regular payment needs both open, and only one can be: use its offline address, or after sending, switch to it and then back.';
+
+/** OTHER_WALLET_HINT when it applies: `wallets` on this device, `mode` the checked address's (lib/wallet.js sendModeFor). */
+export function otherWalletHint({ wallets, mode }) {
+  return wallets > 1 && mode && mode.receiverMustBeOnline ? OTHER_WALLET_HINT : null;
+}
+
+/**
  * The Contacts and Scan buttons beside Paste. fill({address, amount?}) puts what
  * was picked or scanned into the form; paste() runs Paste.
  */

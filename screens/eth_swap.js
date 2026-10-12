@@ -10,11 +10,17 @@
  *   - "Is it still working?" -> "Getting the best price from every Uniswap pool…" while the pools
  *     are read; the route that wins is named ("ETH → WBEAM · v4 · 1%").
  *   - "Will I get a bad price?" -> the rate in plain words, the price change from the swap (amber
- *     from 3%, a tick box from 10%), and "at least …" under the price protection.
+ *     from 3%, a tick box from 10%), and "at least …" under the price protection. Before the review
+ *     the same route is priced on a second listed server; more than 2% apart is said, with a tick.
+ *   - "Is my server telling the truth?" -> "Price checked with a second server (PublicNode)" in the
+ *     review, or what differs and by how much.
  *   - "What does it cost?" -> the network fee in ETH before anything is signed.
  *   - "I have BTC, not ETH" -> "Pay with BTC, ZEC or LTC" at the top (NEAR Intents brings it in as ETH).
  *   - "I wanted BEAM in my BEAM wallet" -> one link at the top.
  *   - "Which pools?" -> beside the form on a wide screen; one tap away on a phone.
+ *   - "Why can't I swap?" while a payment, swap or permission is "Not sure yet" / "Not sent yet": it is
+ *     named above the button with the way out (see it, or another server in Settings); nothing new is
+ *     signed until it is settled, and the screen follows it and opens up by itself (lib/eth/doubt.js).
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
@@ -25,8 +31,8 @@ import { compactUnits, percentText } from '../lib/compact.js';
 import { UniswapNoRoute } from '../lib/eth/uniswap/quoter.js';
 import { DEFAULT_SLIPPAGE, IMPACT_WARNING, IMPACT_BLOCK, PERMIT_GAS, UniPriceMoved, UniRouteChanged } from '../lib/eth/uniswap/service.js';
 import { EthRpcError } from '../lib/eth/rpc.js';
-import { SWAP_TOKENS, WBEAM_TOKEN, uniswapFor, walletAsset } from '../lib/eth/uniswap_app.js';
-import { serverProblem } from './eth_ui.js';
+import { SWAP_TOKENS, WBEAM_TOKEN, uniswapFor, walletAsset, secondQuote } from '../lib/eth/uniswap_app.js';
+import { serverProblem, doubtNotice, followDoubt } from './eth_ui.js';
 import { payWithCoinEntry } from './near_intents_entry.js';
 import { amtShown, short, ethAbout, bipsText, rateText, routeText, routeNote, kv, tokenBadge, loadPools, poolsList, pickSlippage, openAllowSheet, openReviewSheet, impactBlock } from './eth_swap_parts.js';
 
@@ -112,6 +118,7 @@ export default function ethSwap(app, params = {}) {
     if (loadError) return { off: '' };
     if (busy) return { off: busy };
     if (!w || !svc) return { off: 'Opening your Ethereum wallet…' };
+    if (w.doubt()) return { off: 'Paused until your last Ethereum transaction is settled (above).' };
     const a = amountState();
     if (a.error) return { off: a.error };
     if (a.value == null) return { off: `Enter how much ${p.symbol} to swap.` };
@@ -156,6 +163,8 @@ export default function ethSwap(app, params = {}) {
       n.push(none);
     }
     if (message) n.push(message);
+    const doubt = w ? w.doubt() : null;
+    if (doubt) n.push(doubtNotice(app, doubt, { onForgotten: () => render() }));
     if (problem) n.push(problemNotice());
     if (quoted && (quote.priceImpact ?? 0) >= IMPACT_WARNING) n.push(...impactNotice(quote));
     put(notesBox, ...n);
@@ -363,6 +372,8 @@ export default function ethSwap(app, params = {}) {
     busy = 'Checking what Uniswap may take…';
     render();
     try {
+      // The outbox as stored now: a transaction in doubt holds this one back (lib/eth/doubt.js).
+      if (await w.freshDoubt()) return;
       const approval = await svc.approvalFor(q, w.state.address);
       if (!alive) return;
       if (approval.kind !== 'none') {
@@ -376,9 +387,14 @@ export default function ethSwap(app, params = {}) {
       render();
       const review = await svc.reviewSwap({ quote: q, slippageBips: draft.slippage, owner: w.state.address });
       if (!alive) return;
+      // The minimum comes from this one server's price: priced again on another listed server first.
+      busy = 'Checking the price with a second server…';
+      render();
+      const check = await secondQuote(w, review.quote);
+      if (!alive) return;
       busy = null;
       render();
-      const hash = await openReviewSheet(app, { w, svc, review, acceptImpact: impactAck });
+      const hash = await openReviewSheet(app, { w, svc, review, acceptImpact: impactAck, check });
       if (!alive) return;
       if (hash) {
         app.uniDraft = { ...draft, amount: '' };
@@ -421,6 +437,7 @@ export default function ethSwap(app, params = {}) {
   });
   const onWide = () => render();
   wide.addEventListener('change', onWide);
+  const stopDoubt = followDoubt(app, () => w, () => render());
 
   const intro = h('p', { class: 'small', text: "Straight to Uniswap's own contracts, priced through your Ethereum server. No middleman." });
   const wantBeam = h('button', { class: 'btn btn-text link-left', 'data-testid': 'uni-buy-native-beam', onclick: () => app.go('buyBeam', { from: 'eth' }) }, 'Want BEAM in your BEAM wallet instead?');
@@ -489,6 +506,7 @@ export default function ethSwap(app, params = {}) {
       alive = false;
       clearTimeout(timer);
       wide.removeEventListener('change', onWide);
+      stopDoubt();
     },
   };
 }

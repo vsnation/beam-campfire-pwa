@@ -4,9 +4,12 @@
  *       Taps from app open: 1 (Home -> Swap), type an amount, 2 ("Swap ..."), then approve.
  * Exit-intent reasons and answers:
  *   - "What will I get?" -> a live price 0.5 s after typing stops, from every pool for the pair; the best wins.
+ *     "About X, at least Y": Y is what the swap is sure to get - the price protection, and then what
+ *     BEAM may still take when it finishes an approved swap at a new price (lib/dex.js leastReceive).
  *   - "What does it cost?" -> the pool's fee and the 0.011 BEAM network fee are on screen before anything.
  *   - "Why is the button grey?" -> the reason is written right above it.
- *   - "What if the price moves?" -> more than the chosen protection (1% unless stricter) worse and the swap stops before it is shown; nothing is sent.
+ *   - "What if the price moves?" -> "You get at least Y, or the swap stops and nothing is sent": a built swap whose
+ *     worst case is below Y stops before it is shown.
  *   - "A small swap eaten by the fee" -> a warning when the network fee is a quarter or more of the swap.
  *   - "Can I earn from the pools instead?" -> "Pools" in the top bar: add coins to a pool, take them out.
  */
@@ -16,7 +19,7 @@ import { screen, primary, notice, openSheet, assetBadge } from '../lib/ui.js';
 import { parseAmount, formatAmount, toInputString } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
 import { dexApp, loadPools } from '../lib/dex_pools.js';
-import { DEX_CALL_FEE, DEFAULT_RECEIVE, KINDS, PROTECTION_BPS, PROTECTIONS, receivable, tradable, bestQuote, tradeArgs, swapExpectation, priceImpactBps, IMPACT_WARN_BPS, feeIsLarge, swapValue, feeShareBps, bpsText, DexError } from '../lib/dex.js';
+import { DEX_CALL_FEE, DEFAULT_RECEIVE, KINDS, PROTECTION_BPS, PROTECTIONS, receivable, tradable, bestQuote, tradeArgs, swapExpectation, leastReceive, priceImpactBps, IMPACT_WARN_BPS, feeIsLarge, swapValue, feeShareBps, bpsText, DexError } from '../lib/dex.js';
 import { shortAmount } from './consent.js';
 import { hiddenIds } from '../lib/hidden_tokens.js';
 
@@ -123,7 +126,11 @@ export default function swap(app) {
     const a = amountState();
     const quoted = Boolean(quote && a.value != null && !quoting);
     const who = getL && !getL.verified && draft.receive !== 0 ? `${getL.name} · asset #${draft.receive}` : getL && getL.name !== getL.unit ? getL.name : '';
-    put(getInfo, h('span', { 'data-testid': 'swap-get-exact', text: quoted ? `About ${formatAmount(quote.receive)} ${getL.unit}${who ? ` · ${who}` : ''}` : who }));
+    const least = quoted ? leastReceive(quote, protection()) : null;
+    put(
+      getInfo,
+      h('span', {}, h('span', { 'data-testid': 'swap-get-exact', text: quoted ? `About ${formatAmount(quote.receive)} ${getL.unit}` : who }), quoted ? h('span', { 'data-testid': 'swap-get-least', text: `, at least ${formatAmount(least)}` }) : null, quoted && who ? ` · ${who}` : null),
+    );
     getAmount.textContent = quoted ? `≈ ${shortAmount(quote.receive)}` : quoting ? '…' : '0';
     getAmount.classList.toggle('muted', !(quote && !quoting));
 
@@ -161,7 +168,7 @@ export default function swap(app) {
       const value = swapValue(quote, pools, (id) => wallet.label(id).verified);
       if (feeIsLarge(quote, DEX_CALL_FEE, value)) n.push(feeWarning(quote, value));
     }
-    if (!n.length) n.push(h('p', { class: 'small', text: `If the price gets more than ${bpsText(protection())} worse before you approve, the swap stops and nothing is sent.` }));
+    if (!n.length) n.push(h('p', { class: 'small', 'data-testid': 'swap-promise', text: quoted ? `You get at least ${formatAmount(least)} ${getL.unit}, or the swap stops and nothing is sent.` : `If the price gets more than ${bpsText(protection())} worse before you approve, the swap stops and nothing is sent.` }));
     put(notes, ...n);
 
     const st = ctaState();
@@ -352,7 +359,10 @@ export default function swap(app) {
     try {
       const { app: dex, shader } = await dexApp();
       const args = tradeArgs({ payAsset: q.payAsset, receiveAsset: q.receiveAsset, kind: q.kind, payAmount: q.pay, predictOnly: false });
-      const txId = await dex.transact(args, shader, { expect: swapExpectation(q, protection()), intent: { action: 'swap', payAsset: q.payAsset, receiveAsset: q.receiveAsset } });
+      // The approve sheet repeats what the swap is sure to get: the engine's amount there can still shrink a little.
+      const least = leastReceive(q, protection());
+      const intent = { action: 'swap', payAsset: q.payAsset, receiveAsset: q.receiveAsset, rows: [['You get at least', `${formatAmount(least)} ${unit(q.receiveAsset)}`]] };
+      const txId = await dex.transact(args, shader, { expect: swapExpectation(q, protection()), intent });
       if (!alive) return;
       app.swapDraft = null;
       wallet.refreshTxs();

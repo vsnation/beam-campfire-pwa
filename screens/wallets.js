@@ -9,8 +9,9 @@
  *       wallet (2), then unlock.
  * Exit-intent reasons and answers:
  *   - "Which wallet am I in?" -> its name is Home's title, and marked Open here.
- *   - "Is that balance live?" -> a locked wallet's says "Last known" with the day it was seen; the
- *     app asks nothing of a locked wallet. The lock screen shows names only, no amounts.
+ *   - "Is that balance live?" -> only the open wallet shows one, live; another says Locked: no
+ *     amount of a wallet is kept on the device for when it is locked (anyone with a copy of the
+ *     browser's data could read it). The lock screen shows names only, no amounts.
  *   - "Will switching break my payment?" -> when a payment is under way it says so first: the
  *     payment waits until that wallet is opened again; keeping it open is the main button.
  *   - "Do my wallets share a password?" -> no: each has its own password, Face ID, backup and
@@ -22,9 +23,7 @@ import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, secondary, textButton, notice, openSheet, toast } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
-import { listWallets, lastBalances, nameOf, switchWallet, selectWallet, runningWallet, renameWallet, MAX_NAME } from '../lib/wallets.js';
-
-const day = (ms) => new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+import { listWallets, nameOf, switchWallet, selectWallet, runningWallet, renameWallet, MAX_NAME } from '../lib/wallets.js';
 
 /** How a wallet came to this device, in words. */
 export function kindText(r) {
@@ -35,9 +34,9 @@ export function kindText(r) {
 
 /**
  * What a row says about a wallet's BEAM: live for the open one ("Open · 1.5 BEAM", or just the
- * amount where an Open tag already says so), "Last known" for the others.
+ * amount where an Open tag already says so), "Locked" for the others.
  */
-export function balanceText(app, r, cached, { tagged = false } = {}) {
+export function balanceText(app, r, { tagged = false } = {}) {
   const open = Boolean(app.dbPass && app.record && app.record.id === r.id);
   if (open) {
     const s = app.wallet.state;
@@ -46,7 +45,7 @@ export function balanceText(app, r, cached, { tagged = false } = {}) {
     if (tagged) return amount || 'Connecting…';
     return amount ? `Open · ${amount}` : 'Open';
   }
-  return cached ? `Last known ${formatAmount(cached.available)} BEAM · ${day(cached.at)}` : 'Open it to see its balance';
+  return 'Locked';
 }
 
 /**
@@ -83,17 +82,16 @@ export async function openWallet(app, target) {
 }
 
 /**
- * The switcher: every wallet with its name and BEAM (live for the open one, last known for the
- * others; none at all on the lock screen), a tap opens it. Add a wallet below.
+ * The switcher: every wallet with its name, and BEAM for the open one (none at all on the lock
+ * screen), a tap opens it. Add a wallet below.
  */
 export async function openSwitcher(app) {
   const list = await listWallets();
   const locked = !app.dbPass;
-  const cached = locked ? new Map() : await lastBalances(list);
   openSheet((close) => {
     const rows = list.map((r) => {
       const current = Boolean(app.record && app.record.id === r.id);
-      const sub = locked ? (current ? 'Selected' : kindText(r)) : balanceText(app, r, cached.get(r.id));
+      const sub = locked ? (current ? 'Selected' : kindText(r)) : balanceText(app, r);
       return h(
         'button',
         {
@@ -120,7 +118,7 @@ export async function openSwitcher(app) {
     return [
       h('h2', { text: 'Your wallets' }),
       h('div', { class: 'card list', 'data-testid': 'switcher' }, ...rows),
-      locked ? h('p', { class: 'small', text: 'Each wallet opens with its own password or Face ID.' }) : h('p', { class: 'small', text: 'Last known: the balance when that wallet was last open and up to date. Nothing is asked of a locked wallet.' }),
+      h('p', { class: 'small', text: 'Each wallet opens with its own password or Face ID, and shows its balance once open.' }),
       add,
       locked ? null : textButton('Manage wallets', () => {
         close();
@@ -218,7 +216,6 @@ export default function wallets(app) {
 
   async function render() {
     const list = await listWallets();
-    const cached = await lastBalances(list);
     if (!alive) return;
     put(
       listBox,
@@ -232,7 +229,7 @@ export default function wallets(app) {
             'span',
             { class: 'main' },
             h('div', { class: 't' }, h('span', { text: nameOf(r) }), current ? h('span', { class: 'tag private wallet-open-tag', text: 'Open' }) : null),
-            h('div', { class: 's', text: balanceText(app, r, cached.get(r.id), { tagged: current }) }),
+            h('div', { class: 's', text: balanceText(app, r, { tagged: current }) }),
           ),
           h('span', { class: 'chev' }, icon('more')),
         );
@@ -243,14 +240,14 @@ export default function wallets(app) {
   const off = app.wallet.onChange(() => {
     // The open wallet's balance is live here.
     const row = listBox.querySelector('[data-open="true"] .s');
-    if (row && app.record) row.textContent = balanceText(app, app.record, null, { tagged: true });
+    if (row && app.record) row.textContent = balanceText(app, app.record, { tagged: true });
   });
 
   const el = screen(
     { title: 'Wallets', back: () => app.back('settings'), actions: [add] },
     h('p', { class: 'lead', text: 'Each wallet has its own password, Face ID, backup and settings. One is open at a time.' }),
     listBox,
-    h('p', { class: 'small', text: 'Last known: the balance when that wallet was last open and up to date. Nothing is asked of a locked wallet.' }),
+    h('p', { class: 'small', text: 'Each wallet shows its balance once open: none is kept on this device while it is locked.' }),
   );
   return {
     el,

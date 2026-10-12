@@ -5,15 +5,25 @@
  * Exit-intent reasons and answers:
  *   - "Will this touch my coins?" -> no: only the lock on this device changes.
  *   - "Wrong current password" -> says so, keeps the new one typed.
+ *   - "Can the browser keep it?" -> one line: better not, it would sit next to the wallet it opens.
+ *   - "Is my old password gone?" (imported wallet) -> said plainly: the original wallet.db and the copy
+ *     inside this browser still open with the file's own password (BEAM Campfire does not re-key them).
  */
 import { h, put } from '../lib/dom.js';
 import { screen, primary, notice, toast } from '../lib/ui.js';
-import { changePassword, passwordProblem, isImported } from '../lib/session.js';
+import { changePassword, passwordProblem, isImported, MIN_PASSWORD } from '../lib/session.js';
+import { notSavedNote } from '../lib/auth_ui.js';
+
+export const CHANGE_TEXT = Object.freeze({
+  lead: 'This changes how you unlock BEAM Campfire on this device. Your coins and your 12 words stay the same.',
+  leadImported: 'This changes how you unlock BEAM Campfire on this device. Your coins stay the same. The original wallet.db file, and the copy inside this browser, still open with the password the file had.',
+  newLabel: `New password (${MIN_PASSWORD}+ characters, not a common one)`,
+});
 
 export default function changePasswordScreen(app) {
-  const cur = h('input', { class: 'input', type: 'password', autocomplete: 'current-password', 'aria-label': 'Current password', 'data-testid': 'cp-current' });
-  const n1 = h('input', { class: 'input', type: 'password', autocomplete: 'new-password', 'aria-label': 'New password', 'data-testid': 'cp-new' });
-  const n2 = h('input', { class: 'input', type: 'password', autocomplete: 'new-password', 'aria-label': 'Repeat new password', 'data-testid': 'cp-new2' });
+  const cur = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'aria-label': 'Current password', 'data-testid': 'cp-current' });
+  const n1 = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'aria-label': 'New password', 'data-testid': 'cp-new' });
+  const n2 = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'aria-label': 'Repeat new password', 'data-testid': 'cp-new2' });
   const msg = h('div', { 'aria-live': 'polite' });
   const cta = primary('Save new password', save, { 'data-testid': 'cp-save' });
 
@@ -36,16 +46,12 @@ export default function changePasswordScreen(app) {
 
   const el = screen(
     { title: 'Change password', back: () => app.back('settings'), actions: [cta] },
-    h('p', {
-      class: 'lead',
-      text: isImported(app)
-        ? 'This changes how you unlock BEAM Campfire on this device. Your coins stay the same, and the original wallet.db file keeps the password it had.'
-        : 'This changes how you unlock BEAM Campfire on this device. Your coins and your 12 words stay the same.',
-    }),
+    h('p', { class: 'lead', 'data-testid': 'cp-lead', text: isImported(app) ? CHANGE_TEXT.leadImported : CHANGE_TEXT.lead }),
     h('label', { class: 'field' }, 'Current password', cur),
-    h('label', { class: 'field' }, 'New password (8+ characters)', n1),
+    h('label', { class: 'field' }, CHANGE_TEXT.newLabel, n1),
     h('label', { class: 'field' }, 'Repeat new password', n2),
     msg,
+    notSavedNote(app),
   );
   return { el };
 }

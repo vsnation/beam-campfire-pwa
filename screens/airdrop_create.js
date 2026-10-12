@@ -16,6 +16,7 @@ import { parseAmount, formatAmount } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
 import { creationFee, CALL_FEE, CANCEL_FEE, MAX_VOUCHERS, MAX_TOTAL } from '../lib/airdrop.js';
 import { airdrop, amountText, dropProblemText, forgetOnLock } from './airdrop.js';
+import { confirmKeptHere } from './storage_warning.js';
 
 export default function airdropCreate(app) {
   forgetOnLock(app);
@@ -135,6 +136,11 @@ export default function airdropCreate(app) {
   async function create() {
     const p = plan();
     if (ctaState(p).off || creating) return;
+    // The codes are kept only in this browser: where it may delete them, say so first (audit A-7).
+    creating = true;
+    const go = await confirmKeptHere(app, 'codes');
+    creating = false;
+    if (!go || !alive) return;
     creating = true;
     result = null;
     render();

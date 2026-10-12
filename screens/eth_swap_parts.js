@@ -10,6 +10,8 @@
  *       token and amount.
  * Exit-intent: "Why another transaction?" answered in one line; "Is this unlimited?" no, the exact
  *   amount is named on the button; USDT's two steps are said before they happen; the fee is shown.
+ *   A transaction of this wallet "Not sure yet" or "Not sent yet" (an earlier permission refused by the
+ *   server, say): nothing is signed, and the sheet names it with the way out (lib/eth/doubt.js).
  *
  * Review sheet
  * Spec: ONE job: show exactly what the swap does before anything is signed.
@@ -18,6 +20,11 @@
  * Exit-intent: "Is this a scam?" the contract is Uniswap's Universal Router, named with its address;
  *   "What if the price moves?" the least that arrives is on screen, "Ethereum enforces this";
  *   "What does it cost?" the network fee "about" and "at most". The buttons stay in sight.
+ *   "Is that fee right?" paying with ETH, a fee above 10% of it is said in words and the swap waits
+ *   for a tick: a server's fee figure is never paid unseen.
+ *   "Is my server's price honest?" a second listed server priced the same route: agreed (one line),
+ *   more than 2% apart (said with both figures, and a tick before the swap), or not reachable (said).
+ *   A transaction of this wallet in doubt: nothing is signed; named, with the way out (lib/eth/doubt.js).
  *
  * Pools list (beside the form from 900 px, a sheet on a phone) and price protection (a sheet):
  *   read-only and a four-way choice; one tap from the form.
@@ -33,7 +40,9 @@ import { SLIPPAGE_CHOICES, PERMIT_LIFE_SECONDS, UniGasChanged, UniRouteChanged }
 import { EthRpcError } from '../lib/eth/rpc.js';
 import { toChecksumAddress } from '../lib/eth/crypto.js';
 import { signAndBroadcast, permitSigner, walletAsset } from '../lib/eth/uniswap_app.js';
-import { ethBadge } from './eth_ui.js';
+import { ethBadge, highFeeBlock, doubtNotice } from './eth_ui.js';
+import { feeShare, isHighFee } from '../lib/eth/send.js';
+import { secondOpinionWords } from '../lib/eth/second_opinion.js';
 
 // ------------------------------------------------------------------ words
 
@@ -166,6 +175,7 @@ export function openAllowSheet(app, { w, svc, approval }) {
   let txs = null;
   let phase = 'choose'; // choose | sending | waiting | failed
   let error = null;
+  let doubt = null; // a transaction of this wallet in doubt: nothing is signed (lib/eth/doubt.js)
   let hash = null;
   return new Promise((resolve) => {
     const sheet = openSheet(
@@ -175,6 +185,12 @@ export function openAllowSheet(app, { w, svc, approval }) {
         const most = txs ? txs.reduce((s, x) => s + x.maxGasCost, 0n) : null;
         const allow = async () => {
           if (busy || !txs) return;
+          doubt = await w.freshDoubt().catch(() => null);
+          if (doubt) {
+            phase = 'choose';
+            error = null;
+            return rerender();
+          }
           const ok = await confirmIdentity(app, { title: `Allow ${t.symbol}`, detail: `Uniswap may move exactly ${amt(approval.amount, t)}`, cta: 'Confirm' });
           if (!ok) return;
           phase = 'sending';
@@ -183,7 +199,8 @@ export function openAllowSheet(app, { w, svc, approval }) {
           try {
             for (const tx of txs) {
               const r = await signAndBroadcast(app, w, tx, { kind: tx.kind, asset, amount: tx.kind === 'approveReset' ? 0n : approval.amount, extra: { spender: ADDRESSES.permit2 } });
-              if (!r.sent && r.entry.state === 'rejected') throw new Error(`Ethereum's server refused it: ${r.error && r.error.message}`);
+              // Refused: most likely not sent, but the server may have passed it on (lib/eth/send.js keeps checking).
+              if (!r.sent && (r.entry.refusedAt || r.entry.state === 'rejected')) throw new Error(`Your Ethereum server refused it: "${r.error && r.error.message}". It most likely did not go through; it shows in your Ethereum activity while BEAM Campfire checks.`);
               hash = r.entry.hash;
               phase = 'waiting';
               rerender();
@@ -194,8 +211,14 @@ export function openAllowSheet(app, { w, svc, approval }) {
             }
             close(true);
           } catch (e) {
-            phase = 'failed';
-            error = e instanceof EthRpcError ? `Your Ethereum server said: "${e.message}". Nothing was approved.` : e.message;
+            if (e && e.code === 'in_doubt') {
+              phase = 'choose';
+              doubt = e.entry;
+              error = null;
+            } else {
+              phase = 'failed';
+              error = e instanceof EthRpcError ? `Your Ethereum server said: "${e.message}". Nothing was approved.` : e.message;
+            }
             rerender();
           }
         };
@@ -212,6 +235,7 @@ export function openAllowSheet(app, { w, svc, approval }) {
             kv('Network fee', likely === null ? '…' : `about ${ethAbout(likely)}`, { 'data-testid': 'uni-approve-fee' }, most === null ? null : `at most ${ethAtMost(most)}`),
           ),
           phase === 'waiting' ? notice('info', h('strong', { text: 'Waiting for Ethereum to confirm… ' }), 'Usually under a minute. The swap review opens by itself.') : null,
+          doubt ? doubtNotice(app, doubt, { inSheet: true, testid: 'uni-approve-doubt' }) : null,
           phase === 'failed' && error ? (() => {
             const n = notice('error', h('strong', { text: "The permission didn't go through. " }), error);
             n.dataset.testid = 'uni-approve-failed';
@@ -244,6 +268,22 @@ export function openAllowSheet(app, { w, svc, approval }) {
 
 // ------------------------------------------------------------------ review
 
+/**
+ * What a second server said about the price (lib/eth/second_opinion.js), for a review sheet:
+ * [line or notice, the tick when the two differ]. ack/onAck: whether the tick is ticked.
+ */
+export function secondOpinionBlock(check, { server, amount, ack, onAck, testid = 'second-opinion' }) {
+  const words = secondOpinionWords(check, { server, amount });
+  if (words.kind === 'ok') return [h('p', { class: 'small', 'data-testid': testid, 'data-status': check.status, text: words.text })];
+  const n = notice(words.kind === 'warn' ? 'warn' : 'info', words.text);
+  n.dataset.testid = testid;
+  n.dataset.status = check ? check.status : 'unchecked';
+  if (!words.ack) return [n];
+  const box = h('input', { type: 'checkbox', 'data-testid': `${testid}-ack`, checked: ack });
+  box.addEventListener('change', () => onAck(box.checked));
+  return [n, h('label', { class: 'check-row' }, box, h('span', { text: words.ack }))];
+}
+
 /** The price-change warning from 3 %, and from 10 % the box to tick before the swap can be sent. */
 export function impactBlock(q, block, ack, onAck) {
   const warn = notice(block ? 'error' : 'warn', h('strong', { text: `This swap moves the price ${percentText(q.priceImpact)}. ` }), 'The pools are small for this amount, so you get noticeably less than the current rate. A smaller amount gets a better price.');
@@ -261,17 +301,30 @@ export function impactBlock(q, block, ack, onAck) {
  * transaction hash once it has left (or may have), null when the person went
  * back without swapping.
  */
-export function openReviewSheet(app, { w, svc, review: first, acceptImpact }) {
+export function openReviewSheet(app, { w, svc, review: first, acceptImpact, check = null }) {
   let review = first;
   let busy = false;
   let error = null;
   let ack = Boolean(acceptImpact);
+  // Paying with ETH, a fee above 10% of it waits for the person's tick (lib/eth/send.js isHighFee).
+  let feeAck = false;
+  // Two servers more than 2% apart on the price: the swap waits for the person's tick.
+  let gapAck = !check || check.status !== 'differ';
+  let doubt = null; // a transaction of this wallet in doubt: nothing is signed (lib/eth/doubt.js)
   return new Promise((resolve) => {
     const sheet = openSheet(
       (close, rerender) => {
         const q = review.quote;
+        const share = q.tokenIn.isEth ? feeShare(review.expectedGasCost, q.amountIn) : null;
+        const highFee = isHighFee(share);
+        const blocked = (review.impact === 'block' && !ack) || (highFee && !feeAck) || !gapAck;
         const swap = async () => {
-          if (busy || (review.impact === 'block' && !ack)) return;
+          if (busy || blocked) return;
+          doubt = await w.freshDoubt().catch(() => null);
+          if (doubt) {
+            error = null;
+            return rerender();
+          }
           const ok = await confirmIdentity(app, { title: 'Confirm the swap', detail: `${amtShown(q.amountIn, q.tokenIn)} for at least ${amtShown(review.minimumOut, q.tokenOut, { floor: true })}`, cta: 'Confirm' });
           if (!ok) return;
           busy = true;
@@ -284,6 +337,7 @@ export function openReviewSheet(app, { w, svc, review: first, acceptImpact }) {
             busy = false;
             if (e instanceof UniGasChanged) {
               review = Object.freeze({ ...review, gasLimit: e.gasLimit, maxGasCost: e.gasLimit * review.fees.maxFeePerGas, expectedGasCost: e.gasLimit * (review.fees.baseFee + review.fees.maxPriorityFeePerGas) });
+              feeAck = false;
               error = 'The swap needs a little more gas than first measured. The network fee below is updated; nothing was sent.';
             } else if (e instanceof UniRouteChanged) error = 'One of the pools on this route would not actually trade, so BEAM Campfire left it out. Go back for the next best price.';
             else if (e instanceof EthRpcError && (e.code === 3 || /revert/i.test(e.message))) error = 'Ethereum would refuse this swap now, most often because the price moved past your protection since this review. Nothing was sent. Tap Change for a new price.';
@@ -298,15 +352,13 @@ export function openReviewSheet(app, { w, svc, review: first, acceptImpact }) {
               amount: q.amountIn,
               extra: { tokenOut: q.tokenOut.isEth ? null : q.tokenOut.address, tokenOutSymbol: q.tokenOut.symbol, quotedOut: String(q.amountOut), minimumOut: String(prepared.minimumOut), pools: poolCount(q) },
             });
-            if (!r.sent && r.entry.state === 'rejected') {
-              busy = false;
-              error = `Nothing was sent. Ethereum's server refused it: ${r.error && r.error.message}`;
-              return rerender();
-            }
+            // Sent, or refused by a server that may have passed it on first: the status screen follows
+            // it either way and says which ("Not sent yet" until it knows), never "nothing was sent" too soon.
             close(r.entry.hash);
           } catch (e) {
             busy = false;
-            error = `Nothing was sent. ${e.message}`;
+            if (e && e.code === 'in_doubt') doubt = e.entry;
+            else error = `Nothing was sent. ${e.message}`;
             rerender();
           }
         };
@@ -353,6 +405,29 @@ export function openReviewSheet(app, { w, svc, review: first, acceptImpact }) {
             ack = v;
             rerender();
           })),
+          ...secondOpinionBlock(check, {
+            server: w.rpc.host.name,
+            amount: (v) => amtShown(v, q.tokenOut),
+            ack: gapAck,
+            onAck: (v) => {
+              gapAck = v;
+              rerender();
+            },
+            testid: 'uni-review-second',
+          }),
+          ...(highFee
+            ? highFeeBlock({
+                share,
+                fee: ethAbout(review.expectedGasCost),
+                verb: 'swap',
+                ack: feeAck,
+                onAck: (v) => {
+                  feeAck = v;
+                  rerender();
+                },
+                testid: 'uni-high-fee',
+              })
+            : []),
           hooked ? notice('warn', h('strong', { text: 'This route uses a pool with a hook. ' }), 'A hook is extra code its creator added to the pool. Your minimum above is still enforced by Uniswap.') : null,
           h('p', { class: 'small', text: 'Ethereum swaps cannot be undone once sent, and anyone can see them.' }),
           error ? (() => {
@@ -360,10 +435,11 @@ export function openReviewSheet(app, { w, svc, review: first, acceptImpact }) {
             n.dataset.testid = 'uni-review-error';
             return n;
           })() : null,
+          doubt ? doubtNotice(app, doubt, { inSheet: true, testid: 'uni-review-doubt' }) : null,
           h(
             'div',
             { class: 'sheet-actions' },
-            h('button', { class: 'btn btn-primary', onclick: swap, disabled: busy || (review.impact === 'block' && !ack), 'data-testid': 'uni-review-cta' }, busy ? 'Signing and sending…' : `Swap ${amtShown(q.amountIn, q.tokenIn)}`),
+            h('button', { class: 'btn btn-primary', onclick: swap, disabled: busy || blocked, 'data-testid': 'uni-review-cta' }, busy ? 'Signing and sending…' : `Swap ${amtShown(q.amountIn, q.tokenIn)}`),
             h('button', { class: 'btn btn-text', onclick: () => close(null), disabled: busy, 'data-testid': 'uni-review-change' }, 'Change'),
           ),
         ];

@@ -51,7 +51,8 @@ export default function importWalletScreen(app) {
   });
 
   const msg = h('div', { 'aria-live': 'polite', 'data-testid': 'import-msg' });
-  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'current-password', enterkeyhint: 'go', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', 'aria-label': IMPORT_TEXT.passwordLabel, 'data-testid': 'import-pw' });
+  // The file's password becomes this wallet's: never offered to the browser's password manager (lib/auth_ui.js).
+  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'off', enterkeyhint: 'go', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', 'aria-label': IMPORT_TEXT.passwordLabel, 'data-testid': 'import-pw' });
   const showBtn = h('button', { class: 'btn btn-text btn-small inside', type: 'button', 'aria-label': 'Show password' }, icon('eye'));
   showBtn.addEventListener('click', () => {
     pw.type = pw.type === 'password' ? 'text' : 'password';
@@ -189,7 +190,7 @@ export default function importWalletScreen(app) {
       const code = e && e.code;
       if (code !== 'exists') await forgetStaged();
       // Fixed texts only: nothing from the file or the engine, and never the password.
-      problem(code === 'exists' ? IMPORT_PROBLEM.exists : code === 'gone' ? IMPORT_PROBLEM.gone : code === 'file' ? e.problem : code === 'timeout' ? IMPORT_PROBLEM.slow : IMPORT_PROBLEM.failed);
+      problem(code === 'exists' ? IMPORT_PROBLEM.exists : code === 'gone' ? IMPORT_PROBLEM.gone : code === 'file' ? e.problem : code === 'timeout' ? IMPORT_PROBLEM.slow : /^shared_origin/.test(code || '') ? e.message : IMPORT_PROBLEM.failed);
     }
   }
 

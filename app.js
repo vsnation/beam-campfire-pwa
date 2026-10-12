@@ -1,9 +1,10 @@
 // BEAM Campfire - app controller: boot, screen routing, lock and auto-lock.
 import { applyTheme, readTheme } from './lib/theme.js';
 import { h, clear } from './lib/dom.js';
-import { engineSupport, loadEngine, nodeGuard, walletFiles, onEngineAbort } from './lib/engine.js';
+import { engineSupport, loadEngine, nodeGuard, walletFiles, onEngineAbort, flushEngine, tabGuard } from './lib/engine.js';
+import { oneTab } from './lib/one_tab.js';
 import { getPrefs } from './lib/store.js';
-import { listWallets, initialWallet, loadPrefs, savePrefs, scopeTo, watchBalances, nameOf, dbPathOf } from './lib/wallets.js';
+import { listWallets, initialWallet, loadPrefs, savePrefs, scopeTo, forgetStoredBalances, nameOf, dbPathOf } from './lib/wallets.js';
 import { setScopeOpen } from './lib/wallet_scope.js';
 import { wallet } from './lib/wallet.js';
 import { updates, takeJustUpdated } from './lib/update.js';
@@ -14,6 +15,7 @@ import { refreshPersistence } from './lib/storage.js';
 import { reconcileOwnNode } from './lib/own_node.js';
 import { BUILT, APP_VERSION } from './lib/version.js';
 import { toast, canAutofocus } from './lib/ui.js';
+import { installAutoLock } from './lib/auto_lock.js';
 
 import welcome from './screens/welcome.js';
 import backup from './screens/backup.js';
@@ -64,6 +66,7 @@ import { STORE_SCREENS } from './screens/store_screens.js';
 import { consentLog, contractsState } from './lib/contracts.js';
 import walletsScreen from './screens/wallets.js';
 import addWallet from './screens/add_wallet.js';
+import { otherTab, movedTab } from './screens/one_tab.js';
 
 // Light or dark as chosen in Settings, before anything is drawn (lib/theme.js).
 applyTheme(readTheme());
@@ -83,6 +86,8 @@ const SCREENS = {
   ...STORE_SCREENS,
   wallets: walletsScreen,
   addWallet,
+  otherTab,
+  movedTab,
 };
 // Screens that need an unlocked, running wallet.
 const NEEDS_WALLET = new Set(['wallets', 'home', 'send', 'review', 'txStatus', 'receive', 'activity', 'settings', 'nodeSettings', 'ownNode', 'changePassword', 'about', 'ownerKey', 'swap', 'dapps', 'names', 'airdrop', 'airdropCreate', 'airdropBatches', 'airdropCodes', 'contacts', 'addresses', 'checkProof', 'notifications', ...Object.keys(NAME_SCREENS), ...Object.keys(ETH_SCREENS), ...Object.keys(BUY_SCREENS), ...Object.keys(TOKEN_SCREENS), ...Object.keys(DEX_SCREENS), ...Object.keys(MINTER_SCREENS), ...Object.keys(COINS_SCREENS), ...Object.keys(STORE_SCREENS)]);
@@ -144,6 +149,14 @@ export const app = {
     if (this.intrusion) {
       name = 'problem';
       params = { kind: 'tripwire', detail: this.intrusion };
+    } else {
+      // One tab at a time (lib/one_tab.js): a tab that let the wallet go shows only that, and a tab
+      // that never had it only "open in another tab", whatever asks for another screen.
+      const tab = oneTab();
+      if (tab.spent && name !== 'movedTab') {
+        name = 'movedTab';
+        params = { how: tab.how };
+      } else if (!tab.spent && (tab.state === 'busy' || tab.state === 'asking') && name !== 'otherTab') name = 'otherTab';
     }
     if (NEEDS_WALLET.has(name) && !this.dbPass) name = this.record ? 'unlock' : 'welcome';
     this.nav.move(this.currentName ? { name: this.currentName, params: this.params } : null, { name, params }, opts);
@@ -223,6 +236,41 @@ export const app = {
     await wallet.stop().catch(() => {});
   },
 
+  /**
+   * Another tab asked for the wallet (lib/one_tab.js "take-over"): lock it here and save. A payment
+   * under way stops too (it carries on once the other tab unlocks). The lock is let go after this.
+   */
+  async letGoToOtherTab() {
+    this.dbPass = null;
+    this.setup = null;
+    this.nav.clear();
+    this.runLockHooks();
+    await wallet.stop().catch((e) => console.warn('[campfire] stopping for the other tab', e && e.message));
+    await flushEngine();
+  },
+
+  /**
+   * This tab let the wallet go ('handed'; 'capped' when locking and saving had not finished within
+   * the cap, RE1-7), another tab took it while this one was frozen ('stolen'), or this browser
+   * cannot say whose it is ('unchecked', lib/one_tab.js RE1-1). 'away': restored from
+   * the back/forward cache in a browser without Web Locks (RE1-2): its memory is the old copy and
+   * another tab may hold the wallet now, so it starts again (it saved on the way out).
+   */
+  leftForOtherTab(how) {
+    if (how === 'away') return location.reload();
+    // A create or import that finished just before the hand-over may have opened its wallet after
+    // the lock ran (lib/session.js): nothing of it stays here.
+    this.dbPass = null;
+    this.setup = null;
+    if (how !== 'handed') {
+      // Nothing is saved from here any more (lib/engine.js refuses the flush): just stop.
+      this.nav.clear();
+      this.runLockHooks();
+      wallet.stop().catch(() => {});
+    }
+    if (!this.intrusion) this.go('movedTab', { how });
+  },
+
   touch() {
     this.lastActivity = Date.now();
   },
@@ -249,26 +297,18 @@ onEngineAbort((why) => {
   app.go('problem', { kind: 'engine' });
 });
 
+// One tab at a time (lib/one_tab.js): asked by another tab, this one locks, saves and lets go.
+oneTab().onLetGo(() => app.letGoToOtherTab());
+oneTab().onLeft((how) => app.leftForOtherTab(how));
+
 // Every contract request that spends is shown on the approve sheet; without it, all are refused.
 installConsent(app);
 
 // A banner (and, when allowed, a system notification) when a payment arrives while the app is open.
 installPaymentNotices(app);
 
-window.addEventListener('pointerdown', () => app.touch(), { passive: true });
-window.addEventListener('keydown', () => app.touch(), { passive: true });
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') {
-    app.hiddenAt = Date.now();
-  } else {
-    if (app.hiddenAt && Date.now() - app.hiddenAt >= app.autoLockMs() && app.lockAllowedNow()) app.lock('timeout');
-    app.hiddenAt = null;
-    app.touch();
-  }
-});
-setInterval(() => {
-  if (document.visibilityState === 'visible' && Date.now() - app.lastActivity >= app.autoLockMs() && app.lockAllowedNow()) app.lock('timeout');
-}, 15000);
+// Auto-lock, on screen and out of sight (lib/auto_lock.js): out of sight it locks there and then.
+installAutoLock(app);
 
 async function boot() {
   if (BUILT && swSupported()) {
@@ -302,13 +342,19 @@ app.continueBoot = async function continueBoot() {
     }
     return app.go('problem', { kind: 'unsupported', detail: sup.problems });
   }
+  // One tab at a time (lib/one_tab.js), before the app's store, the engine or a wallet is opened:
+  // every wallet's file is in one IndexedDB mount that each tab writes back whole.
+  const tab = await oneTab().claim();
+  if (tab === 'busy') return app.go('otherTab');
+  if (tab === 'gone') return app.go('movedTab', { how: oneTab().how });
   app.prefs = await getPrefs();
   // The person's own node must be in this page's policy before the engine can reach it.
   if (BUILT && (await reconcileOwnNode(app))) return;
   // Several wallets: the one last opened comes first (a single-wallet device: its one wallet, as it was).
   app.record = initialWallet(await listWallets(), app.prefs);
   app.prefs = await loadPrefs(app.record);
-  watchBalances(app);
+  // No balance is kept in the clear for a locked wallet any more; an earlier version's go (lib/wallets.js).
+  forgetStoredBalances().catch(() => {});
   loadEngine().catch((e) => console.warn('[campfire] engine', e.message)); // warm up
   refreshPersistence(app, { request: Boolean(app.record) });
 
@@ -363,6 +409,10 @@ window.__campfire = Object.freeze({
   connection: () => wallet.state.connEvent,
   createAddress: (type) => wallet.session.call('create_address', { type }).then((r) => ({ ok: true, r }), (e) => ({ ok: false, code: e.rpc && e.rpc.code, data: e.rpc && e.rpc.data })),
   version: () => (updates.available ? { available: updates.available.version } : null),
+  // One tab at a time: this tab's state and the flushes it refused (lib/one_tab.js, lib/engine.js).
+  oneTab: () => ({ state: oneTab().state, how: oneTab().how, mode: oneTab().mode, spent: oneTab().spent, clientId: oneTab().clientId, refusedSaves: tabGuard.refused }),
+  // Saves the engine's files now, as the app does every 15 s: true when saved, false when refused.
+  saveNow: () => flushEngine(),
   intrusion: () => app.intrusion || null,
   running: () => Boolean(wallet.session),
   persisted: () => app.persisted,

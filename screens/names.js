@@ -51,7 +51,7 @@ export function nameProblemText(e, what) {
   if (code === 'rejected') return 'Cancelled. Nothing was sent.';
   if (code === 'timeout') return 'The wallet did not answer in time. Check Activity before trying again.';
   if (code === 'load' || code === 'mismatch') return e.message;
-  if (code === 'refused' || code === 'unexpected' || code === 'priceMoved' || code === 'ownerChanged' || code === 'invalidName' || code === 'notMine' || code === 'invalidKey' || code === 'claimUnsupported') return e.message;
+  if (code === 'refused' || code === 'unexpected' || code === 'priceMoved' || code === 'ownerChanged' || code === 'nameChanged' || code === 'wrongVault' || code === 'invalidName' || code === 'notMine' || code === 'invalidKey' || code === 'claimUnsupported') return e.message;
   const m = String((e && e.message) || e || 'unknown error');
   return `The ${what} was not sent: ${m}${/\.$/.test(m) ? '' : '.'} Nothing left your wallet.`;
 }

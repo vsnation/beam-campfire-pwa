@@ -7,14 +7,18 @@
  *     four, the network fee as "about" and "at most", and the total.
  *   - "Will the fee surprise me?" -> "at most" is the very limit signed into the transaction; it
  *     cannot be exceeded. If it rose since this sheet opened, the new numbers are shown instead of sending.
+ *     A fee above 10% of an ETH payment is said in words ("about … is 27% of what you send"), and
+ *     the Send button waits for a tick: a server's fee figure is never paid unseen.
  *   - "Can I undo it?" -> no, said before the button.
+ *   - A payment of this wallet became "Not sure yet" or "Not sent yet" while this sheet was open: nothing
+ *     is signed, and the sheet says which one and the way out (lib/eth/doubt.js).
  */
 import { h, shorten } from '../lib/dom.js';
 import { openSheet, notice } from '../lib/ui.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
 import { prepareSend, signAndSend, costRose, SendError } from '../lib/eth/send.js';
 import { ETH } from '../lib/eth/tokens.js';
-import { amountText, exactText, ethText, ethMaxText, groupedAddress } from './eth_ui.js';
+import { amountText, exactText, ethText, ethMaxText, groupedAddress, highFeeBlock, doubtNotice } from './eth_ui.js';
 
 /** Re-checked before signing when the review is older than this. */
 const FRESH_MS = 60000;
@@ -23,8 +27,11 @@ export function openEthReview(app, w, first) {
   let prepared = first;
   let message = null;
   let busy = false;
+  // A fee above 10% of an ETH payment waits for the person's tick (lib/eth/send.js isHighFee).
+  let feeAck = false;
   const sheet = openSheet((close, rerender) => {
     const p = prepared;
+    const blocked = p.highFee && !feeAck;
     const isEth = p.asset === ETH;
     const label = `Send ${amountText(p.amount, p.asset, { approx: false })}`;
     const total = isEth
@@ -32,14 +39,22 @@ export function openEthReview(app, w, first) {
       : [h('span', { 'data-testid': 'eth-review-total', text: `${amountText(p.amount, p.asset, { approx: false })} + about ${ethText(p.fees.likely)}` }), h('div', { class: 'small', text: `fee at most ${ethMaxText(p.fees.upTo)}` })];
 
     const confirm = async () => {
-      if (busy) return;
+      if (busy || blocked) return;
       busy = true;
       message = null;
       try {
+        // Another transaction in doubt: this one waits (it could go through beside it).
+        const doubt = await w.freshDoubt();
+        if (doubt) {
+          busy = false;
+          message = doubtNotice(app, doubt, { inSheet: true, testid: 'eth-review-doubt' });
+          return rerender();
+        }
         if (Date.now() - prepared.preparedAt > FRESH_MS) {
           const fresh = await prepareSend(w.rpc, { from: w.state.address, asset: p.asset, recipient: p.recipient, amount: p.amount, balances: w.balances() });
           if (costRose(prepared, fresh)) {
             prepared = fresh;
+            feeAck = false;
             busy = false;
             message = notice('warn', 'The network fee went up since you opened this. Check the new amounts, then send.');
             return rerender();
@@ -60,8 +75,11 @@ export function openEthReview(app, w, first) {
         app.go('ethTx', { hash: r.entry.hash, justSent: true }, { replace: true });
       } catch (e) {
         busy = false;
-        const why = e instanceof SendError ? e.message : `${e.message}${/\.$/.test(e.message) ? '' : '.'}`;
-        message = notice('error', `Nothing was sent. ${why}`);
+        if (e && e.code === 'in_doubt') message = doubtNotice(app, e.entry, { inSheet: true, testid: 'eth-review-doubt' });
+        else {
+          const why = e instanceof SendError ? e.message : `${e.message}${/\.$/.test(e.message) ? '' : '.'}`;
+          message = notice('error', `Nothing was sent. ${why}`);
+        }
         rerender();
       }
     };
@@ -77,9 +95,20 @@ export function openEthReview(app, w, first) {
         h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Network fee' }), h('span', { class: 'v' }, h('span', { 'data-testid': 'eth-review-fee', text: `about ${ethText(p.fees.likely)}` }), h('div', { class: 'small', 'data-testid': 'eth-review-fee-max', text: `at most ${ethMaxText(p.fees.upTo)}` }))),
         h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Total' }), h('span', { class: 'v' }, ...total)),
       ),
+      ...(p.highFee
+        ? highFeeBlock({
+            share: p.feeShare,
+            fee: ethText(p.fees.likely),
+            ack: feeAck,
+            onAck: (v) => {
+              feeAck = v;
+              rerender();
+            },
+          })
+        : []),
       notice('info', 'Ethereum payments cannot be cancelled or undone once sent, and anyone can see them.'),
       message,
-      h('button', { class: 'btn btn-primary', onclick: confirm, disabled: busy, 'data-testid': 'eth-review-send' }, busy ? 'Sending…' : label),
+      h('button', { class: 'btn btn-primary', onclick: confirm, disabled: busy || blocked, 'data-testid': 'eth-review-send' }, busy ? 'Sending…' : label),
       h('button', { class: 'btn btn-text', onclick: () => close(false), disabled: busy, 'data-testid': 'eth-review-change' }, 'Change'),
     ];
   }, { label: 'Check before sending' });

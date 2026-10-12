@@ -6,13 +6,15 @@
  *   - "Is this balance real / current?" -> the server's name and the block it answered at, or, when
  *     it didn't answer, who failed and two ways out (try again, or pick another server yourself).
  *   - "Where did my payment go?" -> what this device sent shows at once, with its status in words,
- *     before any history index knows of it.
+ *     before any history index knows of it. One marked "Not sent" is looked for again on every opening.
  *   - "Empty, now what?" -> the primary button becomes Receive ETH; the empty list says so.
  *   - "How do I get WBEAM?" -> Buy WBEAM is the primary as soon as there is ETH to pay with.
  *   - "I have BTC, not ETH" -> "Pay with BTC, ZEC or LTC" under the buttons (NEAR Intents), which also
  *     shows a swap still on its way.
  *   - "Where's my BEAM?" -> the switcher at the top is one tap back.
  *   - "Why no history?" -> when History from Stack Wallet is off, a line says so and where to turn it on.
+ *   - "Why won't it let me send?" -> while a payment, swap or permission is "Not sure yet" or "Not sent
+ *     yet", one line above Send says sending is paused, and opens that transaction (lib/eth/doubt.js).
  */
 import { h, put, shorten } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
@@ -23,7 +25,7 @@ import { formatUnits } from '../lib/eth/units.js';
 import { chainSwitch, bridgeEntry } from './eth_screens.js';
 import { payWithCoinEntry } from './near_intents_entry.js';
 import { intentsFor, openSwaps } from '../lib/intents/wiring.js';
-import { ethBadge, compactAmountText, exactText, serverProblem, activityRow } from './eth_ui.js';
+import { ethBadge, compactAmountText, exactText, serverProblem, activityRow, doubtLine } from './eth_ui.js';
 import { rememberNearSwaps } from '../lib/notify.js';
 
 const REFRESH_MS = 30000;
@@ -73,7 +75,9 @@ export default function ethHome(app, params = {}) {
     sendBtn.prepend(icon('send'));
     const recvBtn = (hasEth ? secondary : primary)(h('span', {}, hasEth ? 'Receive' : 'Receive ETH'), () => app.go('ethReceive'), { 'data-testid': 'eth-receive' });
     recvBtn.prepend(icon('receive'));
-    put(actionsBox, h('div', { class: 'btn-row three' }, ...(hasEth ? [buyBtn, sendBtn, recvBtn] : [recvBtn, sendBtn, buyBtn])));
+    // A transaction in doubt holds back the next one (lib/eth/doubt.js): said above Send, not after a tap.
+    const doubt = w ? w.doubt() : null;
+    put(actionsBox, doubt ? doubtLine(app, doubt) : null, h('div', { class: 'btn-row three' }, ...(hasEth ? [buyBtn, sendBtn, recvBtn] : [recvBtn, sendBtn, buyBtn])));
 
     put(
       tokensBox,
@@ -114,12 +118,18 @@ export default function ethHome(app, params = {}) {
   }
 
   let busy = false;
+  let rechecked = false;
   async function refresh() {
     if (!w || busy || dead || !app.dbPass) return;
     busy = true;
     try {
       await w.refresh();
       if (!dead && app.dbPass) await w.followOpen().catch(() => {});
+      // "Not sent" is one server's word: once per opening, its receipt is asked again (release audit BM-2).
+      if (!rechecked && !dead && app.dbPass) {
+        rechecked = true;
+        await w.recheckRejected().catch(() => {});
+      }
     } finally {
       busy = false;
     }

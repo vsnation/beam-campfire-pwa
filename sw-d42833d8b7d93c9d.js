@@ -22,10 +22,11 @@
  * which only the Update button sends.
  *
  * Update sources (lib/update_sources.js, inlined below): this app's own
- * address first, then the public copies the installed release names, then an
- * address the person added. The first that answers with a valid signed release
- * decides; the rest are never contacted. Files from any source go into this
- * app's own cache under its own scope URLs, each only after its hash matched.
+ * address, the public copies the installed release names, and an address the
+ * person added. A tapped check asks all of them at once and keeps the newest
+ * signed release (on a tie, the own address's), so an address that keeps
+ * serving an old release cannot hide a newer one. Files from any source go into
+ * this app's own cache under its own scope URLs, each only after its hash matched.
  * A release from anywhere but the own address must run under THIS loader (a
  * service worker comes only from its own address), so it is staged only when
  * it ships this loader or one that serves pages the same way (loader_compat).
@@ -65,7 +66,7 @@
 'use strict';
 
 const RELEASE_PUBLIC_JWK = {"kty":"EC","crv":"P-256","x":"nHc0TAS1zffyZvN4tSmEyelt5vpEB-QDUEgHSNztzpc","y":"hHBISFLKDalMgMsjuW78PAMirodfcnlZ5N3-9A9Pa9A"};
-const SECURITY_HEADERS = {"Cross-Origin-Opener-Policy":"same-origin","Cross-Origin-Embedder-Policy":"require-corp","Cross-Origin-Resource-Policy":"same-origin","Content-Security-Policy":"default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self' wss://eu-node02.mainnet.beam.mw:8200 wss://eu-node03.mainnet.beam.mw:8200 wss://eu-node04.mainnet.beam.mw:8200 wss://eu-nodes.mainnet.beam.mw:8200 wss://eu-node01.mainnet.beam.mw:8200 https://raw.githubusercontent.com/BeamMW/beam-ui/2f36c21ed010dee350c052ffce9097b23f69ecfb/ui/apps/mainnet/ https://eth2.stackwallet.com https://ethereum-rpc.publicnode.com https://eth.drpc.org https://rpc.mevblocker.io https://eth-mainnet.public.blastapi.io https://api.coingecko.com/api/v3/simple/price https://buybeam.my/api/v1/buy/ https://1click.chaindefuser.com/v0/ https://pwa.buybeam.my/recovery/; img-src 'self' data: blob:; style-src 'self'; font-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'","Referrer-Policy":"no-referrer","X-Content-Type-Options":"nosniff","Permissions-Policy":"camera=(self), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()"};
+const SECURITY_HEADERS = {"Cross-Origin-Opener-Policy":"same-origin","Cross-Origin-Embedder-Policy":"require-corp","Cross-Origin-Resource-Policy":"same-origin","Content-Security-Policy":"default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self' wss://eu-node02.mainnet.beam.mw:8200 wss://eu-node03.mainnet.beam.mw:8200 wss://eu-node04.mainnet.beam.mw:8200 wss://eu-nodes.mainnet.beam.mw:8200 wss://eu-node01.mainnet.beam.mw:8200 https://raw.githubusercontent.com/BeamMW/beam-ui/2f36c21ed010dee350c052ffce9097b23f69ecfb/ui/apps/mainnet/ https://eth2.stackwallet.com https://ethereum-rpc.publicnode.com https://eth.drpc.org https://rpc.mevblocker.io https://eth-mainnet.public.blastapi.io https://api.coingecko.com/api/v3/simple/price https://buybeam.my/api/v1/buy/ https://1click.chaindefuser.com/v0/ https://pwa.buybeam.my/recovery/; img-src 'self' data: blob:; style-src 'self'; font-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'","Referrer-Policy":"no-referrer","X-Content-Type-Options":"nosniff","Permissions-Policy":"camera=(self), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()","Strict-Transport-Security":"max-age=31536000"};
 const MIME = {".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".mjs":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".json":"application/json",".webmanifest":"application/manifest+json",".wasm":"application/wasm",".svg":"image/svg+xml",".png":"image/png",".ttf":"font/ttf",".woff2":"font/woff2",".txt":"text/plain; charset=utf-8",".sig":"text/plain; charset=utf-8",".jwk":"application/json"};
 
 // ---- inlined from lib/release.js
@@ -197,12 +198,15 @@ async function verifyFile(entry, bytes) {
 // bytes come from does not decide what runs; it only decides whether an update
 // can be found at all once the app's own address is gone.
 //
-// Order: this app's own address, then the copies below (or the list the
-// installed, signed release names), then an address the person added. The
-// first source that answers with a valid signed release of the installed
-// version or newer decides; one that does not answer, sends no CORS headers,
-// sends something unsigned or altered, or is behind the installed version is
-// noted and the next one is asked.
+// Sources: this app's own address, then the copies below (or the list the
+// installed, signed release names), then an address the person added. A tapped
+// check asks every one of them (at once, each with its own time limit) and keeps
+// the newest signed release; on a tie, the own address's copy. So an address
+// that keeps serving an old signed release (frozen, or taken over) cannot hide a
+// newer one that a copy has. A source that does not answer, sends no CORS
+// headers, sends something unsigned or altered, or is behind the installed
+// version is noted. Each answer carries its signed release date (created), so
+// the page can say when the newest release it found is old.
 
 // Public copies of the published release (github.com/vsnation/beam-campfire-pwa),
 // each serving every file with Access-Control-Allow-Origin: *. Fresher first:
@@ -324,80 +328,120 @@ async function readRelease(get, publicJwk) {
 
 const reasonOf = (e) => String((e && e.message) || e || 'unknown error');
 const isUnreachable = (e) => !e || !e.code || e.code === 'unreachable';
+/** A release's signed date (release.json created) when it is one; else null. */
+const createdOf = (release) => (release && typeof release.created === 'string' && Number.isFinite(Date.parse(release.created)) ? release.created : null);
 
 /**
- * Asks each source in turn. installed/pending: {version, manifestSha} (pending
+ * Asks every source, keeps the newest signed release and stages it.
+ * installed/pending: {version, manifestSha} (installed also {created}, pending
  * also {from}); loader: {name, compat}. fetchRelease(source) -> {release,
  * manifest}; stage(source, rel) downloads and verifies every file (and throws
- * on the first that fails). Nothing is staged from a source other than the own
- * address when the release could not run under the current loader.
+ * on the first that fails). onSource(source) when a source is asked,
+ * onAnswer(source) when it has answered (or failed to).
  *
- * Returns {result, version?, reason?, from?: {host, own}, tried: [...]}, where
- * result is 'ready' (a newer release is verified and waiting for Update),
- * 'none' (nothing newer anywhere that answered), 'needs_own_address' (newer,
- * but only installable from the own address), 'refused' (only altered or
- * unsigned releases answered) or 'unreachable' (no release answered at all).
+ * The newest version newer than the installed one is staged, from the own
+ * address when it has it, else from the first copy in order that has it; when
+ * that fails, the next source with it, then older ones. Nothing is staged from
+ * a source other than the own address when the release could not run under the
+ * current loader.
+ *
+ * Returns {result, version?, reason?, from?: {host, own}, newest: {version,
+ * created}, ownVersion?, tried: [...] (in source order)}, where result is
+ * 'ready' (a newer release is verified and waiting for Update), 'none'
+ * (nothing newer anywhere that answered), 'needs_own_address' (newer, but only
+ * installable from the own address), 'refused' (a newer release could not be
+ * had intact, or only altered or unsigned releases answered) or 'unreachable'
+ * (no release answered at all). newest is the newest signed release any source
+ * (or the installed copy) knows of, with its date; ownVersion is what the own
+ * address served, when it served a signed release.
  */
-async function findUpdate({ sources, installed, pending = null, loader, fetchRelease, stage, onSource = null }) {
-  const tried = [];
-  const note = (src, outcome, extra = {}) => {
-    const t = { host: src.host, kind: src.kind, own: src.own, outcome, ...extra };
-    tried.push(t);
-    return t;
+async function findUpdate({ sources, installed, pending = null, loader, fetchRelease, stage, onSource = null, onAnswer = null }) {
+  const notes = new Array(sources.length).fill(null);
+  const note = (i, outcome, extra = {}) => {
+    const src = sources[i];
+    notes[i] = { host: src.host, kind: src.kind, own: src.own, outcome, ...extra };
+    return notes[i];
   };
   const from = (t) => ({ host: t.host, own: t.own });
-  let refused = null;
-  let blocked = null;
-  let behind = false;
-  for (const src of sources) {
-    if (onSource) await onSource(src);
-    let rel;
-    try {
-      rel = await fetchRelease(src);
-    } catch (e) {
-      const t = note(src, isUnreachable(e) ? 'unreachable' : 'refused', { reason: reasonOf(e) });
-      if (t.outcome === 'refused' && !refused) refused = t;
-      continue;
-    }
-    const v = rel.release.version;
-    const cmp = compareVersions(v, installed.version);
-    if (cmp < 0) {
-      note(src, 'older', { version: v });
-      behind = true;
-      continue;
-    }
-    if (cmp === 0) {
-      if (rel.release.manifest_sha256 !== installed.manifestSha) {
-        const t = note(src, 'refused', { version: v, reason: `A different release claims version ${v}.` });
-        if (!refused) refused = t;
-        continue;
+  const answers = await Promise.all(
+    sources.map(async (src) => {
+      if (onSource) await onSource(src);
+      try {
+        return { rel: await fetchRelease(src) };
+      } catch (e) {
+        return { error: e };
+      } finally {
+        if (onAnswer) await onAnswer(src);
       }
-      const t = note(src, 'same', { version: v });
-      return { result: 'none', version: installed.version, from: from(t), tried };
+    }),
+  );
+
+  let newest = { version: installed.version, created: installed.created || null };
+  let ownVersion;
+  let refused = null; // a fetch refused: unsigned, altered list, a look-alike of the installed version
+  let same = null;
+  let behind = false;
+  const candidates = [];
+  answers.forEach((a, i) => {
+    const src = sources[i];
+    if (a.error) {
+      const t = note(i, isUnreachable(a.error) ? 'unreachable' : 'refused', { reason: reasonOf(a.error) });
+      if (t.outcome === 'refused' && !refused) refused = t;
+      return;
     }
+    const v = a.rel.release.version;
+    const created = createdOf(a.rel.release);
+    if (src.own) ownVersion = v;
+    const cmp = compareVersions(v, newest.version);
+    if (cmp > 0 || (cmp === 0 && created && (!newest.created || src.own))) newest = { version: v, created };
+    const vs = compareVersions(v, installed.version);
+    if (vs < 0) {
+      note(i, 'older', { version: v });
+      behind = true;
+    } else if (vs === 0 && a.rel.release.manifest_sha256 !== installed.manifestSha) {
+      const t = note(i, 'refused', { version: v, reason: `A different release claims version ${v}.` });
+      if (!refused) refused = t;
+    } else if (vs === 0) {
+      const t = note(i, 'same', { version: v });
+      if (!same || (src.own && !same.own)) same = t;
+    } else {
+      note(i, 'not_needed', { version: v }); // newer; replaced below by what happened to it
+      candidates.push({ i, src, rel: a.rel, v });
+    }
+  });
+  // Newest first; for one version the own address first, then the copies in order.
+  candidates.sort((a, b) => compareVersions(b.v, a.v) || Number(b.src.own) - Number(a.src.own) || a.i - b.i);
+
+  let blocked = null;
+  let failedNewer = null;
+  for (const c of candidates) {
+    const { i, src, rel, v } = c;
     if (pending && pending.version === v && pending.manifestSha === rel.release.manifest_sha256) {
-      const t = note(src, 'ready', { version: v });
-      return { result: 'ready', version: v, from: pending.from || from(t), tried };
+      const t = note(i, 'ready', { version: v });
+      return { result: 'ready', version: v, from: pending.from || from(t), newest, ownVersion, tried: notes };
     }
     if (!src.own && !loaderCompatible(rel.release, loader)) {
-      const t = note(src, 'needs_own_address', { version: v });
+      const t = note(i, 'needs_own_address', { version: v });
       if (!blocked) blocked = t;
       continue;
     }
     try {
       await stage(src, rel);
     } catch (e) {
-      const t = note(src, isUnreachable(e) ? 'unreachable' : 'refused', { version: v, reason: reasonOf(e) });
-      if (t.outcome === 'refused' && !refused) refused = t;
+      const t = note(i, isUnreachable(e) ? 'unreachable' : 'refused', { version: v, reason: reasonOf(e) });
+      if (t.outcome === 'refused' && !failedNewer) failedNewer = t;
       continue;
     }
-    const t = note(src, 'ready', { version: v });
-    return { result: 'ready', version: v, from: from(t), tried };
+    const t = note(i, 'ready', { version: v });
+    return { result: 'ready', version: v, from: from(t), created: createdOf(rel.release), newest, ownVersion, tried: notes };
   }
-  if (blocked) return { result: 'needs_own_address', version: blocked.version, from: from(blocked), tried };
-  if (refused) return { result: 'refused', version: refused.version || null, reason: refused.reason, from: from(refused), tried };
-  if (behind) return { result: 'none', version: installed.version, tried };
-  return { result: 'unreachable', tried };
+  if (blocked) return { result: 'needs_own_address', version: blocked.version, from: from(blocked), newest, ownVersion, tried: notes };
+  // A newer signed release exists but could not be had intact: not "up to date".
+  if (failedNewer) return { result: 'refused', version: failedNewer.version || null, reason: failedNewer.reason, from: from(failedNewer), newest, ownVersion, tried: notes };
+  if (same) return { result: 'none', version: installed.version, from: from(same), newest, ownVersion, tried: notes };
+  if (refused) return { result: 'refused', version: refused.version || null, reason: refused.reason, from: from(refused), newest, ownVersion, tried: notes };
+  if (behind) return { result: 'none', version: installed.version, newest, ownVersion, tried: notes };
+  return { result: 'unreachable', newest, tried: notes };
 }
 
 // ---- end of lib/update_sources.js
@@ -428,7 +472,8 @@ async function findUpdate({ sources, installed, pending = null, loader, fetchRel
 // It may use eval, as on the desktop, and inline scripts and handlers too:
 // with eval allowed they add nothing, and single-file dApps need them. It
 // reaches exactly the https hosts the person allowed for it, each one a DNS
-// name (no IP address, no local name, no wildcard), checked again here.
+// name (no IP address, no local name, no wildcard, no name that spells an
+// address or always leads to this device), checked again here.
 
 const FRAME_ROUTE = 'dapp-run/';
 
@@ -443,6 +488,23 @@ const LABEL = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 // Names that never mean a public server: this device, the local network, nowhere.
 const LOCAL_TLDS = new Set(['localhost', 'local', 'internal', 'lan', 'home', 'arpa', 'test', 'invalid', 'onion']);
 
+// Public names that lead to whatever address they spell (nip.io, sslip.io, traefik.me...), always
+// to this device (localtest.me, lvh.me...), or to an address of the asker's choosing (rebinding
+// services). The browser resolves a name itself, so these are refused by name; any other name can
+// still lead to a local device, and the allow sheet says so.
+const LOOPBACK_DOMAINS = ['nip.io', 'sslip.io', 'xip.io', 'traefik.me', 'localtest.me', 'lvh.me', 'vcap.me', 'lacolhost.com', 'localhost.direct', 'fuf.me', 'localho.st', 'rbndr.us', '1u.ms'];
+const OCTET = '(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])';
+const OCTET_LABEL = new RegExp(`^${OCTET}$`);
+// 127-0-0-1, app-192-168-1-10, 10-0-0-1-router: an address written with dashes inside one label.
+const DASHED_IPV4 = new RegExp(`(?:^|-)${OCTET}(?:-${OCTET}){3}(?:-|$)`);
+
+/** True when the name spells an IPv4 address (dotted across labels or dashed in one) or is a loopback/rebinding service's. */
+function spellsLocalAddress(labels, host) {
+  for (let i = 0; i + 4 <= labels.length; i++) if (labels.slice(i, i + 4).every((l) => OCTET_LABEL.test(l))) return true;
+  if (labels.some((l) => DASHED_IPV4.test(l))) return true;
+  return LOOPBACK_DOMAINS.some((d) => host === d || host.endsWith(`.${d}`));
+}
+
 /** A public DNS name in lowercase: two labels at least, never an IPv4 address in any spelling. */
 function remoteHostOk(host) {
   if (typeof host !== 'string' || host.length === 0 || host.length > 253) return false;
@@ -450,7 +512,7 @@ function remoteHostOk(host) {
   if (labels.length < 2 || !labels.every((l) => LABEL.test(l))) return false;
   const last = labels[labels.length - 1];
   if (/^[0-9]+$/.test(last) || /^0x[0-9a-f]*$/.test(last)) return false;
-  return !LOCAL_TLDS.has(last);
+  return !LOCAL_TLDS.has(last) && !spellsLocalAddress(labels, host);
 }
 
 /** An https origin as a frame's policy names it (lowercase host, the port only when not 443), or null. */
@@ -702,7 +764,7 @@ const LOADER_API = 3;
 // Hash of what this loader does to pages (security headers, MIME types, dApp
 // frame policy, the own-node policy, LOADER_API), filled in by the build; release.json carries the
 // same value for the release's own loader (see loaderCompatible()).
-const LOADER_COMPAT = "eef72746df0435e988467270190d8dd7aee920e1df0c9e03647934a36ce7efd3";
+const LOADER_COMPAT = "44245312edd43939b8e457adb44470ba8643d4a8208d85b964a212ba0b2ecd3c";
 const LOADER_NAME = self.location.pathname.split('/').pop();
 
 let stateCache = null;
@@ -807,8 +869,10 @@ async function readCapped(r, max, tooBig) {
 
 /**
  * One file of a release from base (this app's folder or another copy).
- * Another copy gets no cookies and no referrer; it must send CORS headers,
- * or the browser hands nothing over (reported as unreachable).
+ * No cookies and no referrer, wherever it is: the app sets no cookies, and one
+ * set for the parent domain by any site under it (a large one makes the CDN
+ * refuse the request) must not ride along and stop updates. Another copy must
+ * send CORS headers, or the browser hands nothing over (reported as unreachable).
  */
 async function fetchBytes(base, path, { signal = null, timeoutMs = FILE_TIMEOUT_MS, max = Infinity, tooBig = null } = {}) {
   const url = new URL(path, base);
@@ -824,7 +888,7 @@ async function fetchBytes(base, path, { signal = null, timeoutMs = FILE_TIMEOUT_
   try {
     let r;
     try {
-      r = await fetch(url.href, { cache: 'no-store', credentials: own ? 'same-origin' : 'omit', referrerPolicy: 'no-referrer', signal: ctl.signal });
+      r = await fetch(url.href, { cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', signal: ctl.signal });
     } catch {
       throw new ReleaseError('unreachable', `Could not download ${path}${where}.`);
     }
@@ -918,6 +982,7 @@ async function stageRelease({ release, manifest }, { base = scopeUrl, signal = n
     cache: cacheName,
     files: map,
     manifestSha: release.manifest_sha256,
+    created: createdOf(release), // the release's signed date, for "released ..." and the age warning
     verifiedAt: Date.now(),
     // Where the next check looks, from the signed release; the loader that ships with it; and
     // what that loader does to pages (see loaderCompatible()).
@@ -1063,9 +1128,10 @@ self.addEventListener('fetch', (event) => {
 });
 
 /**
- * "Check for updates": asks the sources in order (findUpdate in
- * lib/update_sources.js) and stages the first newer release it may install.
- * added: addresses the person added. progress(p) gets {step, host, own, ...}.
+ * "Check for updates": asks every source (findUpdate in lib/update_sources.js)
+ * and stages the newest release it may install. added: addresses the person
+ * added. progress(p) gets {step: 'asking', total, answered} while the sources
+ * answer, then {step: 'downloading', host, own, version, done, total}.
  */
 async function checkUpdate({ added = [], progress = null } = {}) {
   const st = await readState();
@@ -1075,12 +1141,14 @@ async function checkUpdate({ added = [], progress = null } = {}) {
   };
   const sources = updateSources({ own: scopeUrl.href, builtins: Array.isArray(st.current.sources) ? st.current.sources : BUILTIN_SOURCES, added });
   const ownFrom = { host: scopeUrl.host, own: true };
+  let answered = 0;
+  say({ step: 'asking', total: sources.length, answered });
   const r = await findUpdate({
     sources,
-    installed: { version: st.current.version, manifestSha: st.current.manifestSha },
+    installed: { version: st.current.version, manifestSha: st.current.manifestSha, created: st.current.created || null },
     pending: st.pending ? { version: st.pending.version, manifestSha: st.pending.manifestSha, from: st.pending.from || ownFrom } : null,
     loader: { name: LOADER_NAME, compat: LOADER_COMPAT },
-    onSource: (src) => say({ step: 'checking', host: src.host, own: src.own }),
+    onAnswer: () => say({ step: 'asking', total: sources.length, answered: ++answered }),
     fetchRelease: (src) => fetchVerifiedRelease(src.url, { timeoutMs: PROBE_TIMEOUT_MS }),
     stage: async (src, rel) => {
       const staged = await stageRelease(rel, {
@@ -1157,8 +1225,10 @@ self.addEventListener('message', (event) => {
             compat: LOADER_COMPAT,
             current: st.current && st.current.version,
             currentFrom: (st.current && st.current.from) || null,
+            currentCreated: (st.current && st.current.created) || null,
             pending: st.pending && st.pending.version,
             pendingFrom: (st.pending && st.pending.from) || null,
+            pendingCreated: (st.pending && st.pending.created) || null,
             currentFiles: st.current ? Object.keys(st.current.files).length : 0,
             releaseLoader: releaseLoaderOf(st.current),
             sources: st.current ? updateSources({ own: scopeUrl.href, builtins: Array.isArray(st.current.sources) ? st.current.sources : BUILTIN_SOURCES }).map((x) => ({ host: x.host, kind: x.kind })) : [],
@@ -1206,12 +1276,15 @@ self.addEventListener('message', (event) => {
 //     "#open=<screen>[&tx=<hex>]" within this app's scope, nothing else;
 //   - when the browser wakes this worker for Periodic Background Sync (Chrome / Edge, an installed
 //     app), the reminders the page left for later ('w:<id>:notify-reminders' in the app's own
-//     store) that are due are shown, if notifications are still on, and then forgotten.
+//     store) that are due are shown, if notifications and "Reminders when BEAM Campfire is closed"
+//     (prefs.notify.wakeUps) are still on, and then forgotten. With that switch off (the
+//     default), a wake-up shows nothing and asks the browser for no more of them.
 
 const OPEN_LINK = /^#open=[a-zA-Z]+(&tx=[0-9a-f]{1,128})?$/;
 const APP_DB = 'beam-campfire-app';
 const APP_STORE = 'kv';
 const REMINDERS_SUFFIX = ':notify-reminders';
+const SYNC_TAG = 'campfire-reminders'; // lib/notify.js SYNC_TAG
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
@@ -1261,6 +1334,11 @@ async function showDueReminders(now = Date.now()) {
     const prefs = (await idb(read.get('prefs'))) || {};
     const n = prefs.notify || {};
     const on = n.on === true || (n.on === undefined && prefs.paymentNotifications === true);
+    if (n.wakeUps !== true || !on) {
+      // Not turned on (an earlier release asked for wake-ups by itself), or notifications are off: no more of them.
+      if (self.registration.periodicSync) await self.registration.periodicSync.unregister(SYNC_TAG).catch(() => {});
+      return 0;
+    }
     const keys = (await idb(read.getAllKeys(IDBKeyRange.bound('w:', 'w:\uffff')))).filter((k) => typeof k === 'string' && k.endsWith(REMINDERS_SUFFIX));
     let shown = 0;
     for (const k of keys) {
@@ -1290,6 +1368,6 @@ async function showDueReminders(now = Date.now()) {
 }
 
 self.addEventListener('periodicsync', (event) => {
-  if (event.tag !== 'campfire-reminders') return;
+  if (event.tag !== SYNC_TAG) return;
   event.waitUntil(showDueReminders().catch(() => 0));
 });

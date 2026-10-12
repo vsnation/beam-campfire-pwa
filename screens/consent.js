@@ -39,7 +39,8 @@ export function approveLabel(req, unit) {
   const pay = req.spends.map((a) => `${shortAmount(a.amount)} ${unit(a.assetId)}`);
   const get = req.receives.map((a) => `${shortAmount(a.amount)} ${unit(a.assetId)}`);
   if (req.kind === 'send') return `Send ${pay[0]}`;
-  if (req.intent && req.intent.action === 'swap' && pay.length === 1 && get.length === 1) return `Swap ${pay[0]} for ${get[0]}`;
+  // About: BEAM may still finish an approved swap at a slightly lower price (lib/dex.js rebuildFloor).
+  if (req.intent && req.intent.action === 'swap' && pay.length === 1 && get.length === 1) return `Swap ${pay[0]} for ≈${get[0]}`;
   const own = intentLabel(req.intent, pay, get);
   if (own) return own;
   if (pay.length && get.length) return `Pay ${pay.join(' + ')}, get ${get.join(' + ')}`;
@@ -259,7 +260,8 @@ function showConsent(app, req, bridge, t) {
                 'div',
                 { class: 'card' },
                 ...req.spends.map((a, i) => row(words ? (i ? '' : words[0]) : req.kind === 'send' ? 'You send' : req.intent && req.intent.action === 'burn' ? 'Destroyed for good' : 'You pay', a, `consent-pay-${i}`, '')),
-                ...req.receives.map((a, i) => row(words ? (i ? '' : words[1]) : req.intent && req.intent.action === 'swap' ? 'You get' : 'You receive', a, `consent-get-${i}`, '')),
+                // A swap's amount is the engine's first build; BEAM may finish it a little lower ("You get at least" below).
+                ...req.receives.map((a, i) => row(words ? (i ? '' : words[1]) : req.intent && req.intent.action === 'swap' ? 'You get about' : 'You receive', a, `consent-get-${i}`, '')),
                 req.address ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'To' }), h('span', { class: 'v mono', text: shorten(req.address, 10, 8) })) : null,
                 req.intent && req.intent.action === 'namePay' ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'To' }), h('span', { class: 'v', 'data-testid': 'consent-to', text: `${req.intent.name}.beam` })) : null,
                 h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Network fee' }), h('span', { class: 'v', 'data-testid': 'consent-fee', text: `${formatAmount(req.fee)} BEAM` })),

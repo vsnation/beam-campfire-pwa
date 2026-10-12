@@ -12,7 +12,8 @@
  *       this screen never makes new words.
  * Exit-intent reasons and answers:
  *   - "Why do I need this?" -> one sentence: the words are the wallet; they bring it back on any device.
- *   - "Someone could see my screen" -> words stay blurred until tapped.
+ *   - "Someone could see my screen" -> words stay blurred until tapped, and blur again as soon as the
+ *     app is left, so the app switcher's picture never shows them.
  *   - "Can I screenshot it?" -> we say no, and why (photos sync to the cloud).
  *   - "Where are my 12 words?" (imported) -> there are none here; the file and its password are the backup.
  *   - "What if this website disappears?" -> Export wallet.db: the file and the password open the wallet
@@ -28,30 +29,42 @@
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, primary, notice, openSheet, toast, focusSoon } from '../lib/ui.js';
+import { screen, primary, notice, openSheet, toast, focusSoon, onHidden } from '../lib/ui.js';
 import { generatePhrase } from '../lib/engine.js';
 import { isImported, openWithPasswordFor, markExported, isAdding } from '../lib/session.js';
 import { prepareExport, deliverExport, cloudPlatform, CLOUD_MIN_PASSWORD } from '../lib/export.js';
+import { passwordWeakness } from '../lib/password_strength.js';
 import { NO_PHRASE_NOTICE, formatFileSize } from '../lib/wallet_file.js';
 import { OWNER_KEY_TEXT } from '../lib/owner_key.js';
 import { walletDataCard } from './wallet_data.js';
 
 /**
  * Recovery words in a grid that stays blurred until tapped (no shoulder
- * surfing). fill(words) puts them in; onReveal runs once they are shown.
- * Also used for the Ethereum wallet's words (screens/eth_words.js).
+ * surfing), and blurred again whenever the app goes out of sight (the app
+ * switcher keeps a picture of the last screen). fill(words) puts them in;
+ * onReveal runs each time they are shown; hide() blurs them; destroy() stops
+ * watching (a grid taken off the page stops by itself). Also used for the
+ * Ethereum wallet's words (screens/eth_words.js).
  */
 export function wordReveal(onReveal) {
   const grid = h('div', { class: 'words hidden-words', 'data-testid': 'words' });
   const cover = h('div', { class: 'cover' }, h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'reveal' }, icon('eye'), 'Tap to show the words'));
+  const el = h('div', { class: 'reveal' }, grid, cover);
   cover.querySelector('button').addEventListener('click', () => {
     grid.classList.remove('hidden-words');
     cover.remove();
     onReveal();
   });
+  const hide = () => {
+    grid.classList.add('hidden-words');
+    if (!cover.isConnected) el.appendChild(cover);
+  };
+  const off = onHidden(() => (el.isConnected ? hide() : off()));
   return {
-    el: h('div', { class: 'reveal' }, grid, cover),
+    el,
     fill: (words) => put(grid, ...words.map((w, i) => h('div', { class: 'word' }, h('span', { class: 'n', text: String(i + 1) }), h('span', { text: w })))),
+    hide,
+    destroy: off,
   };
 }
 
@@ -90,7 +103,7 @@ export default function backup(app) {
     reveal.el,
     status,
   );
-  return { el };
+  return { el, destroy: reveal.destroy };
 }
 
 /** Settings -> Backup: what brings the wallet on this device back. Shows no words, ever. */
@@ -189,7 +202,8 @@ function cloudCard(app) {
 
 /**
  * The cloud copy: BEAM Campfire password (who is asking) -> if it is shorter than
- * CLOUD_MIN_PASSWORD, a longer one for this copy only -> prepare -> a fresh tap to save it.
+ * CLOUD_MIN_PASSWORD or easy to guess (lib/password_strength.js; a password set before those rules),
+ * a stronger one for this copy only -> prepare -> a fresh tap to save it.
  */
 function cloudSheet(app) {
   const where = cloudPlatform();
@@ -200,11 +214,12 @@ function cloudSheet(app) {
   let file = null;
   let busy = false;
   let message = null;
-  const field = (attrs) => h('input', { class: 'input', type: 'password', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', ...attrs });
-  const pw = field({ autocomplete: 'current-password', 'aria-label': 'BEAM Campfire password', placeholder: 'Password', 'data-testid': 'cloud-pw' });
-  // Not saved by the browser: a password kept in the same account as the copy would protect nothing.
-  const pw1 = field({ autocomplete: 'off', 'aria-label': 'Password for the copy', placeholder: `At least ${CLOUD_MIN_PASSWORD} characters`, 'data-testid': 'cloud-pw1' });
-  const pw2 = field({ autocomplete: 'off', 'aria-label': 'The same password again', placeholder: 'The same password again', 'data-testid': 'cloud-pw2' });
+  // Not saved by the browser (any of them): a password kept in the same account as the copy, or in
+  // the same browser profile as the wallet, would protect nothing.
+  const field = (attrs) => h('input', { class: 'input', type: 'password', autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', ...attrs });
+  const pw = field({ 'aria-label': 'BEAM Campfire password', placeholder: 'Password', 'data-testid': 'cloud-pw' });
+  const pw1 = field({ 'aria-label': 'Password for the copy', placeholder: `At least ${CLOUD_MIN_PASSWORD} characters`, 'data-testid': 'cloud-pw1' });
+  const pw2 = field({ 'aria-label': 'The same password again', placeholder: 'The same password again', 'data-testid': 'cloud-pw2' });
   openSheet((close, rerender) => {
     const prepare = async () => {
       busy = true;
@@ -238,7 +253,7 @@ function cloudSheet(app) {
       }
       busy = false;
       message = null;
-      if (pw.value.length >= CLOUD_MIN_PASSWORD) {
+      if (!passwordWeakness(pw.value, { min: CLOUD_MIN_PASSWORD })) {
         filePw = pw.value;
         sameAsApp = true;
         pw.value = '';
@@ -250,8 +265,9 @@ function cloudSheet(app) {
     };
     const chosen = () => {
       if (busy) return;
-      if (pw1.value.length < CLOUD_MIN_PASSWORD) {
-        message = notice('warn', `Use at least ${CLOUD_MIN_PASSWORD} characters.`);
+      const weak = passwordWeakness(pw1.value, { min: CLOUD_MIN_PASSWORD });
+      if (weak) {
+        message = notice('warn', weak.text);
         return rerender();
       }
       if (pw1.value !== pw2.value) {
@@ -287,7 +303,7 @@ function cloudSheet(app) {
       focusSoon(pw1);
       return [
         h('h2', { text: 'Choose a password for the copy' }),
-        h('p', { class: 'lead', 'data-testid': 'cloud-choose-lead', text: `Your BEAM Campfire password is short for a file kept in ${t.place}. Choose one of at least ${CLOUD_MIN_PASSWORD} characters for this copy. You need it to open the copy, so write it down, not in the same account as the copy.` }),
+        h('p', { class: 'lead', 'data-testid': 'cloud-choose-lead', text: `Your BEAM Campfire password is easy to guess, or too short for a file kept in ${t.place}. Choose one of at least ${CLOUD_MIN_PASSWORD} characters, not a common one, for this copy. You need it to open the copy, so write it down, not in the same account as the copy.` }),
         h('label', { class: 'field' }, 'Password for the copy', pw1),
         h('label', { class: 'field' }, 'Again', pw2),
         message,
@@ -325,7 +341,7 @@ function exportSheet(app) {
   let file = null;
   let busy = false;
   let message = null;
-  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'current-password', 'aria-label': 'BEAM Campfire password', placeholder: 'Password', 'data-testid': 'export-pw' });
+  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'aria-label': 'BEAM Campfire password', placeholder: 'Password', 'data-testid': 'export-pw' });
   openSheet((close, rerender) => {
     const prepare = async () => {
       if (busy) return;

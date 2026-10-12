@@ -5,7 +5,8 @@
  *       3 + the password (or Face ID).
  * Exit-intent reasons and answers:
  *   - "Which server should I pick?" -> Stack Wallet's is preselected (as on desktop); each one sees the
- *     IP with the address, so only the one picked is ever used - no silent fallback.
+ *     IP with the address, so only the one picked is ever asked about it - no silent fallback
+ *     (a swap's price alone is checked with a second listed server, which never sees the address).
  *   - "Can I use my own node?" -> no, and why: the app's security policy names every server it may
  *     contact, so a typed-in one cannot be reached.
  *   - "Who knows my history?" -> the history switch says who is asked, and what is shown when it's off.
@@ -19,7 +20,7 @@
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, toast, notice, openSheet, copyText } from '../lib/ui.js';
+import { screen, toast, notice, openSheet, copySecret, onHidden } from '../lib/ui.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
 import { ETH_RPC_HOSTS, DEFAULT_ETH_RPC } from '../lib/eth/hosts.js';
 import { getEthRecord, ethRecordKind, withEthKey } from '../lib/eth/vault.js';
@@ -40,7 +41,7 @@ function keyReveal(app, { onHide = null } = {}) {
   const text = h('p', { class: 'mono', 'data-testid': 'eth-key-text', 'aria-label': 'Private key, hidden', text: MASK });
   const showBtn = h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'eth-key-reveal' }, icon('eye'), 'Tap to show the private key');
   const cover = h('div', { class: 'cover' }, showBtn);
-  const copyBtn = h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'eth-key-copy', onclick: () => hex && copyText(hex, 'Private key copied') }, icon('copy'), 'Copy');
+  const copyBtn = h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'eth-key-copy', onclick: () => hex && copySecret(hex, 'Private key copied', { app }) }, icon('copy'), 'Copy');
   const hideBtn = h('button', { class: 'btn btn-text btn-small', 'data-testid': 'eth-key-hide', onclick: () => hide() }, 'Hide');
   const tools = h('div', { class: 'btn-row key-actions hidden' }, copyBtn, hideBtn);
   const box = h('div', { class: 'key-box masked', 'data-testid': 'eth-key-box', 'data-state': 'masked' }, text);
@@ -84,9 +85,8 @@ function keyReveal(app, { onHide = null } = {}) {
 export default function ethSettings(app) {
   const body = h('div', { class: 'stack' });
   let reveal = null;
-  // An app switcher snapshot must not carry the key.
-  const onHidden = () => document.visibilityState === 'hidden' && reveal && reveal.hide();
-  document.addEventListener('visibilitychange', onHidden);
+  // An app switcher snapshot must not carry the key (visibilitychange, and pagehide).
+  const offHidden = onHidden(() => reveal && reveal.hide());
   const row = (ico, title, sub, onclick, extra = {}) =>
     h('button', { class: 'row', onclick, ...extra }, h('span', { class: 'ico' }, icon(ico)), h('span', { class: 'main' }, h('div', { class: 't', text: title }), sub ? h('div', { class: 's', text: sub }) : null), h('span', { class: 'chev' }, icon('chevron')));
 
@@ -117,7 +117,7 @@ export default function ethSettings(app) {
       h(
         'div',
         { class: 'card list' },
-        h('div', { class: 'row field-row' }, h('span', { class: 'ico' }, icon('globe')), h('span', { class: 'main' }, h('div', { class: 't', text: 'Ethereum server' }), h('div', { class: 's wrap', text: 'Sees your IP with your address. Only this one is used.' })), sel),
+        h('div', { class: 'row field-row' }, h('span', { class: 'ico' }, icon('globe')), h('span', { class: 'main' }, h('div', { class: 't', text: 'Ethereum server' }), h('div', { class: 's wrap', text: 'Sees your IP with your address. Only this one is asked about your address.' })), sel),
         h(
           'label',
           { class: 'row' },
@@ -227,7 +227,7 @@ export default function ethSettings(app) {
   return {
     el,
     destroy() {
-      document.removeEventListener('visibilitychange', onHidden);
+      offHidden();
       if (reveal) reveal.hide();
       reveal = null;
     },

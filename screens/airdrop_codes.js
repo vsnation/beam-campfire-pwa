@@ -8,16 +8,21 @@
  *   - "Which ones were claimed?" -> each code shows what the network last said about it.
  *   - "I need them in a spreadsheet / somewhere safe" -> "Save as CSV" (the desktop's columns) to the share
  *     sheet or a download, with a word that the file holds the keys in plain text.
+ *   - "Are they safe on the clipboard?" -> Copy says the clipboard is emptied after a minute (and at the lock).
+ *   - "Someone could see them in the app switcher" -> the codes leave the screen while the app is out of
+ *     sight and come back by themselves on return (copy, paste in a chat, come back for the next).
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, primary, secondary, notice, copyText, toast } from '../lib/ui.js';
+import { screen, primary, secondary, notice, copySecret, toast, onHidden, onShown } from '../lib/ui.js';
 import { batchTotal, CODE_STATUS, TX_STATUS } from '../lib/airdrop.js';
 import { airdrop, amountText } from './airdrop.js';
 import { csvFile } from '../lib/airdrop_csv.js';
 import { deliverExport } from '../lib/export.js';
 import { formatAmount } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
+import { evictionRisk } from '../lib/storage.js';
+import { STORAGE_TEXT } from './storage_warning.js';
 
 const STATUS_TEXT = { [CODE_STATUS.available]: 'Not claimed', [CODE_STATUS.claimed]: 'Claimed', [CODE_STATUS.notFound]: 'Not on the network', [CODE_STATUS.unknown]: '' };
 
@@ -25,6 +30,8 @@ export default function airdropCodes(app, p = {}) {
   let batch = null;
   let error = null;
   let alive = true;
+  // Out of sight: the app switcher keeps a picture of the screen, so the codes are not on it.
+  let away = false;
   const body = h('div', { class: 'content' });
   const actions = h('div', { class: 'actions' });
   // Just created: the batch's "sent" note is not shown again by Back.
@@ -32,6 +39,11 @@ export default function airdropCodes(app, p = {}) {
 
   function render() {
     if (!alive) return;
+    if (away) {
+      put(body, h('div', { class: 'card empty', 'data-testid': 'codes-away' }, icon('lock'), h('p', { class: 'small', text: 'Codes hidden while BEAM Campfire is in the background.' })));
+      put(actions);
+      return;
+    }
     if (error) {
       put(body, notice('error', `The saved codes could not be opened: ${error.message} They stay saved on this device. `, h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: load }, 'Try again')));
       put(actions, secondary('My batches', toBatches));
@@ -44,7 +56,7 @@ export default function airdropCodes(app, p = {}) {
     const same = batch.codes.every((c) => c.value === batch.codes[0].value);
     const all = batch.codes.map((c) => c.code).join('\n');
     const n = batch.codes.length;
-    const copyAll = primary(`Copy all ${n} ${n === 1 ? 'code' : 'codes'}`, () => copyText(all, `${n} ${n === 1 ? 'code' : 'codes'} copied`), { 'data-testid': 'codes-copy-all' });
+    const copyAll = primary(`Copy all ${n} ${n === 1 ? 'code' : 'codes'}`, () => copySecret(all, `${n} ${n === 1 ? 'code' : 'codes'} copied`, { app }), { 'data-testid': 'codes-copy-all' });
     put(
       body,
       p.justCreated
@@ -57,7 +69,7 @@ export default function airdropCodes(app, p = {}) {
       h('p', { class: 'lead', 'data-testid': 'codes-summary', text: same ? `${n} ${n === 1 ? 'code' : 'codes'} · ${amountText(batch.assetId, BigInt(batch.codes[0].value))} each` : `${n} codes · ${amountText(batch.assetId, batchTotal(batch))} in total` }),
       batch.txStatus === TX_STATUS.failed
         ? null
-        : notice('warn', h('strong', { text: 'These codes are the only key to the locked funds. ' }), 'Anyone who has a code can claim it, so send each one only to its person. They are kept only on this device, in this wallet: copy them or save the file somewhere safe.'),
+        : notice('warn', h('strong', { text: 'These codes are the only key to the locked funds. ' }), `Anyone who has a code can claim it, so send each one only to its person. They are kept only on this device, in this wallet: copy them or save the file somewhere safe.${STORAGE_TEXT.codesNote[evictionRisk(app)] || ''}`),
       // Copying is the job: the button sits above the list, however long it is.
       h('div', { class: 'btn-row' }, copyAll, typeof navigator.share === 'function' ? secondary('Share', () => navigator.share({ text: all }).catch(() => {}), { 'data-testid': 'codes-share' }) : null),
       h('button', { class: 'btn btn-text link-left', type: 'button', 'data-testid': 'codes-csv', onclick: () => saveCsv(batch) }, icon('download'), 'Save as CSV file'),
@@ -70,7 +82,7 @@ export default function airdropCodes(app, p = {}) {
             { class: 'row asset-row code-row' },
             h('span', { class: 'code-n', text: String(i + 1) }),
             h('span', { class: 'main' }, h('div', { class: 't mono code-text', 'data-testid': 'code', text: c.code }), STATUS_TEXT[c.status] ? h('div', { class: 's', text: STATUS_TEXT[c.status] }) : null),
-            h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Copy code ${i + 1}`, onclick: () => copyText(c.code, 'Code copied') }, icon('copy')),
+            h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Copy code ${i + 1}`, onclick: () => copySecret(c.code, 'Code copied', { app }) }, icon('copy')),
           ),
         ),
       ),
@@ -103,6 +115,17 @@ export default function airdropCodes(app, p = {}) {
     render();
   }
 
+  const offHidden = onHidden(() => {
+    away = true;
+    render();
+  });
+  // Back in sight with the wallet still open: shown again from memory, nothing asked again.
+  const offShown = onShown(() => {
+    if (!away || !app.dbPass) return;
+    away = false;
+    render();
+  });
+
   load();
   const el = screen({ title: p.justCreated ? 'Your airdrop codes' : 'Airdrop codes', back: () => app.back(p.justCreated ? 'airdrop' : 'airdropBatches'), cls: 'airdrop-codes feature' }, body);
   el.appendChild(actions);
@@ -110,6 +133,8 @@ export default function airdropCodes(app, p = {}) {
     el,
     destroy() {
       alive = false;
+      offHidden();
+      offShown();
     },
   };
 }

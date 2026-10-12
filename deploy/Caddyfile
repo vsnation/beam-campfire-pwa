@@ -1,31 +1,102 @@
 # BEAM Campfire (PWA) on Caddy. Replace wallet.example.org with your own address
 # (used only for this app). Caddy gets and renews the HTTPS certificate itself.
-# Files: git clone --depth 1 https://github.com/vsnation/beam-campfire-pwa /srv/beam-campfire
+# Files: never the checkout itself. Pull the hosting repository into /srv/beam-campfire-pwa, then
+# deploy/verify_and_switch.sh /srv/beam-campfire-pwa /srv/beam-campfire checks it against the
+# pinned release key and points /srv/beam-campfire/current at exactly the signed files.
+# tools/build.mjs fails if the header lines below drift from tools/headers.mjs.
+# After every deploy, check what the public address really serves (read-only):
+#   node tools/check_deploy.mjs https://<address>/
 
 wallet.example.org {
-	root * /srv/beam-campfire
+	root * /srv/beam-campfire/current
 	encode gzip
 
+	# Every response.
 	header {
 		Cross-Origin-Opener-Policy "same-origin"
 		Cross-Origin-Embedder-Policy "require-corp"
-		Cross-Origin-Resource-Policy "same-origin"
-		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self' wss://eu-node02.mainnet.beam.mw:8200 wss://eu-node03.mainnet.beam.mw:8200 wss://eu-node04.mainnet.beam.mw:8200 wss://eu-nodes.mainnet.beam.mw:8200 wss://eu-node01.mainnet.beam.mw:8200 https://raw.githubusercontent.com/BeamMW/beam-ui/2f36c21ed010dee350c052ffce9097b23f69ecfb/ui/apps/mainnet/ https://eth2.stackwallet.com https://ethereum-rpc.publicnode.com https://eth.drpc.org https://rpc.mevblocker.io https://eth-mainnet.public.blastapi.io https://api.coingecko.com/api/v3/simple/price https://buybeam.my/api/v1/buy/ https://1click.chaindefuser.com/v0/ https://pwa.buybeam.my/recovery/; img-src 'self' data: blob:; style-src 'self'; font-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'"
 		Referrer-Policy "no-referrer"
 		X-Content-Type-Options "nosniff"
-		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()"
-		Cache-Control "no-cache"
-		-Server
+		Permissions-Policy "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()"
+		Strict-Transport-Security "max-age=31536000"
 	}
+	# On its own: deleting a field defers a header directive to the end of the response,
+	# which error responses (a 404) never reach.
+	header -Server
 
-	# Never serve the repository's own files.
-	@private path /.git /.git/* /deploy/* /README.md /_headers /.nojekyll
+	# Headers that differ by path are set by matchers that never both match: Caddy runs
+	# every header directive that matches, so a field set above and again here would end
+	# up with whichever ran last.
+	# The policy: the loader (sw-<hash>.js) is a worker, and its own policy lets it fetch
+	# a signed update from another copy of the app when this address does not answer.
+	# With the page policy it cannot reach any copy, and a device keeps the policy its
+	# loader was first fetched with.
+	@loader path /sw-*.js /sw.js
+	@page not path /sw-*.js /sw.js
+	header @page Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self' wss://eu-node02.mainnet.beam.mw:8200 wss://eu-node03.mainnet.beam.mw:8200 wss://eu-node04.mainnet.beam.mw:8200 wss://eu-nodes.mainnet.beam.mw:8200 wss://eu-node01.mainnet.beam.mw:8200 https://raw.githubusercontent.com/BeamMW/beam-ui/2f36c21ed010dee350c052ffce9097b23f69ecfb/ui/apps/mainnet/ https://eth2.stackwallet.com https://ethereum-rpc.publicnode.com https://eth.drpc.org https://rpc.mevblocker.io https://eth-mainnet.public.blastapi.io https://api.coingecko.com/api/v3/simple/price https://buybeam.my/api/v1/buy/ https://1click.chaindefuser.com/v0/ https://pwa.buybeam.my/recovery/; img-src 'self' data: blob:; style-src 'self'; font-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'"
+	header @loader Content-Security-Policy "default-src 'none'; connect-src 'self' https:"
+	# The recovery snapshot relay is read by copies of the app without a relay of their
+	# own (lib/recovery.js), so any origin may read it; it keeps BEAM's caching headers.
+	@relay path /recovery/mainnet_recovery.bin
+	@files not path /recovery/mainnet_recovery.bin
+	header @files {
+		Cross-Origin-Resource-Policy "same-origin"
+		Cache-Control "no-cache"
+	}
+	header @relay {
+		Access-Control-Allow-Origin "*"
+		Access-Control-Allow-Methods "GET, HEAD"
+		Access-Control-Allow-Headers "Range, If-Range"
+		Access-Control-Expose-Headers "Content-Length, Content-Range, ETag, Last-Modified"
+		Access-Control-Max-Age "86400"
+		Cross-Origin-Resource-Policy "cross-origin"
+	}
+	# Any copy may read the app's files; the explorer proxy is this origin's own.
+	@cors not path /explorer/status
+	header @cors Access-Control-Allow-Origin "*"
+	# Content-Type exactly as the loader serves it (tools/headers.mjs MIME), never Caddy's guess
+	# (from the system's mime.types, or sniffed); anything else as plain bytes.
+	@mime_text_html path *.html
+	header @mime_text_html Content-Type "text/html; charset=utf-8"
+	@mime_text_javascript path *.js *.mjs
+	header @mime_text_javascript Content-Type "text/javascript; charset=utf-8"
+	@mime_text_css path *.css
+	header @mime_text_css Content-Type "text/css; charset=utf-8"
+	@mime_application_json path *.json *.jwk
+	header @mime_application_json Content-Type "application/json"
+	@mime_application_manifest_json path *.webmanifest
+	header @mime_application_manifest_json Content-Type "application/manifest+json"
+	@mime_application_wasm path *.wasm
+	header @mime_application_wasm Content-Type "application/wasm"
+	@mime_image_svg_xml path *.svg
+	header @mime_image_svg_xml Content-Type "image/svg+xml"
+	@mime_image_png path *.png
+	header @mime_image_png Content-Type "image/png"
+	@mime_font_ttf path *.ttf
+	header @mime_font_ttf Content-Type "font/ttf"
+	@mime_font_woff2 path *.woff2
+	header @mime_font_woff2 Content-Type "font/woff2"
+	@mime_text_plain path *.txt *.sig
+	header @mime_text_plain Content-Type "text/plain; charset=utf-8"
+	@mime_other {
+		not path *.html *.js *.mjs *.css *.json *.webmanifest *.wasm *.svg *.png *.ttf *.woff2 *.txt *.sig *.jwk
+		not path / /recovery/mainnet_recovery.bin /explorer/status
+	}
+	header @mime_other Content-Type "application/octet-stream"
+
+	# The hosting repository's own files are not part of the app.
+	@private path /.git /.git/* /.github/* /.nojekyll /deploy/* /README.md /_headers
 	handle @private {
 		respond 404
 	}
 
 	# BEAM's daily recovery snapshot (~330 MB) for "Restore with 12 words", relayed as-is.
+	# A resumed download asks first with OPTIONS (If-Range is not a simple header).
 	handle /recovery/mainnet_recovery.bin {
+		@preflight method OPTIONS
+		respond @preflight 204
+		@write not method GET HEAD
+		respond @write 405
 		rewrite * /mainnet/mainnet_recovery.bin
 		reverse_proxy https://mobile-restore.beam.mw {
 			header_up Host {upstream_hostport}
@@ -35,12 +106,15 @@ wallet.example.org {
 			header_up -Cookie
 			header_down -Set-Cookie
 			header_down -Access-Control-Allow-Origin
+			header_down -Access-Control-Expose-Headers
 			flush_interval -1
 		}
 	}
 
 	# An independent chain height for the honest "synced" check (height and time only).
 	handle /explorer/status {
+		@write not method GET
+		respond @write 405
 		rewrite * /api/status
 		reverse_proxy https://explorer.0xmx.net {
 			header_up Host {upstream_hostport}

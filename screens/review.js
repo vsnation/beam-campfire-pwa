@@ -8,6 +8,8 @@
  *   - "Is the fee a surprise?" -> fee and total are on this screen, nothing is added later.
  *   - "What if they're offline?" -> says the receiver must come online within ~12 h, and that
  *     a payment nobody accepts is returned (cancelled), not lost.
+ *   - "Is alice.beam really them?" -> the owner key's 16 characters, and how to compare them with the
+ *     person; a name paid before says whether its owner is the same (a node could lie: audit D-1).
  */
 import { h, shorten, put } from '../lib/dom.js';
 import { screen, primary, notice, textButton } from '../lib/ui.js';
@@ -16,7 +18,7 @@ import { wallet, sendModeFor } from '../lib/wallet.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
 import { checkCode, display } from '../lib/bans.js';
 import { bans, nameProblemText } from './names.js';
-import { contactNameFor } from '../lib/contacts.js';
+import { contactNameFor, readNamePin, pinNamePayment, NAME_PIN_UNREAD } from '../lib/contacts.js';
 import { cleanNote } from '../lib/payments.js';
 
 export default function review(app, p) {
@@ -105,8 +107,14 @@ function nameReview(app, p) {
     cta.textContent = 'Checking the name…';
     put(msg);
     try {
+      // A name this wallet paid before must still have that owner, unless the person chose the new one on Send.
+      // Unreadable now: what Send read (Review already says when Send could not read it either).
+      const pin = await readNamePin(app, p.name);
+      const pinnedKey = pin.unread ? p.pinnedKey || null : pin.key;
       // The approve sheet that follows shows the wallet's own figures and asks for Face ID / password.
-      const r = await bans().pay(p.name, Number(p.assetId), p.amount, { expectedOwnerKey: p.ownerKey });
+      const r = await bans().pay(p.name, Number(p.assetId), p.amount, { expectedOwnerKey: p.ownerKey, pinnedKey, acceptedKey: p.acceptedKey || null });
+      // Paid: the owner the name is expected to have next time.
+      await pinNamePayment(app, p.name, r.ownerKey).catch((e) => console.warn('[campfire] name pin', e && e.message));
       app.sendDraft = null;
       app.go('txStatus', { txId: r.txId, amount: p.amount, fee: r.fee, assetId: p.assetId, address: display(p.name), name: p.name, mustBeOnline: false }, { replace: true });
     } catch (e) {
@@ -118,7 +126,8 @@ function nameReview(app, p) {
   }
 
   const el = screen(
-    { title: 'Review payment', back: () => app.back('send'), actions: [cta, textButton('Change', () => app.back('send'))], cls: 'plain' },
+    // Sticky: the owner key's check and its history push the button down; it stays in view.
+    { title: 'Review payment', back: () => app.back('send'), actions: [cta, textButton('Change', () => app.back('send'))], cls: 'plain sticky-actions' },
     h('p', { class: 'center small', text: 'You send' }),
     h('div', { class: 'big-amount', 'data-testid': 'review-amount', text: `${formatAmount(p.amount)} ${unit}` }),
     h(
@@ -130,8 +139,30 @@ function nameReview(app, p) {
       h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Network fee' }), h('span', { class: 'v', 'data-testid': 'review-fee', text: `${formatAmount(p.fee)} BEAM` })),
       h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Total' }), h('span', { class: 'v', 'data-testid': 'review-total', text: total })),
     ),
+    // The name's owner is what the node says it is: comparing the key with the person is what makes it theirs.
+    h('p', { class: 'small', 'data-testid': 'review-owner-hint', text: 'To be sure it reaches them, ask for their name key (in BEAM Campfire: BEAM names → Receive a name). Its 16 characters must match the owner key above.' }),
+    ownerHistory(p),
     notice('info', `It goes into BEAM's name vault for whoever owns ${display(p.name)}; they claim it from their wallet. The amount is visible on the blockchain, the recipient is not. The name is checked again right before you approve: if its owner changed, nothing is sent.`),
     msg,
   );
   return { el };
+}
+
+/**
+ * Whether this wallet paid the name before, and to whom: the same owner, or a new one the person
+ * chose; or that the record of earlier payments could not be read, so nothing was compared (BC-3).
+ */
+function ownerHistory(p) {
+  if (p.pinUnread) {
+    const n = notice('warn', NAME_PIN_UNREAD);
+    n.dataset.testid = 'review-owner-pin';
+    return n;
+  }
+  if (p.acceptedKey && p.pinnedKey && p.acceptedKey === p.ownerKey) {
+    const n = notice('warn', `${display(p.name)} had another owner when you last paid it (${checkCode(p.pinnedKey)}). You chose to pay the new one.`);
+    n.dataset.testid = 'review-owner-pin';
+    return n;
+  }
+  if (p.pinnedKey && p.pinnedKey === p.ownerKey) return h('p', { class: 'small', 'data-testid': 'review-owner-pin', text: `The same owner as your last payment to ${display(p.name)}.` });
+  return null;
 }

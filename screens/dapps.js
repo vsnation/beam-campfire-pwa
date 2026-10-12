@@ -11,6 +11,9 @@
  *     off unless turned on, with the reason (they see your IP address).
  *   - "Can it take my money?" -> it can only ask. Every payment or contract call shows this
  *     dApp's name, what leaves and what arrives, and needs Face ID or the password.
+ *   - "What can it see?" -> the open and install sheets say it can see your balance: BEAM gives
+ *     every dApp wallet_status without asking (the desktop wallet does the same). One installed
+ *     from a file asks first, once ("Let <name> see your balance?"), and More shows the answer.
  *   - "Is this file safe?" -> the install sheet says plainly that BEAM Campfire did not
  *     check it, warns when its name copies one of BEAM's dApps, and it reaches no server
  *     until the person allows that server, by name, when the dApp first tries it.
@@ -30,7 +33,7 @@ import { DEFAULT_LIMITS } from '../lib/dapps/zip.js';
 import { InstallError, readFilePackage, catalogueEntryFor, catalogueNameCopiedBy, installErrorText } from '../lib/dapps/file_package.js';
 import { installed, iconDataUrl } from '../lib/dapps/installed.js';
 import { remoteOriginFor } from '../lib/dapps/frame_policy.js';
-import { openApp } from '../lib/contracts.js';
+import { openApp, readsAsWallet } from '../lib/contracts.js';
 
 export { runnerStats };
 
@@ -215,6 +218,8 @@ export default function dapps(app, params = {}) {
         throw new InstallError('cantOpenFile', 'the file could not be read');
       }
       const pkg = await readFilePackage(bytes);
+      // It could not be opened (lib/contracts.js): its name would pass for the wallet's on approvals.
+      if (readsAsWallet(pkg.manifest.name)) throw new InstallError('walletName', 'the name reads as the wallet');
       const same = catalogueEntryFor(pkg);
       done();
       if (destroyed) return;
@@ -252,7 +257,7 @@ export default function dapps(app, params = {}) {
           { 'data-testid': 'dapp-install-unchecked' },
           notice(
             copies ? 'info' : 'warn',
-            "BEAM Campfire did not check this dApp: it is not one of BEAM's own dApps. Install it only if you trust where it came from. Payments, contract calls and signatures it asks for still come to BEAM Campfire for your approval, but it can read some wallet details without asking, and what you approve can't be undone.",
+            "BEAM Campfire did not check this dApp: it is not one of BEAM's own dApps. Install it only if you trust where it came from. Payments, contract calls and signatures it asks for still come to BEAM Campfire for your approval, it asks before it sees your balance, and what you approve can't be undone.",
           ),
         ),
         h(
@@ -350,7 +355,7 @@ export default function dapps(app, params = {}) {
         needsDownload
           ? h('p', { class: 'lead', 'data-testid': 'dapp-size-note', text: `Downloads ${sizeText(e.size)} from BEAM's GitHub (raw.githubusercontent.com), once. GitHub sees your IP address. BEAM Campfire checks the file against the fingerprint built into this app before anything runs.` })
           : null,
-        h('p', { class: 'small', text: 'It runs walled off from your wallet: it can ask, and nothing leaves without your OK.' }),
+        h('p', { class: 'small', 'data-testid': 'dapp-open-sees', text: 'It runs walled off from your wallet. It can see your balance, but nothing leaves without your OK.' }),
         e.remoteOrigins.length
           ? h('label', { class: 'check-row' }, allow, h('span', {}, h('strong', { text: 'Also allow price lookups. ' }), `It fetches prices from ${remoteHosts(e)}, which see your IP address. Off: the dApp still works, without prices.`))
           : null,
@@ -376,7 +381,7 @@ export default function dapps(app, params = {}) {
    */
   async function start(e, carry = null) {
     app.touch();
-    const status = { text: '', fraction: null, error: null };
+    const status = { text: '', fraction: null, error: null, removable: false };
     let sheet = null;
     const show = () => {
       if (!sheet || sheet.closed) return;
@@ -388,7 +393,9 @@ export default function dapps(app, params = {}) {
         status.error
           ? notice('error', status.error)
           : h('div', { class: 'dapp-progress', 'data-testid': 'dapp-progress' }, h('p', { class: 'lead', text: status.text }), progressBar(status.fraction)),
-        status.error ? h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-retry', onclick: () => { close(); start(e); } }, 'Try again') : null,
+        // Trying again cannot help a dApp refused for its name: removing it is the way on.
+        status.error && status.removable ? h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-remove-refused', onclick: () => { close(); removeSheet(e); } }, `Remove ${e.name}`) : null,
+        status.error && !status.removable ? h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-retry', onclick: () => { close(); start(e); } }, 'Try again') : null,
         h('button', { class: 'btn btn-text', 'data-testid': 'dapp-cancel', onclick: () => { if (downloadCtl) downloadCtl.abort(); close(); } }, status.error ? 'Back to dApps' : 'Cancel'),
       ],
       { dismissable: false, label: `Opening ${e.name}` },
@@ -443,6 +450,7 @@ export default function dapps(app, params = {}) {
       if (sheet.closed || destroyed) return;
       if (err instanceof PackageError && err.code === 'aborted') return sheet.close();
       status.error = plainError(e, err);
+      status.removable = Boolean(err && err.code === 'reserved_name' && e.file);
       show();
     }
   }
@@ -456,6 +464,7 @@ export default function dapps(app, params = {}) {
     }
     if (err && err.code === 'timeout') return `Your wallet did not answer in time; it may still be finishing what the last dApp asked. Try again in a moment.`;
     if (err && (err.code === 'locked' || err.code === 'no_wallet')) return 'The wallet was locked. Unlock it and open the dApp again.';
+    if (err && err.code === 'reserved_name') return `${e.name} was not opened. ${err.message}`;
     return `${e.name} could not be opened: ${(err && err.message) || err}`;
   }
 
@@ -507,6 +516,8 @@ export default function dapps(app, params = {}) {
       appApi,
       remoteOrigins,
       confirmSign: (req) => presentSign(req, e.file === true),
+      // From a file (not the DApp Store): it may send what it sees to any server, so it asks first.
+      confirmBalance: e.file && !e.rec.store ? () => askBalance(e) : null,
       onActivity: () => app.touch(),
       onOpenLink: (url) => presentLink(manifest.name, url),
       onLayout: ({ width, viewport }) => {
@@ -602,9 +613,46 @@ export default function dapps(app, params = {}) {
             ),
           )
         : h('p', { class: 'small', 'data-testid': 'dapp-hosts-none', text: `None. When ${manifest.name} tries to reach a server, BEAM Campfire asks you first.` }),
+      rec.store ? null : h('p', { class: 'section-title', text: 'What it can see' }),
+      rec.store ? null : balanceRow(e, manifest, close),
       h('button', { class: 'btn btn-secondary', 'data-testid': 'dapp-reload', onclick: () => (close(), reopen(e)) }, 'Reload'),
       h('button', { class: 'btn btn-text danger', 'data-testid': 'dapp-remove-file', onclick: () => (close(), removeSheet(e)) }, `Remove ${manifest.name}`),
     ], { label: manifest.name });
+  }
+
+  /** Whether a dApp from a file may see the balance, and the way to change the answer. */
+  function balanceRow(e, manifest, close) {
+    const b = e.rec.balance;
+    const text = b === true ? 'Allowed. It can send it to any server.' : b === false ? 'Kept hidden: you said no.' : 'It asks you first.';
+    const again = async (said) => {
+      close();
+      let rec;
+      try {
+        rec = await installed.setBalance(e.guid, null);
+      } catch {
+        toast(`BEAM Campfire couldn't change that. Nothing was changed. Try again.`, 5000);
+        return;
+      }
+      toast(said ? `${manifest.name} can no longer see your balance; it will ask again. Reloading it…` : `${manifest.name} will ask you again. Reloading it…`, 4000);
+      reopen(fileEntry(rec));
+    };
+    return h(
+      'div',
+      { class: 'card list dapp-hosts', 'data-testid': 'dapp-balance-row', 'data-balance': String(b) },
+      h(
+        'div',
+        { class: 'row dapp-host' },
+        h('span', { class: 'ico' }, icon('wallet')),
+        h(
+          'span',
+          { class: 'main' },
+          h('div', { class: 't', text: 'Your balance' }),
+          h('div', { class: 's', text }),
+          b === true ? h('button', { class: 'btn btn-text btn-small', 'data-testid': 'dapp-balance-revoke', onclick: () => again(true) }, 'Remove access') : null,
+          b === false ? h('button', { class: 'btn btn-text btn-small', 'data-testid': 'dapp-balance-reask', onclick: () => again(false) }, 'Ask me again') : null,
+        ),
+      ),
+    );
   }
 
   async function revoke(e, origin) {
@@ -643,7 +691,10 @@ export default function dapps(app, params = {}) {
       (close) => [
         h('div', { class: 'dapp-sheet-head' }, h('span', { class: 'dapp-icon big file none' }, icon('globe')), h('h2', { 'data-testid': 'dapp-host-title', text: `Let ${name} connect to ${host}?` })),
         h('p', { class: 'lead', text: `${host} will see your IP address and everything ${name} asks it.` }),
-        h('p', { class: 'small', text: `Allow it only if you trust ${name} and that server: BEAM Campfire checked neither. ${name} could also tell the server what it can read from your wallet without asking, such as your balance. You can take this back in More (⋯) at any time.` }),
+        h('p', { class: 'small', text: `Allow it only if you trust ${name} and that server: BEAM Campfire checked neither. ${name} could also tell the server what you let it see, such as your balance. You can take this back in More (⋯) at any time.` }),
+        // The browser looks the name up, not BEAM Campfire: it refuses names that spell a local address
+        // (lib/dapps/frame_policy.js), but any other name can still lead into the person's network.
+        h('p', { class: 'small', 'data-testid': 'dapp-host-local', text: `A server's name can also lead to a device on your own network, such as your router. If ${host} does, ${name} can reach that device.` }),
         h(
           'div',
           { class: 'sheet-actions' },
@@ -684,6 +735,44 @@ export default function dapps(app, params = {}) {
   }
 
   // ---------------------------------------------------------------- asking
+  /**
+   * A dApp from a file asks before it sees the balance (lib/dapps/session.js confirmBalance); the
+   * answer is kept for that dApp (lib/dapps/installed.js) until changed in More.
+   * Spec: ONE job: decide whether this unchecked dApp may see the balance. Primary: "Let it see my
+   * balance"; "Keep it hidden" beside it. Taps: 1, when the dApp first looks.
+   */
+  async function askBalance(e) {
+    const run = cur;
+    const rec = await installed.get(e.guid).catch(() => null);
+    if (rec && rec.balance !== null) return rec.balance;
+    if (!run || run !== cur) return false;
+    const name = e.name;
+    const answer = await new Promise((resolve) => {
+      const s = openSheet(
+        (close) => [
+          h('div', { class: 'dapp-sheet-head' }, dappIcon(e, 'dapp-icon big'), h('h2', { 'data-testid': 'dapp-balance-title', text: `Let ${name} see your balance?` })),
+          h('p', { class: 'lead', text: 'It can send what it sees to any server.' }),
+          h('p', { class: 'small', text: `BEAM Campfire did not check ${name}. Seeing your balance moves nothing: payments still need your OK. You can change your answer in More (⋯).` }),
+          h(
+            'div',
+            { class: 'sheet-actions' },
+            h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-balance-allow', onclick: () => close(true) }, 'Let it see my balance'),
+            h('button', { class: 'btn btn-text', 'data-testid': 'dapp-balance-deny', onclick: () => close(false) }, 'Keep it hidden'),
+          ),
+        ],
+        { dismissable: false, label: `Let ${name} see your balance` },
+      );
+      s.then((v) => resolve(v === true));
+    });
+    if (run !== cur) return false;
+    try {
+      e.rec = await installed.setBalance(e.guid, answer);
+    } catch {
+      toast(`BEAM Campfire couldn't save that. ${name} will ask again next time.`, 5000);
+    }
+    return answer;
+  }
+
   function presentSign(req, unchecked) {
     return new Promise((resolve) => {
       const s = openSheet(

@@ -9,6 +9,9 @@
  *   - "How much is the fee?" -> shown before review, in ETH, as "about"; the review adds "at most".
  *   - "Max leaves dust or fails" -> Max is the ETH balance less the most the fee can be.
  *   - "Why is the button grey?" -> the reason is always written next to it.
+ *   - "I sent one a moment ago and it says Not sure yet" -> nothing new is sent until it is settled
+ *     (a second payment could go through beside it); said at the top with the way out (see it, or
+ *     another server in Settings), and the screen follows it and opens up by itself (lib/eth/doubt.js).
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
@@ -17,8 +20,9 @@ import { ethWallet } from '../lib/eth/wallet.js';
 import { walletFees } from '../lib/eth/rpc.js';
 import { parseUnits, toInputString } from '../lib/eth/units.js';
 import { ETH, TOKENS } from '../lib/eth/tokens.js';
+import { mayForget } from '../lib/eth/doubt.js';
 import { recipientProblem, prepareSend, SendError, ETH_TRANSFER_GAS } from '../lib/eth/send.js';
-import { amountText, ethText, serverProblem } from './eth_ui.js';
+import { amountText, ethText, serverProblem, doubtNotice, followDoubt } from './eth_ui.js';
 import { openEthReview } from './eth_review.js';
 import { scanEthAddress } from './scan_sheet.js';
 
@@ -45,6 +49,9 @@ export default function ethSend(app) {
   const amountHint = h('p', { class: 'hint', 'data-testid': 'eth-amount-hint' });
   const feeLine = h('div', { class: 'kv' });
   const msg = h('div', { 'aria-live': 'polite' });
+  // A transaction in doubt holds back this one (lib/eth/doubt.js): said first, before anything is typed.
+  const doubtBox = h('div');
+  let doubtShown = null; // the hash and kind of doubt on screen, so typing does not rebuild it
   const cta = primary('Send', review, { disabled: true, 'data-testid': 'eth-send-review' });
 
   const asset = () => (draft.symbol === 'ETH' ? ETH : TOKENS.find((t) => t.symbol === draft.symbol) || ETH);
@@ -61,6 +68,10 @@ export default function ethSend(app) {
   }
 
   function evaluate() {
+    const doubt = w ? w.doubt() : null;
+    const key = doubt ? `${doubt.hash}:${doubt.unsureSince ? 'unsure' : 'refused'}:${mayForget(doubt) ? 'forget' : ''}` : null;
+    if (key !== doubtShown) put(doubtBox, doubt ? doubtNotice(app, doubt, { onForgotten: () => evaluate() }) : null);
+    doubtShown = key;
     const a = asset();
     unitLabel.textContent = a.symbol;
     const like = typicalLikely(a);
@@ -92,9 +103,10 @@ export default function ethSend(app) {
     amountHint.className = `hint${err ? ' bad' : ''}`;
     amount.classList.toggle('bad', Boolean(err));
     const ok = w && !prob && amt != null && !err && have != null && !preparing;
-    cta.disabled = !ok;
-    cta.textContent = preparing ? 'Checking with Ethereum…' : ok ? `Send ${amountText(amt, a, { approx: false })}` : 'Send';
-    return ok ? { asset: a, amount: amt } : null;
+    cta.disabled = !ok || Boolean(doubt);
+    // The reason sits on the grey button too: the notice that names it may be scrolled away.
+    cta.textContent = doubt ? 'Sending is paused (see above)' : preparing ? 'Checking with Ethereum…' : ok ? `Send ${amountText(amt, a, { approx: false })}` : 'Send';
+    return ok && !doubt ? { asset: a, amount: amt } : null;
   }
 
   async function review() {
@@ -104,6 +116,12 @@ export default function ethSend(app) {
     put(msg);
     evaluate();
     try {
+      // The outbox as stored now, not as this screen last saw it.
+      if (await w.freshDoubt()) {
+        preparing = false;
+        evaluate();
+        return;
+      }
       const prepared = await prepareSend(w.rpc, { from: w.state.address, asset: ok.asset, recipient: addr.value.trim(), amount: ok.amount, balances: w.balances() });
       preparing = false;
       evaluate();
@@ -166,6 +184,8 @@ export default function ethSend(app) {
     evaluate();
   });
 
+  const stopDoubt = followDoubt(app, () => w, () => evaluate());
+
   (async () => {
     w = await ethWallet(app).catch(() => null);
     if (!w) return app.go('ethHome');
@@ -190,6 +210,7 @@ export default function ethSend(app) {
       },
       actions: [cta],
     },
+    doubtBox,
     assetField,
     h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: 'To' }), scanBtn, pasteBtn), addr),
     addrHint,
@@ -198,6 +219,12 @@ export default function ethSend(app) {
     h('div', { class: 'card flat' }, feeLine),
     msg,
   );
-  return { el, destroy: () => clearTimeout(t) };
+  return {
+    el,
+    destroy() {
+      clearTimeout(t);
+      stopDoubt();
+    },
+  };
 }
 

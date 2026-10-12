@@ -15,7 +15,7 @@ import { screen, primary, secondary, notice } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
 import { walletStore } from '../lib/wallet_scope.js';
-import { airdropFor, codeVault, normaliseCode, formatCode, isWellFormedCode, CALL_FEE, CODE_LENGTH } from '../lib/airdrop.js';
+import { airdropFor, codeVault, resealCodeVault, normaliseCode, formatCode, isWellFormedCode, CALL_FEE, CODE_LENGTH } from '../lib/airdrop.js';
 import { scanCode } from './scan_sheet.js';
 
 const CHECK_DEBOUNCE_MS = 300;
@@ -25,9 +25,23 @@ export function airdrop(app) {
   return airdropFor(wallet.session, {
     vault: async () => {
       if (!app.dbPass || !app.record) throw Object.assign(new Error('Unlock the wallet first.'), { code: 'noCodeStore' });
-      // Bound to this wallet: codes saved after a switch still go to their own wallet.
-      return codeVault({ kv: walletStore(app.record), walletId: app.record.id, secret: app.dbPass });
+      // Bound to this wallet: codes saved after a switch still go to their own wallet. An imported
+      // wallet's secret is its password: its codes are sealed with PBKDF2 (lib/airdrop.js codeVault).
+      return codeVault({ kv: walletStore(app.record), walletId: app.record.id, secret: app.dbPass, imported: Boolean(app.record.imported) });
     },
+  });
+}
+
+/**
+ * After an unlock (screens/unlock.js): an imported wallet's codes saved by an earlier version under
+ * one HKDF over its password are sealed again with PBKDF2, every code kept. Nothing for any other
+ * wallet, or when there are no codes. Never stops the unlock: the next one tries again.
+ */
+export function resealAirdropCodes(app) {
+  if (!app.dbPass || !app.record || !app.record.imported) return Promise.resolve(false);
+  return resealCodeVault({ kv: walletStore(app.record), walletId: app.record.id, secret: app.dbPass, imported: true }).catch((e) => {
+    console.warn('[campfire] airdrop codes: re-seal later:', e && e.message);
+    return false;
   });
 }
 
