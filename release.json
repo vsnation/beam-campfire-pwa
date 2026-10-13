@@ -1,15 +1,15 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.2.13",
- "created": "2026-10-12T22:49:53.547Z",
- "manifest_sha256": "4a994366d952532543c367d08bb41113430417af03f09d6f3353fdf7c010c0f7",
+ "version": "0.2.14",
+ "created": "2026-10-13T13:18:21.402Z",
+ "manifest_sha256": "5f98bcd33d77b2d206011936c8894d7f4d1cc8a603585cbdf295edfcc2c1951c",
  "file_count": 358,
  "engine": {
   "wasm-client.js": "b3d47b7ce7a18a6400de02f103e2982dd511ce2e5f3815a8e9cd1661d7ab97f0",
   "wasm-client.wasm": "a0410ea3ab28486847e48434ba68125c09bf1986acb801daec82fc5a5d3f482b",
   "wasm-client.worker.js": "eff6668e83689221c3515bd0b29bf9db9a1c8067a73213be4abe142f396a4e0e"
  },
- "loader": "sw-d42833d8b7d93c9d.js",
+ "loader": "sw-ea57ebf485421b18.js",
  "loader_compat": "44245312edd43939b8e457adb44470ba8643d4a8208d85b964a212ba0b2ecd3c",
  "update_sources": [
   "https://raw.githubusercontent.com/vsnation/beam-campfire-pwa/main/",
