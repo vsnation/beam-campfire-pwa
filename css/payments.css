@@ -35,7 +35,7 @@
 .addr-type { flex: 1; font-size: 13px; font-weight: 600; color: var(--on-secondary); }
 .addr-tile.expired .addr-type { color: var(--muted); }
 .addr-label { font-weight: 600; overflow-wrap: anywhere; }
-.addr-label.none { color: var(--subtle); font-weight: 500; }
+.addr-label.none { color: var(--muted); font-weight: 500; }
 .addr-short { color: var(--muted); font-size: 12px; }
 .addr-actions { display: flex; flex-wrap: wrap; gap: 0 10px; margin: 2px -2px 0; }
 .addr-actions .btn { width: auto; min-height: 40px; padding: 4px 2px; font-size: 14px; }

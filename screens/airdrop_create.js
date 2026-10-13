@@ -7,6 +7,8 @@
  *     update as you type, before the button.
  *   - "What if I lose the codes?" -> said up front: they are kept only on this device, saved before
  *     anything is sent; unclaimed ones can be cancelled later to get the rest back.
+ *   - "Is a code safe to hand out?" -> "Codes work like cash" before the button: anyone with one can
+ *     claim it, and a claim shows it to the network before it is confirmed (issue #17).
  *   - "I tapped twice - did I pay twice?" -> one batch per tap, refused in the library as well.
  *   - "Why is the button grey?" -> the reason is written right above it.
  */
@@ -15,7 +17,7 @@ import { screen, primary, notice } from '../lib/ui.js';
 import { parseAmount, formatAmount } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
 import { creationFee, CALL_FEE, CANCEL_FEE, MAX_VOUCHERS, MAX_TOTAL } from '../lib/airdrop.js';
-import { airdrop, amountText, dropProblemText, forgetOnLock } from './airdrop.js';
+import { airdrop, amountText, dropProblemText, forgetOnLock, BEARER_TEXT } from './airdrop.js';
 import { confirmKeptHere } from './storage_warning.js';
 
 export default function airdropCreate(app) {
@@ -118,11 +120,14 @@ export default function airdropCreate(app) {
       el.dataset.code = result.code || '';
       n.push(el);
     }
+    const bearer = notice('warn', h('strong', { text: `${BEARER_TEXT.createTitle}. ` }), BEARER_TEXT.createMessage);
+    bearer.dataset.testid = 'drop-bearer';
     n.push(
+      bearer,
       h(
         'p',
         { class: 'small', 'data-testid': 'drop-keep-note' },
-        `The codes are kept only on this device, in this wallet, and saved before anything is sent: copy them somewhere safe. Anyone with a code can claim it. Codes nobody claims can be cancelled later to get the rest back (network fee ${formatAmount(CANCEL_FEE)} BEAM).`,
+        `The codes are kept only on this device, in this wallet, and saved before anything is sent: copy them somewhere safe. Codes nobody claims can be cancelled later to get the rest back (network fee ${formatAmount(CANCEL_FEE)} BEAM).`,
       ),
     );
     put(notes, ...n);
@@ -187,7 +192,8 @@ export default function airdropCreate(app) {
         app.dropCreateDraft = null;
         app.back('airdrop');
       },
-      cls: 'airdrop-create feature',
+      // The button stays in sight on a small phone, below the summary and the warnings (as Mint's).
+      cls: 'airdrop-create feature sticky-actions',
     },
     assetField,
     h(
@@ -199,8 +205,8 @@ export default function airdropCreate(app) {
     fieldHint,
     summary,
     notes,
-    h('div', { class: 'actions inline-actions' }, reason, cta),
   );
+  el.appendChild(h('div', { class: 'actions inline-actions' }, reason, cta));
   return {
     el,
     destroy() {

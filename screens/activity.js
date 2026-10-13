@@ -14,7 +14,8 @@ import { h, shorten, fmtDate, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, openSheet, primary, secondary, notice, copyText } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
-import { wallet, txStatusText, isContractTx, contractMoves, contractLabel, contractStatusText } from '../lib/wallet.js';
+import { wallet, txStatusText, isContractTx, contractMoves, contractLabel, contractStatusText, spentElsewhere } from '../lib/wallet.js';
+import { spentElsewhereNotice } from './tx_status.js';
 import { txRow } from './home.js';
 import { splitDetail } from './coins_ui.js';
 import { isSplitTx } from '../lib/coins.js';
@@ -72,9 +73,10 @@ export default function activity(app, params = {}) {
           other ? kv(t.income ? 'From' : 'To', shorten(other, 10, 8), { copy: other }) : null,
           t.kernel && /[1-9a-f]/.test(t.kernel) ? kv('Kernel ID', shorten(t.kernel, 10, 8), { copy: t.kernel }) : null,
           t.confirmations != null ? kv('Confirmations', String(t.confirmations)) : null,
-          t.failure_reason ? kv('Reason', t.failure_reason) : null,
+          spentElsewhere(t) ? kv('Reason', 'Its coins were already spent elsewhere') : t.failure_reason ? kv('Reason', t.failure_reason) : null,
           noteRow(t, kv),
         ),
+        spentElsewhere(t) ? spentElsewhereNotice(app, { onRescan: close }) : null,
         msg,
         ...paymentExtras(app, t, { close, rerender, msg }),
         canCancel
@@ -183,8 +185,9 @@ function contractDetail(app, t, close, rerender) {
       t.appname ? kv('App', t.appname) : null,
       t.kernel && /[1-9a-f]/.test(t.kernel) ? kv('Kernel ID', shorten(t.kernel, 10, 8), { copy: t.kernel }) : null,
       t.confirmations != null ? kv('Confirmations', String(t.confirmations)) : null,
-      t.failure_reason ? kv('Reason', t.failure_reason) : null,
+      spentElsewhere(t) ? kv('Reason', 'Its coins were already spent elsewhere') : t.failure_reason ? kv('Reason', t.failure_reason) : null,
     ),
+    spentElsewhere(t) ? spentElsewhereNotice(app, { onRescan: close }) : null,
     msg,
     ...paymentExtras(app, t, { close, rerender, msg }),
     h('button', { class: 'btn btn-text', onclick: () => close() }, 'Close'),

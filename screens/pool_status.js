@@ -13,7 +13,8 @@ import { h, shorten, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { primary, secondary, notice, copyText } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
-import { wallet, contractMoves } from '../lib/wallet.js';
+import { wallet, contractMoves, spentElsewhere } from '../lib/wallet.js';
+import { spentElsewhereNotice } from './tx_status.js';
 import { loadPools } from '../lib/dex_pools.js';
 import { unit, poolParams } from './pool_parts.js';
 
@@ -64,7 +65,9 @@ export default function poolTx(app, p) {
                 ? 'The coins are back in your wallet. Your new balance is on the Wallet tab; the move is in Activity.'
                 : `Your share is in your wallet as ${unit(p.lpToken)}. It is on the Wallet tab; the move is in Activity.`,
           )
-        : failed
+        : failed && spentElsewhere(tx)
+          ? spentElsewhereNotice(app)
+          : failed
           ? notice(s === 2 ? 'info' : 'error', `${s === 4 && tx.failure_reason ? `${tx.failure_reason}. ` : ''}Nothing moved: your coins stay in your wallet.`)
           : notice('info', 'On its way to the blockchain. This usually takes a minute or two; keep BEAM Campfire open until it is done.'),
     );

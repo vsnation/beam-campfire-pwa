@@ -19,7 +19,8 @@
  * everywhere or serves a parking page. Later releases are downloaded and
  * verified only on request ("check-update": the Check for updates button)
  * into a separate cache, and become the served copy only on "apply-update",
- * which only the Update button sends.
+ * which only the Update button sends. "discard-update" (Delete this download)
+ * forgets a staged release and deletes its cache; a later check fetches it again.
  *
  * Update sources (lib/update_sources.js, inlined below): this app's own
  * address, the public copies the installed release names, and an address the
@@ -770,6 +771,10 @@ const LOADER_NAME = self.location.pathname.split('/').pop();
 let stateCache = null;
 let ownNodeCache; // the person's own node "host:port", null for BEAM's pool; undefined until read
 let updateRun = null;
+// Every read-modify-write of the loader's state (apply-update, discard-update, a check's staging and
+// pending writes): one at a time, so no write is lost and cleanup never deletes a copy still in use.
+let stateTurn = Promise.resolve();
+const exclusive = (fn) => { const r = stateTurn.then(fn); stateTurn = r.then(() => {}, () => {}); return r; };
 const updateListeners = new Set();
 let installAbort = null;
 
@@ -921,8 +926,10 @@ const cacheNameFor = (release) => `campfire-${release.version}-${release.manifes
  */
 async function stageRelease({ release, manifest }, { base = scopeUrl, signal = null, report = null } = {}) {
   const cacheName = cacheNameFor(release);
-  const st = await readState();
-  if (st.staging !== cacheName) await writeState({ ...st, staging: cacheName });
+  await exclusive(async () => {
+    const st = await readState();
+    if (st.staging !== cacheName) await writeState({ ...st, staging: cacheName });
+  });
   const cache = await caches.open(cacheName);
   const files = manifest.files;
   const totalBytes = files.reduce((a, f) => a + f.size, 0);
@@ -1155,15 +1162,19 @@ async function checkUpdate({ added = [], progress = null } = {}) {
         base: src.url,
         report: (p) => say({ step: 'downloading', host: src.host, own: src.own, version: rel.release.version, done: p.done, total: p.total }),
       });
-      const now = await readState();
-      const next = { ...now, pending: { ...staged, from: { host: src.host, own: src.own } }, staging: null, lastRefusal: null };
-      await writeState(next);
-      await cleanup(next);
+      await exclusive(async () => {
+        const now = await readState();
+        const next = { ...now, pending: { ...staged, from: { host: src.host, own: src.own } }, staging: null, lastRefusal: null };
+        await writeState(next);
+        await cleanup(next);
+      });
     },
   });
   if (r.result === 'refused') {
-    const now = await readState();
-    await writeState({ ...now, lastRefusal: { at: Date.now(), reason: r.reason, version: r.version || undefined, host: r.from && !r.from.own ? r.from.host : undefined } });
+    await exclusive(async () => {
+      const now = await readState();
+      await writeState({ ...now, lastRefusal: { at: Date.now(), reason: r.reason, version: r.version || undefined, host: r.from && !r.from.own ? r.from.host : undefined } });
+    });
   }
   return r;
 }
@@ -1183,10 +1194,28 @@ async function applyUpdate({ loaderReady = false } = {}) {
     const l = releaseLoaderOf(p);
     return { result: 'needs_loader', version: p.version, loader: l && l.path, loaderSha256: l && l.sha256 };
   }
-  const next = { current: p, pending: null, staging: null, lastRefusal: null, previous: st.current && st.current.version };
+  // A release still downloading (a check found a newer one) keeps its marker, so cleanup keeps its files.
+  const next = { current: p, pending: null, staging: st.staging || null, lastRefusal: null, previous: st.current && st.current.version };
   await writeState(next);
   await cleanup(next);
   return { result: 'applied', version: next.current.version, from: p.from || null };
+}
+
+/**
+ * "Delete this download" (issue #78): forgets the release that was downloaded and verified but not
+ * applied, and deletes its cache (and any half-staged one), so a later check downloads it again from
+ * whichever source answers. Refused while a check runs: it may be staging that very release. The
+ * installed copy is never touched. An older page never sends this: it reads `features` in status.
+ */
+async function discardUpdate() {
+  if (updateRun) return { result: 'busy' };
+  const st = await readState();
+  if (!st.current || (!st.pending && !st.staging)) return { result: 'none' };
+  const version = st.pending ? st.pending.version : null;
+  const next = { ...st, pending: null, staging: null };
+  await writeState(next);
+  await cleanup(next);
+  return { result: 'discarded', version };
 }
 
 /** The loader file the installed release ships, with its signed SHA-256 (for the page's move to it). */
@@ -1222,6 +1251,9 @@ self.addEventListener('message', (event) => {
           port.postMessage({
             loader: LOADER_NAME,
             api: LOADER_API,
+            // What this loader can do beyond its LOADER_API level, for a page to offer it only then
+            // (a new message is not a reason to raise LOADER_API: that would tie the release to its address).
+            features: ['discard-update'],
             compat: LOADER_COMPAT,
             current: st.current && st.current.version,
             currentFrom: (st.current && st.current.from) || null,
@@ -1248,7 +1280,9 @@ self.addEventListener('message', (event) => {
           updateListeners.delete(port);
           port.postMessage(r);
         } else if (type === 'apply-update') {
-          port.postMessage(await applyUpdate({ loaderReady: event.data.loaderReady === true }));
+          port.postMessage(await exclusive(() => applyUpdate({ loaderReady: event.data.loaderReady === true })));
+        } else if (type === 'discard-update') {
+          port.postMessage(await exclusive(() => discardUpdate()));
         } else if (type === 'set-node') {
           // The person's own node (or null for BEAM's pool): from the next page load on, in connect-src.
           const raw = event.data.node;

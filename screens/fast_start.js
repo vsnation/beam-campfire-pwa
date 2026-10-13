@@ -19,6 +19,11 @@
  *   - "The BEAM Campfire site is gone" -> the snapshot can come from BEAM directly: download
  *     mainnet_recovery.bin yourself (the exact address is shown) and choose the file; it is read on
  *     this device and checked by the engine exactly like the downloaded one.
+ *   - "Who made this file, and must it come from this site?" (issue #79) -> one line, always: BEAM
+ *     publishes it daily at its address (the file BEAM's own wallets use), this site only passes it
+ *     on, the engine checks any copy against the proof of work, and (restore) scanning the chain is
+ *     the way without it. "Use a recovery file I downloaded" is always there as a second button.
+ *     No address of another copy can be typed in: that would widen the page's connect-src.
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
@@ -29,6 +34,24 @@ import { wallet } from '../lib/wallet.js';
 import { onMobileData } from '../lib/network.js';
 
 const MB = (n) => Math.round(n / 1e6);
+
+/** How long a restore takes without the snapshot (scanning every block since 2019 on a public node). */
+export const SCAN_TIME = '1–4 hours';
+
+/**
+ * Where the snapshot comes from, in one line (issue #79), as {lead, address, rest}: the address is
+ * shown as a link between them. relay: who passes it on here ('This site', or BEAM Campfire's own
+ * server when this address has none), or null when nobody does and the person brings the file.
+ * rescan: no scanning instead (a rescan needs the snapshot).
+ */
+export function sourceWords({ relay = 'This site', rescan = false } = {}) {
+  const passes = relay ? ` ${relay} only passes it on, and the wallet engine checks any copy against the blockchain's proof of work.` : " The wallet engine checks it against the blockchain's proof of work.";
+  return {
+    lead: 'BEAM publishes this snapshot daily at ',
+    address: RECOVERY_OFFICIAL,
+    rest: `, for its own wallets too.${passes}${rescan ? '' : ` Without it, the wallet can scan the chain instead (${SCAN_TIME}).`}`,
+  };
+}
 
 export default function fastStart(app, params = {}) {
   if (!app.dbPass) {
@@ -77,10 +100,12 @@ export default function fastStart(app, params = {}) {
     phase = 'choose';
     lastError = errorText || null;
     const size = sizeBytes ? `${MB(sizeBytes)} MB` : `about ${RECOVERY_APPROX_MB} MB`;
-    // Offered when the snapshot cannot come through this app's web address.
+    // No snapshot through this app's web address or BEAM Campfire's server: the person brings the file.
     const noRelay = sizeChecked && !sizeBytes;
-    const offerFile = Boolean(errorText) || noRelay;
+    // How to get the file, when it is the way on (an error, or no relay); the button is always there (#79).
+    const howToFile = Boolean(errorText) || noRelay;
     const fileButton = (cls) => h('label', { class: `btn ${cls}`, for: 'recovery-file-input', role: 'button', tabindex: '0', 'data-testid': 'recovery-file-choose' }, icon('file'), h('span', { text: 'Use a recovery file I downloaded' }));
+    const words = sourceWords({ relay: noRelay ? null : fromFallback ? RECOVERY_FALLBACK_HOST : 'This site', rescan });
     const lead = rescan
       ? `Rescan rebuilds your balance from the BEAM blockchain. Use it if your balance looks wrong or coins are missing${imported ? '' : ', for example coins sent to these 12 words in another app'}. Your payment history and addresses stay as they are.`
       : noRelay
@@ -98,18 +123,26 @@ export default function fastStart(app, params = {}) {
           : onMobileData()
             ? notice('warn', h('strong', { text: `This is mobile data: the download is ${size}. ` }), 'Wi-Fi is better. Keep BEAM Campfire open until it finishes; leaving the app pauses it.')
             : notice('info', h('strong', { text: `${rescan ? 'A download of' : 'A one-time download of'} ${size}. ` }), 'It takes a few minutes. Keep BEAM Campfire open until it finishes: the screen stays on meanwhile, and if it is interrupted it carries on where it stopped.'),
-        h('p', { class: 'small', text: `The snapshot is BEAM's own daily file, checked by the wallet engine against the blockchain's proof of work. It is not stored on your phone after it's read.${fromFallback ? ` ${RECOVERY_FALLBACK_HOST} sees your IP address while it downloads.` : ''}` }),
+        h(
+          'p',
+          { class: 'small', 'data-testid': 'recovery-source' },
+          words.lead,
+          h('a', { class: 'source-link', href: `https://${RECOVERY_OFFICIAL}`, target: '_blank', rel: 'noopener noreferrer', 'data-testid': 'recovery-file-link', text: words.address }),
+          words.rest,
+          fromFallback && !noRelay ? ` ${RECOVERY_FALLBACK_HOST} sees your IP address while it downloads.` : '',
+        ),
         errorText ? notice('error', errorText) : null,
       ],
       [
         // No snapshot behind this address (a plain static host, or the site is down): the file the
         // person downloads from BEAM becomes the main way; the download stays as a second try.
         noRelay ? fileButton('btn-primary') : primary(`Download ${size} and ${rescan ? 'rescan' : 'start'}`, startDownload, { 'data-testid': 'fast-download' }),
-        noRelay ? secondary('Try the download anyway', startDownload, { 'data-testid': 'fast-download' }) : offerFile ? fileButton('btn-secondary') : null,
-        offerFile
-          ? h('p', { class: 'small', 'data-testid': 'recovery-file-help' }, "If the download does not work here, download BEAM's recovery file yourself from ", h('a', { class: 'mono', href: `https://${RECOVERY_OFFICIAL}`, target: '_blank', rel: 'noopener noreferrer', 'data-testid': 'recovery-file-link', text: RECOVERY_OFFICIAL }), ' (about 330 MB; tap it, and on iPhone Safari saves it to Files → Downloads), then come back and choose it here. It is read on this device only.')
+        // Always offered (issue #79): the file BEAM publishes, brought by the person, instead of the download.
+        noRelay ? secondary('Try the download anyway', startDownload, { 'data-testid': 'fast-download' }) : fileButton('btn-secondary'),
+        howToFile
+          ? h('p', { class: 'small', 'data-testid': 'recovery-file-help', text: `To use the file: tap the address above (about ${RECOVERY_APPROX_MB} MB; on iPhone, Safari saves it to Files → Downloads), then come back and choose it with "Use a recovery file I downloaded". It is read on this device only.` })
           : null,
-        restoring && !rescan ? textButton('Skip and scan instead (an hour or more)', () => runWallet(null, true), { 'data-testid': 'fast-skip' }) : null,
+        restoring && !rescan ? textButton(`Skip and scan instead (${SCAN_TIME})`, () => runWallet(null, true), { 'data-testid': 'fast-skip' }) : null,
         rescan ? textButton('Not now', leave, { 'data-testid': 'fast-cancel' }) : null,
       ],
     );

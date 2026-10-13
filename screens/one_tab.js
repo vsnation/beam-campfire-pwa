@@ -7,6 +7,9 @@
  *       bring it back. Primary CTA: "Use it here instead". Taps: 1.
  *       how 'unchecked' (this browser cannot say which tab holds the wallet, re-audit RE1-1): ONE job:
  *       say to close the other tabs and reload. Primary CTA: "Reload". Taps: 1 (after closing them).
+ *       In a browser that can never say, Reload lands here again (release audit RE3-1): the way out
+ *       is another browser and the wallet's words or file, said under the button and, once the
+ *       screen comes back in this tab, above it.
  * Exit-intent reasons and answers:
  *   - "Is my wallet gone / broken?" -> the lead says why there is one tab at a time: so the wallet's
  *     data stays intact; the moved screen says it was locked and saved before it moved.
@@ -32,6 +35,25 @@ export const MOVED_LEAD = {
 export const UNCHECKED_TITLE = 'Close your other BEAM Campfire tabs';
 export const UNCHECKED_LEAD = 'This browser cannot keep BEAM Campfire to one tab. Close every other BEAM Campfire tab, then reload.';
 const UNCHECKED_HINT = 'Your wallet stays locked in this tab until then.';
+export const UNCHECKED_WAY_OUT = 'If this keeps happening, this browser cannot run BEAM Campfire safely: open it in another browser and restore your wallet there from its 12 words (or its wallet.db file).';
+const UNCHECKED_SEEN_KEY = 'campfire-unchecked-seen';
+
+/**
+ * How many page loads of this tab showed the 'unchecked' screen (this one included); 1 when it cannot
+ * count. Once per load (thisLoad): the screen is drawn again whenever a screen is asked for.
+ */
+let thisLoad = null;
+const seenBefore = () => (thisLoad === null ? (thisLoad = uncheckedSeen()) : thisLoad) > 1;
+/** Counts one more showing in `store` and returns the count. */
+export function uncheckedSeen(store = globalThis.sessionStorage) {
+  try {
+    const n = (Number(store.getItem(UNCHECKED_SEEN_KEY)) || 0) + 1;
+    store.setItem(UNCHECKED_SEEN_KEY, String(n));
+    return n;
+  } catch {
+    return 1;
+  }
+}
 const USE_HERE = 'Use it here instead';
 const HOW_IT_MOVES = 'Your wallet locks in the other tab first, then opens here.';
 const POLL_MS = 2000;
@@ -136,11 +158,26 @@ function oneTabScreen(app, { title, lead, testid, spent, how = null }) {
   };
 }
 
-/** The lock could not be looked up in this browser (lib/one_tab.js, RE1-1): no wallet runs here. */
+/**
+ * The lock could not be looked up in this browser (lib/one_tab.js, RE1-1): no wallet runs here. The
+ * first time it says to close the other tabs; the way out of a browser that can never say (RE3-1) is
+ * under the button, and above it once this tab has shown the screen before (a reload that did not help).
+ */
 function uncheckedTab() {
+  const again = seenBefore();
+  const wayOut = again ? h('div', { 'data-testid': 'one-tab-way-out', 'data-again': 'true' }, notice('warn', UNCHECKED_WAY_OUT)) : null;
   const el = screen(
-    { topbar: false, cls: 'one-tab', actions: [primary('Reload', () => location.reload(), { 'data-testid': 'one-tab-reload' }), h('p', { class: 'small center', role: 'status', 'data-testid': 'one-tab-status', text: UNCHECKED_HINT })] },
+    {
+      topbar: false,
+      cls: 'one-tab',
+      actions: [
+        primary('Reload', () => location.reload(), { 'data-testid': 'one-tab-reload' }),
+        h('p', { class: 'small center', role: 'status', 'data-testid': 'one-tab-status', text: UNCHECKED_HINT }),
+        again ? null : h('p', { class: 'small center', 'data-testid': 'one-tab-way-out', text: UNCHECKED_WAY_OUT }),
+      ],
+    },
     h('div', { class: 'hero', 'data-testid': 'one-tab-moved', 'data-how': 'unchecked' }, h('img', { src: 'img/logo.svg', alt: '' }), h('h1', { text: UNCHECKED_TITLE }), h('p', { text: UNCHECKED_LEAD })),
+    wayOut,
   );
   return { el };
 }

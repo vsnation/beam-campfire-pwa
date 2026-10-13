@@ -55,6 +55,10 @@ export default function swap(app) {
   const getAssetBtn = h('button', { class: 'asset-pick', type: 'button', 'data-testid': 'swap-get-asset', onclick: () => pick(false) });
   const getAmount = h('div', { class: 'swap-out', 'data-testid': 'swap-get-amount' });
   const payInfo = h('div', { class: 'swap-sub' });
+  // 25% / 50% / 75% / Max of what can be paid (#83); the chip in use stays marked until the
+  // amount is typed, the pair is flipped or another asset is chosen.
+  const shareRow = h('div', { class: 'share-chips', role: 'group', 'aria-label': 'How much of it' });
+  let share = null;
   const getInfo = h('div', { class: 'swap-sub' });
   const details = h('div', { class: 'card flat swap-details' });
   const notes = h('div', { class: 'swap-notes' });
@@ -122,7 +126,17 @@ export default function swap(app) {
     put(getAssetBtn, ...(getL ? [assetBadge(getL, { size: 'small' }), h('span', { text: getL.unit })] : [h('span', { text: 'Pick' })]), icon('down'));
 
     const t = wallet.state.totals.get(draft.pay) || { available: 0n };
-    put(payInfo, h('span', { class: 'grow', text: `Available: ${formatAmount(t.available)} ${payU}` }), h('button', { class: 'btn btn-text btn-small', type: 'button', 'data-testid': 'swap-max', onclick: useMax }, 'Max'));
+    put(payInfo, h('span', { class: 'grow', text: `Available: ${formatAmount(t.available)} ${payU}` }));
+    put(
+      shareRow,
+      ...[25, 50, 75, 100].map((p) =>
+        h(
+          'button',
+          { class: `choice${share === p ? ' on' : ''}`, type: 'button', 'aria-pressed': String(share === p), 'data-testid': p === 100 ? 'swap-max' : `swap-share-${p}`, onclick: () => useShare(p) },
+          p === 100 ? 'Max' : `${p}%`,
+        ),
+      ),
+    );
     const a = amountState();
     const quoted = Boolean(quote && a.value != null && !quoting);
     const who = getL && !getL.verified && draft.receive !== 0 ? `${getL.name} · asset #${draft.receive}` : getL && getL.name !== getL.unit ? getL.name : '';
@@ -167,13 +181,20 @@ export default function swap(app) {
       if (impact >= IMPACT_WARN_BPS) n.push(notice('warn', `This swap moves the price by ${bpsText(impact)}: you get noticeably less than the current rate. A smaller amount gets a better price.`));
       const value = swapValue(quote, pools, (id) => wallet.label(id).verified);
       if (feeIsLarge(quote, DEX_CALL_FEE, value)) n.push(feeWarning(quote, value));
+      // An asset worth a lot per smallest unit (bETH: about 0.0025 BEAM a satoshi) comes in whole units,
+      // so the pool takes only what those cost: say so, as the button and the consent show that amount.
+      if (a.value != null && quote.pay < a.value && (a.value - quote.pay) * 200n > a.value) {
+        n.push(notice('info', h('span', { 'data-testid': 'swap-rounded', text: `${getL.unit} comes in steps of 0.00000001, so ${shortAmount(quote.receive)} ${getL.unit} costs ${formatAmount(quote.pay)} ${payU}, not the ${formatAmount(a.value)} you entered.` })));
+      }
     }
     if (!n.length) n.push(h('p', { class: 'small', 'data-testid': 'swap-promise', text: quoted ? `You get at least ${formatAmount(least)} ${getL.unit}, or the swap stops and nothing is sent.` : `If the price gets more than ${bpsText(protection())} worse before you approve, the swap stops and nothing is sent.` }));
     put(notes, ...n);
 
     const st = ctaState();
     cta.disabled = Boolean(st.off);
-    cta.textContent = a.value == null || a.error ? 'Swap' : quoted ? `Swap ${shortAmount(a.value)} ${payU} for ≈${shortAmount(quote.receive)} ${getL.unit}` : `Swap ${shortAmount(a.value)} ${payU}`;
+    // Quoted: what the swap will really pay (the consent shows the same), which can be a little less
+    // than what was typed when the other asset comes in large steps.
+    cta.textContent = a.value == null || a.error ? 'Swap' : quoted ? `Swap ${formatAmount(quote.pay)} ${payU} for ≈${shortAmount(quote.receive)} ${getL.unit}` : `Swap ${shortAmount(a.value)} ${payU}`;
     reason.textContent = st.off || '';
     reason.classList.toggle('hidden', !st.off);
   }
@@ -234,15 +255,19 @@ export default function swap(app) {
   }
 
   // ------------------------------------------------------------ actions
-  function useMax() {
+  /** `percent` of what can be paid: the balance, less the network fee when paying with BEAM. */
+  function useShare(percent) {
     const t = wallet.state.totals.get(draft.pay) || { available: 0n };
     const fee = draft.pay === 0 ? DEX_CALL_FEE : 0n;
-    payInput.value = toInputString(t.available > fee ? t.available - fee : 0n);
+    const base = t.available > fee ? t.available - fee : 0n;
+    payInput.value = toInputString(percent === 100 ? base : (base * BigInt(percent)) / 100n);
+    share = percent;
     onInput();
   }
 
   function flip() {
     if (draft.receive == null) return;
+    share = null;
     const p = draft.pay;
     draft.pay = draft.receive;
     draft.receive = p;
@@ -339,6 +364,7 @@ export default function swap(app) {
       if (id == null || !alive) return;
       if (paySide) {
         if (id === draft.receive) draft.receive = draft.pay;
+        if (id !== draft.pay) share = null;
         draft.pay = id;
         chooseReceive();
       } else {
@@ -387,7 +413,10 @@ export default function swap(app) {
     render();
   }
 
-  payInput.addEventListener('input', onInput);
+  payInput.addEventListener('input', () => {
+    share = null;
+    onInput();
+  });
   const off = wallet.onChange(() => render());
   wallet.loadAllAssets();
   render();
@@ -408,7 +437,7 @@ export default function swap(app) {
     h(
       'div',
       { class: 'swap-pair' },
-      h('div', { class: 'card swap-box' }, h('div', { class: 'swap-label', text: 'You pay' }), h('div', { class: 'swap-line' }, payInput, payAssetBtn), payInfo),
+      h('div', { class: 'card swap-box' }, h('div', { class: 'swap-label', text: 'You pay' }), h('div', { class: 'swap-line' }, payInput, payAssetBtn), shareRow, payInfo),
       flipBtn,
       h('div', { class: 'card swap-box' }, h('div', { class: 'swap-label', text: 'You get' }), h('div', { class: 'swap-line' }, getAmount, getAssetBtn), getInfo),
     ),

@@ -8,6 +8,7 @@
  *   - "The code doesn't work" -> says why (not found, already claimed) and what to check.
  *   - "It costs more than it gives" -> said in plain numbers before claiming.
  *   - "I want to give codes away" -> Create codes and My batches sit right under the button.
+ *   - "Can someone take my code?" -> said with the code it found (BEARER_TEXT.claimMessage, #17).
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
@@ -19,6 +20,20 @@ import { airdropFor, codeVault, resealCodeVault, normaliseCode, formatCode, isWe
 import { scanCode } from './scan_sheet.js';
 
 const CHECK_DEBOUNCE_MS = 300;
+
+/**
+ * What a voucher code is, said where codes are made and claimed (issue #17), in the app's words
+ * (lib/widgets/beam/airdrop/airdrop_text.dart AirdropBearerText). The live airdrop contract redeems
+ * with the code itself, so a claim carries the code in a transaction the network sees before it is
+ * in a block; BEAM Campfire cannot change that contract, so it says so.
+ */
+export const BEARER_TEXT = Object.freeze({
+  createTitle: 'Codes work like cash',
+  createMessage:
+    'Anyone who has a code can claim it. Claiming also shows the code to the network before it is confirmed, so someone watching could claim it first. Use codes for small amounts, and give each one to one person.',
+  claimMessage:
+    'Claiming shows this code to the network before it is confirmed, so someone watching could claim it first. That is how this airdrop contract works; codes are meant for small amounts.',
+});
 
 /** The airdrop for the running wallet (one per session). Codes are kept encrypted in this wallet's storage. */
 export function airdrop(app) {
@@ -162,6 +177,7 @@ export default function airdropClaim(app) {
       ),
       info.assetId !== 0 && !l.verified ? h('p', { class: 'small', text: `${l.symbol} is asset #${info.assetId}: not on BEAM Campfire's list of known assets.` }) : null,
       worthLess ? notice('warn', `This code gives ${amountText(0, info.value)} and claiming it costs ${formatAmount(CALL_FEE)} BEAM, so your balance goes down. Claim only if you want it anyway.`) : null,
+      h('p', { class: 'small', 'data-testid': 'airdrop-bearer', text: BEARER_TEXT.claimMessage }),
     );
   }
 

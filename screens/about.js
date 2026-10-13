@@ -9,6 +9,8 @@
  *     last checked. Opening this screen contacts nothing: no web address, no explorer.
  *   - "What does the signature not cover?" -> said under Release: the loader comes from the web
  *     address as it is; the app watches it only while open (lib/loader.js, loader-watch.js).
+ *   - "I downloaded an update I don't want (yet)" -> "Delete this download" beside Staged update
+ *     (issue #78); a later check downloads it again.
  */
 import { h, put } from '../lib/dom.js';
 import { screen, notice } from '../lib/ui.js';
@@ -16,6 +18,7 @@ import { APP_VERSION, BUILT, ENGINE_LOCK } from '../lib/version.js';
 import { engineLog, nodeGuard } from '../lib/engine.js';
 import { wallet } from '../lib/wallet.js';
 import { lastCheckText, copyAt, releaseDate } from '../lib/update.js';
+import { discardDownload } from '../lib/update_ui.js';
 import { refreshPersistence, persistenceText } from '../lib/storage.js';
 
 // What the release signature does not cover, said plainly.
@@ -34,7 +37,23 @@ export default function about(app) {
     storageKv.querySelector('.v').textContent = persistenceText(v);
   });
 
-  (async () => {
+  // The downloaded, not installed release, with the way to delete it where the loader can (#78).
+  const stagedKv = (st) => {
+    const canDelete = Boolean(st.pending && Array.isArray(st.features) && st.features.includes('discard-update'));
+    return h(
+      'div',
+      { class: 'kv' },
+      h('span', { class: 'k', text: 'Staged update' }),
+      h(
+        'span',
+        { class: 'v staged' },
+        h('span', { 'data-testid': 'about-staged', text: st.pending || 'none' }),
+        canDelete ? h('button', { class: 'btn btn-text btn-small', 'data-testid': 'about-discard', onclick: () => discardDownload(app, { onDone: () => fill() }) }, 'Delete this download') : null,
+      ),
+    );
+  };
+
+  async function fill() {
     try {
       const st = await app.updates.status();
       const added = app.updates.addedSource();
@@ -42,7 +61,7 @@ export default function about(app) {
       const copies = st.api >= 2 ? [...(st.sources || []).filter((x) => x.kind !== 'own').map((x) => x.host), ...(added ? [new URL(added).host] : [])] : [];
       put(sw,
         kv('Installed release', st.current ? `${st.current}${releaseDate(st.currentCreated) ? `, released ${releaseDate(st.currentCreated)}` : ''}${copyAt(st.currentFrom) ? ` (from ${copyAt(st.currentFrom)})` : ''}` : '—', 'about-release'),
-        kv('Staged update', st.pending || 'none'),
+        stagedKv(st),
         kv('Loader', st.loader || '—', 'about-loader', true),
         kv('Updates', lastCheckText(app.updates.lastCheck), 'about-last-check'),
         // Where a tapped check looks: all of them, the newest signed release wins (on a tie, this app's
@@ -53,7 +72,8 @@ export default function about(app) {
     } catch {
       put(sw, kv('Verified copy', BUILT ? 'not active yet' : 'development build (no service worker)'));
     }
-  })();
+  }
+  fill();
 
   const el = screen(
     { title: 'About', back: () => app.back('settings') },

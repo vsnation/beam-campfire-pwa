@@ -5,13 +5,28 @@
  * Exit-intent reasons and answers:
  *   - "Did it go through?" -> live status in words: waiting for receiver -> sending -> sent / failed.
  *   - "It's taking long" -> explains the receiver must be online, and that the app must stay open.
- *   - "It failed - did I lose money?" -> says the plain reason and that the money stayed.
+ *   - "It failed - did I lose money?" -> says the plain reason and that the money stayed; when the
+ *     node refused it because this wallet's coins were already spent elsewhere (another browser or
+ *     device), says that, and Rescan is one tap away.
  */
 import { h, shorten, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, secondary, notice, copyText } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
-import { wallet, txStatusText, contractMoves } from '../lib/wallet.js';
+import { wallet, txStatusText, contractMoves, spentElsewhere, SPENT_ELSEWHERE } from '../lib/wallet.js';
+
+/**
+ * A failed transaction whose coins this wallet had already spent elsewhere (lib/wallet.js
+ * spentElsewhere): what happened, and Rescan, which brings the balance up to date. onRescan: what
+ * the button does first (a sheet closes itself).
+ */
+export function spentElsewhereNotice(app, { onRescan = null } = {}) {
+  const rescan = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'tx-spent-rescan', onclick: () => {
+    if (onRescan) onRescan();
+    app.go('fastStart', { rescan: true });
+  } }, 'Rescan now');
+  return h('div', { 'data-testid': 'tx-spent-elsewhere' }, notice('error', SPENT_ELSEWHERE, h('div', { class: 'btn-row prompt-actions' }, rescan)));
+}
 
 export default function txStatus(app, p) {
   if (p && p.kind === 'swap') return swapStatus(app, p);
@@ -41,7 +56,9 @@ export default function txStatus(app, p) {
       ),
       done
         ? notice('success', p.name ? `It is on the blockchain, waiting in BEAM's name vault for the owner of ${p.name}.beam to claim.` : 'The receiver accepted the payment and it is on the blockchain.')
-        : failed
+        : failed && spentElsewhere(tx)
+          ? spentElsewhereNotice(app)
+          : failed
           ? notice(s === 2 ? 'info' : 'error', s === 2 ? 'Nothing was sent. The money stays in your wallet.' : `${tx.failure_reason || 'The payment did not go through.'} The money stays in your wallet.`)
           : notice('info', p.mustBeOnline === false ? 'The payment is on its way to the blockchain.' : "Waiting for the receiver's wallet to come online and accept. Keep BEAM Campfire open; this can take up to 12 hours."),
     );
@@ -126,7 +143,9 @@ function swapStatus(app, p) {
       ),
       done
         ? notice('success', 'The swap is on the blockchain. Your new balance is on the Wallet tab.')
-        : failed
+        : failed && spentElsewhere(tx)
+          ? spentElsewhereNotice(app)
+          : failed
           ? notice(s === 2 ? 'info' : 'error', `${s === 4 && tx.failure_reason ? tx.failure_reason + '. ' : ''}Nothing was swapped. Your ${payU} stays in your wallet.`)
           : notice('info', 'On its way to the blockchain. This usually takes a minute or two; keep BEAM Campfire open until it is done.'),
     );

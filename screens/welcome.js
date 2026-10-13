@@ -12,6 +12,8 @@
  *   - "I have a wallet.db but no words" -> its own button.
  *   - "Will I lose it if Safari clears data?" -> the Home Screen guide says when that happens.
  *   - "What does it cost?" -> nothing to install or sign up; network fees are shown before paying.
+ *   - "Which version is this copy?" (another address, a mirror) -> "Version 0.2.x" in small print at
+ *     the bottom, before any wallet is made (issue #82).
  * On an address other websites share (<user>.github.io, .gitlab.io, .codeberg.page;
  * lib/shared_origin.js) the ONE job is to get the wallet to a safe place: primary CTA "Go to
  * pwa.buybeam.my" (1 tap). No Create there. "Restore with 12 words here" and "Import a wallet.db file
@@ -22,7 +24,7 @@
  */
 import { h } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, primary, secondary, notice, openSheet } from '../lib/ui.js';
+import { screen, primary, secondary, notice, openSheet, versionLine } from '../lib/ui.js';
 import { onSharedOrigin, HOME_URL, SHARED_TEXT } from '../lib/shared_origin.js';
 
 /**
@@ -112,6 +114,8 @@ export default function welcome(app) {
     ),
     shared ? shared.body : guide,
   );
+  const version = versionLine();
+  if (version) el.appendChild(version);
   return { el };
 }
 

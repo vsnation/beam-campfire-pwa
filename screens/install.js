@@ -13,10 +13,12 @@
  *   - "I want it on my Home Screen" (iPhone Safari tab) -> says to add it now: the Home Screen app sets
  *     itself up separately.
  *   - "Is this download safe?" -> every file is checked against the release signature before use.
+ *   - "Which version am I getting?" -> "Version 0.2.x" in small print once the signed release names it
+ *     (never before: the page itself is not checked yet), and "Version 0.2.x checked" at the end (#82).
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, primary, notice, progressBar } from '../lib/ui.js';
+import { screen, primary, notice, progressBar, versionText } from '../lib/ui.js';
 import { registerLoader, readInstallProgress, reloadOnceIntoVerifiedCopy, INTEGRITY_CODES } from '../lib/loader.js';
 import { isIosSafariTab } from './welcome.js';
 
@@ -27,6 +29,16 @@ const POLL_MS = 500;
 // How long "Opening BEAM Campfire" may show before a way on is offered.
 const OPEN_TIMEOUT_MS = 8000;
 const MB = (n) => (n / 1e6).toFixed(1);
+
+/** The release being installed, as its signed release.json names it (the loader's progress), or null. */
+export function installVersion(p) {
+  return p && versionText(p.version, true) ? p.version : null;
+}
+
+/** The line under the bar once every file is checked. Pure (unit-tested). */
+export function doneLine(version) {
+  return version ? `Version ${version} checked. Opening BEAM Campfire…` : 'Checked. Opening BEAM Campfire…';
+}
 
 /** The line under the progress bar. Pure (unit-tested). */
 export function progressLine(p) {
@@ -51,6 +63,8 @@ export default function install(app) {
   const line = h('p', { class: 'small', 'aria-live': 'polite', 'data-testid': 'install-line', text: 'Starting…' });
   const status = h('div', { 'data-testid': 'install-status' });
   const actions = h('div', { class: 'actions' });
+  // Shown once the signed release says which version it is (installVersion).
+  const versionEl = h('p', { class: 'version hidden', 'data-testid': 'app-version' });
   const tip = isIosSafariTab()
     ? notice('info', h('strong', { text: 'Adding it to your Home Screen? ' }), 'Do it now and open it from there: the Home Screen app sets itself up separately.')
     : null;
@@ -67,9 +81,15 @@ export default function install(app) {
     tip,
   );
   el.appendChild(actions);
+  el.appendChild(versionEl);
 
   function show(p) {
     lastProgress = p;
+    const v = installVersion(p);
+    if (v) {
+      versionEl.textContent = versionText(v, true);
+      versionEl.classList.remove('hidden');
+    }
     const fraction = p && p.totalBytes ? p.doneBytes / p.totalBytes : null;
     if (fraction == null) {
       bar.classList.add('indeterminate');
@@ -185,7 +205,7 @@ export default function install(app) {
   function finish() {
     if (phase === 'done' || destroyed) return;
     phase = 'done';
-    line.textContent = 'Checked. Opening BEAM Campfire…';
+    line.textContent = doneLine(installVersion(lastProgress));
     bar.classList.remove('indeterminate');
     bar.firstChild.style.width = '100%';
     // Opening takes a second; if this screen is still here, never leave the person waiting.

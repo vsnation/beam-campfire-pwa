@@ -12,10 +12,12 @@
  *     shows names only: a locked phone shows no amounts.
  *   - "Why doesn't the browser fill my password?" -> one line under the field: a password kept in the
  *     browser sits next to the wallet it opens; Face ID / Touch ID saves the typing instead.
+ *   - "Did the update arrive / which version is this?" -> "Version 0.2.x" in small print at the bottom
+ *     (issue #82).
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, primary, textButton, notice, focusSoon } from '../lib/ui.js';
+import { screen, primary, textButton, notice, focusSoon, versionLine } from '../lib/ui.js';
 import { hasPasskey, openWithPasswordFor, openWithPasskeyFor, scanEnabled } from '../lib/session.js';
 import { wallet } from '../lib/wallet.js';
 import { resumeBridgeIfAny } from './eth_screens.js';
@@ -139,6 +141,8 @@ export default function unlock(app, params = {}) {
     msg,
   );
   el.appendChild(actions);
+  const version = versionLine();
+  if (version) el.appendChild(version);
   if (!passkey) focusSoon(pw);
   return { el };
 }

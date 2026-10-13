@@ -1,5 +1,5 @@
 // BEAM Campfire - app controller: boot, screen routing, lock and auto-lock.
-import { applyTheme, readTheme } from './lib/theme.js';
+import { applyLook, readTheme, readSkin } from './lib/theme.js';
 import { h, clear } from './lib/dom.js';
 import { engineSupport, loadEngine, nodeGuard, walletFiles, onEngineAbort, flushEngine, tabGuard } from './lib/engine.js';
 import { oneTab } from './lib/one_tab.js';
@@ -68,8 +68,8 @@ import walletsScreen from './screens/wallets.js';
 import addWallet from './screens/add_wallet.js';
 import { otherTab, movedTab } from './screens/one_tab.js';
 
-// Light or dark as chosen in Settings, before anything is drawn (lib/theme.js).
-applyTheme(readTheme());
+// Light or dark and the colours as chosen in Settings, before anything is drawn (lib/theme.js).
+applyLook({ theme: readTheme(), skin: readSkin() });
 
 const SCREENS = {
   welcome, backup, confirmWords, restore, importWallet, setPassword, passkeySetup, ipNotice, fastStart, unlock,

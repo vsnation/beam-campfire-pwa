@@ -16,6 +16,8 @@
  *   - "Where are the people I pay / my addresses / a proof someone sent?" -> the Payments group.
  *   - "Can several payments go at once? Will I hear when money arrives?" -> Coins (Split coins) and Payment
  *     notifications, in the Payments group; under it, that notices come only while the app is open.
+ *   - "Can it look like BEAM?" -> Appearance: Theme (light or dark) and Colours (Campfire red, the
+ *     default, or BEAM blue; issue #80).
  *   - "My balance is wrong / coins are missing" -> Rescan, for every wallet (restored, new or
  *     imported): it rebuilds the coins from BEAM's snapshot and keeps history and addresses.
  */
@@ -31,7 +33,7 @@ import { runUpdateCheck, openOtherAddress } from '../lib/update_ui.js';
 import { tokenSettings } from './token_ui.js';
 import { listWallets, nameOf } from '../lib/wallets.js';
 import { notificationsRow } from './notifications.js';
-import { THEMES, THEME_WORDS, readTheme, setTheme } from '../lib/theme.js';
+import { THEMES, THEME_WORDS, SKINS, SKIN_WORDS, readTheme, setTheme, readSkin, setSkin } from '../lib/theme.js';
 
 export default function settings(app) {
   const row = (ico, title, sub, onclick, extra = {}) =>
@@ -48,6 +50,10 @@ export default function settings(app) {
   const themeSel = h('select', { class: 'inline', 'aria-label': 'Theme', 'data-testid': 'theme-select' }, ...THEMES.map((t) => h('option', { value: t, text: THEME_WORDS[t] })));
   themeSel.value = readTheme();
   themeSel.addEventListener('change', () => setTheme(themeSel.value));
+  // Campfire red (the default) or BEAM blue (issue #80). It changes at once; the logo stays.
+  const skinSel = h('select', { class: 'inline', 'aria-label': 'Colours', 'data-testid': 'skin-select' }, ...SKINS.map((k) => h('option', { value: k, text: SKIN_WORDS[k] })));
+  skinSel.value = readSkin();
+  skinSel.addEventListener('change', () => setSkin(skinSel.value));
 
   const faceRowBox = h('div');
   (async () => {
@@ -124,11 +130,17 @@ export default function settings(app) {
     ),
     // Values in the person's currency (CoinGecko, only once allowed) and the tokens hidden from Wallet.
     tokenSettings(app),
-    h('p', { class: 'section-title', text: 'App' }),
+    h('p', { class: 'section-title', text: 'Appearance' }),
     h(
       'div',
       { class: 'card list' },
       h('div', { class: 'row', 'data-testid': 'theme-row' }, h('span', { class: 'ico' }, icon('moon')), h('span', { class: 'main' }, h('div', { class: 't', text: 'Theme' }), h('div', { class: 's', text: 'Light or dark' })), themeSel),
+      h('div', { class: 'row', 'data-testid': 'skin-row' }, h('span', { class: 'ico' }, icon('palette')), h('span', { class: 'main' }, h('div', { class: 't', text: 'Colours' }), h('div', { class: 's', text: 'Red or blue' })), skinSel),
+    ),
+    h('p', { class: 'section-title', text: 'App' }),
+    h(
+      'div',
+      { class: 'card list' },
       // Rescan keeps wallet.db and rebuilds only its coins (engine patch 0107), so it suits every
       // wallet, an imported one too: nothing is made from words.
       row('refresh', 'Rescan', 'If your balance looks wrong', () => app.go('fastStart', { rescan: true }), { 'data-testid': 'rescan-row' }),
