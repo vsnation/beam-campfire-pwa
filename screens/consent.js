@@ -25,6 +25,7 @@ import { openSheet, notice, assetBadge, toast } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
 import { setConsentPresenter, NATIVE_APP_NAME } from '../lib/contracts.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
+import { t, tn, tk } from '../lib/i18n.js';
 
 /** "371.76" for the button; the rows above it carry every digit. */
 export function shortAmount(groth) {
@@ -38,21 +39,21 @@ export function shortAmount(groth) {
 export function approveLabel(req, unit) {
   const pay = req.spends.map((a) => `${shortAmount(a.amount)} ${unit(a.assetId)}`);
   const get = req.receives.map((a) => `${shortAmount(a.amount)} ${unit(a.assetId)}`);
-  if (req.kind === 'send') return `Send ${pay[0]}`;
+  if (req.kind === 'send') return t('Send {amount}', { amount: pay[0] });
   // About: BEAM may still finish an approved swap at a slightly lower price (lib/dex.js rebuildFloor).
-  if (req.intent && req.intent.action === 'swap' && pay.length === 1 && get.length === 1) return `Swap ${pay[0]} for ≈${get[0]}`;
+  if (req.intent && req.intent.action === 'swap' && pay.length === 1 && get.length === 1) return t('Swap {pay} for ≈{get}', { pay: pay[0], get: get[0] });
   const own = intentLabel(req.intent, pay, get, req);
   if (own) return own;
-  if (pay.length && get.length) return `Pay ${pay.join(' + ')}, get ${get.join(' + ')}`;
-  if (pay.length) return `Pay ${pay.join(' + ')}`;
-  if (get.length) return `Approve and get ${get.join(' + ')}`;
-  return 'Approve';
+  if (pay.length && get.length) return t('Pay {pay}, get {get}', { pay: pay.join(' + '), get: get.join(' + ') });
+  if (pay.length) return t('Pay {amount}', { amount: pay.join(' + ') });
+  if (get.length) return t('Approve and get {amount}', { amount: get.join(' + ') });
+  return t('Approve');
 }
 
 /** Amount texts with BEAM's last: the voucher's asset first, the BEAM for fees after it ("5 bETH + 0.044 BEAM"). */
 function beamLast(texts, list) {
   if (!list || list.length !== texts.length) return texts;
-  return texts.map((t, i) => [t, list[i].assetId === 0]).sort((a, b) => Number(a[1]) - Number(b[1])).map(([t]) => t);
+  return texts.map((text, i) => [text, list[i].assetId === 0]).sort((a, b) => Number(a[1]) - Number(b[1])).map(([text]) => text);
 }
 
 /** The wallet's own features (names, airdrops) say what approving does in their words. */
@@ -61,53 +62,54 @@ function intentLabel(intent, pay, get, req = null) {
   const one = (l) => (l.length === 1 ? l[0] : null);
   switch (intent.action) {
     case 'nameRegister':
-      return pay.length === 1 && !get.length ? `Pay ${pay[0]} and register ${intent.name}` : null;
+      return pay.length === 1 && !get.length ? t('Pay {amount} and register {name}', { amount: pay[0], name: intent.name }) : null;
     case 'nameRenew':
-      return pay.length === 1 && !get.length ? `Pay ${pay[0]} and renew ${intent.name}` : null;
+      return pay.length === 1 && !get.length ? t('Pay {amount} and renew {name}', { amount: pay[0], name: intent.name }) : null;
     case 'namePay':
-      return pay.length === 1 && !get.length ? `Send ${pay[0]} to ${intent.name}.beam` : null;
+      return pay.length === 1 && !get.length ? t('Send {amount} to {name}', { amount: pay[0], name: `${intent.name}.beam` }) : null;
     // Airdrop v3 also moves BEAM for claim fees paid ahead: locked with the codes, released by a claim
     // (to pay its fee), returned by a take-back. The button names the voucher's asset first.
     case 'airdropCreate':
-      return pay.length >= 1 && pay.length <= 2 && !get.length ? `Lock ${beamLast(pay, req && req.spends).join(' + ')} in ${intent.count} ${intent.count === 1 ? 'code' : 'codes'}` : null;
+      return pay.length >= 1 && pay.length <= 2 && !get.length ? tn({ one: 'Lock {amount} in {n} code', other: 'Lock {amount} in {n} codes' }, intent.count, { amount: beamLast(pay, req && req.spends).join(' + ') }) : null;
     case 'airdropClaim': {
       if (pay.length || !get.length || get.length > 2) return null;
       const i = req && intent.assetId != null ? req.receives.findIndex((a) => a.assetId === intent.assetId) : 0;
-      return `Claim ${get[i >= 0 ? i : 0]}`;
+      return t('Claim {amount}', { amount: get[i >= 0 ? i : 0] });
     }
     case 'airdropCancel':
-      return get.length >= 1 && get.length <= 2 && !pay.length ? `Take back ${beamLast(get, req && req.receives).join(' + ')}` : null;
+      return get.length >= 1 && get.length <= 2 && !pay.length ? t('Take back {amount}', { amount: beamLast(get, req && req.receives).join(' + ') }) : null;
     case 'poolAdd':
-      return pay.length === 2 && get.length === 1 ? `Add ${pay.join(' + ')} to the pool` : null;
+      return pay.length === 2 && get.length === 1 ? t('Add {amount} to the pool', { amount: pay.join(' + ') }) : null;
     case 'poolWithdraw':
-      return one(pay) && get.length ? `Withdraw ${get.join(' + ')}` : null;
+      return one(pay) && get.length ? t('Withdraw {amount}', { amount: get.join(' + ') }) : null;
     case 'poolCreate':
-      return one(pay) && !get.length ? `Lock ${pay[0]} and create the pool` : null;
+      return one(pay) && !get.length ? t('Lock {amount} and create the pool', { amount: pay[0] }) : null;
     case 'tokenCreate':
-      return one(pay) && !get.length ? `Pay ${pay[0]} and create ${intent.ticker}` : null;
+      return one(pay) && !get.length ? t('Pay {amount} and create {ticker}', { amount: pay[0], ticker: intent.ticker }) : null;
     case 'tokenMint':
-      return one(get) && !pay.length ? `Mint ${get[0]}` : null;
+      return one(get) && !pay.length ? t('Mint {amount}', { amount: get[0] }) : null;
     case 'burn':
-      return one(pay) && !get.length ? `Burn ${pay[0]} forever` : null;
+      return one(pay) && !get.length ? t('Burn {amount} forever', { amount: pay[0] }) : null;
     case 'nameTransfer':
-      return !pay.length && !get.length ? `Transfer ${intent.name}` : null;
+      return !pay.length && !get.length ? t('Transfer {name}', { name: intent.name }) : null;
     case 'nameSell':
-      return !pay.length && !get.length ? `List ${intent.name} for sale` : null;
+      return !pay.length && !get.length ? t('List {name} for sale', { name: intent.name }) : null;
     case 'nameUnlist':
-      return !pay.length && !get.length ? `Stop selling ${intent.name}` : null;
+      return !pay.length && !get.length ? t('Stop selling {name}', { name: intent.name }) : null;
     case 'nameBuy':
-      return one(pay) && !get.length ? `Pay ${pay[0]} and buy ${intent.name}` : null;
+      return one(pay) && !get.length ? t('Pay {amount} and buy {name}', { amount: pay[0], name: intent.name }) : null;
     case 'nameClaim':
-      return !pay.length && get.length ? (one(get) ? `Claim ${get[0]}` : 'Claim all') : null;
+      return !pay.length && get.length ? (one(get) ? t('Claim {amount}', { amount: get[0] }) : t('Claim all')) : null;
     default:
       return null;
   }
 }
 
-const TITLES = { nameRegister: 'Confirm your name', nameRenew: 'Confirm the renewal', namePay: 'Approve this payment', airdropCreate: 'Confirm your codes', airdropClaim: 'Confirm your claim', airdropCancel: 'Take back unclaimed codes', poolAdd: 'Confirm your deposit', poolWithdraw: 'Confirm your withdrawal', poolCreate: 'Confirm the new pool', tokenCreate: 'Confirm your new token', tokenMint: 'Confirm the mint', burn: 'Burn for good', nameTransfer: 'Confirm the transfer', nameSell: 'Confirm the listing', nameUnlist: 'Stop selling', nameBuy: 'Confirm your purchase', nameClaim: 'Confirm your claim' };
+// The sheet's title for the wallet's own features (tk: shown with t()).
+const TITLES = { nameRegister: tk('Confirm your name'), nameRenew: tk('Confirm the renewal'), namePay: tk('Approve this payment'), airdropCreate: tk('Confirm your codes'), airdropClaim: tk('Confirm your claim'), airdropCancel: tk('Take back unclaimed codes'), poolAdd: tk('Confirm your deposit'), poolWithdraw: tk('Confirm your withdrawal'), poolCreate: tk('Confirm the new pool'), tokenCreate: tk('Confirm your new token'), tokenMint: tk('Confirm the mint'), burn: tk('Burn for good'), nameTransfer: tk('Confirm the transfer'), nameSell: tk('Confirm the listing'), nameUnlist: tk('Stop selling'), nameBuy: tk('Confirm your purchase'), nameClaim: tk('Confirm your claim') };
 
-/** What the rows call what leaves and what arrives, for the wallet's own DEX pool moves. */
-const ROW_WORDS = { poolAdd: ['You add', 'You get'], poolWithdraw: ['You return', 'You get back'], poolCreate: ['Deposit (locked)', 'You receive'] };
+/** What the rows call what leaves and what arrives, for the wallet's own DEX pool moves (tk: shown with t()). */
+const ROW_WORDS = { poolAdd: [tk('You add'), tk('You get')], poolWithdraw: [tk('You return'), tk('You get back')], poolCreate: [tk('Deposit (locked)'), tk('You receive')] };
 
 /**
  * The wallet's own features may add to the sheet (native requests only; a dApp's
@@ -128,9 +130,13 @@ export function intentExtras(req) {
 function intentNote(intent) {
   if (!intent) return null;
   if (intent.action === 'tokenCreate' && intent.issueFee != null && intent.deposit != null) {
-    return notice('warn', h('strong', { text: `${formatAmount(BigInt(intent.issueFee) + BigInt(intent.deposit))} BEAM do not come back. ` }), `${formatAmount(BigInt(intent.issueFee))} BEAM go to the BEAM DAO as the issuance fee and ${formatAmount(BigInt(intent.deposit))} BEAM stay locked with the token, even if you never mint it.`);
+    return notice(
+      'warn',
+      h('strong', { text: `${t('{amount} BEAM do not come back.', { amount: formatAmount(BigInt(intent.issueFee) + BigInt(intent.deposit)) })} ` }),
+      t('{fee} BEAM go to the BEAM DAO as the issuance fee and {deposit} BEAM stay locked with the token, even if you never mint it.', { fee: formatAmount(BigInt(intent.issueFee)), deposit: formatAmount(BigInt(intent.deposit)) }),
+    );
   }
-  if (intent.action === 'burn') return notice('error', h('strong', { text: 'Nobody can undo this. ' }), 'The tokens are locked in a contract that has no way to give anything back.');
+  if (intent.action === 'burn') return notice('error', h('strong', { text: `${t('Nobody can undo this.')} ` }), t('The tokens are locked in a contract that has no way to give anything back.'));
   return null;
 }
 
@@ -155,15 +161,15 @@ export function shortfall(req, available) {
 /** "BEAM", or "FOMO or BEAM": what a request spends, the fee's BEAM included. */
 export function spentUnits(req, unit) {
   const ids = [...new Set([...req.spends.map((a) => a.assetId), ...(req.fee > 0n ? [0] : [])])];
-  return ids.length ? ids.map(unit).join(' or ') : 'BEAM';
+  return ids.length ? ids.map(unit).reduce((first, second) => t('{first} or {second}', { first, second })) : 'BEAM';
 }
 
 function title(req, bridge) {
-  if (bridge) return bridge.kind === 'collect' ? 'Collect your coins' : 'Confirm your move';
-  if (req.kind === 'send') return 'Approve this payment';
-  if (req.intent && req.intent.action === 'swap') return 'Confirm your swap';
-  if (req.intent && TITLES[req.intent.action]) return TITLES[req.intent.action];
-  return 'Approve this request';
+  if (bridge) return bridge.kind === 'collect' ? t('Collect your coins') : t('Confirm your move');
+  if (req.kind === 'send') return t('Approve this payment');
+  if (req.intent && req.intent.action === 'swap') return t('Confirm your swap');
+  if (req.intent && TITLES[req.intent.action]) return t(TITLES[req.intent.action]);
+  return t('Approve this request');
 }
 
 /** Shows one consent request. Resolves true only when the person approved and proved it is them. */
@@ -171,42 +177,43 @@ export function presentConsent(app, req) {
   // The bridge's words load only for a bridge request (the approve sheet is on every page).
   if (req.native && req.intent && req.intent.action === 'bridge') {
     return import('./bridge_text.js').then(
-      (t) => showConsent(app, req, t.bridgeConsent(req), t),
+      (bt) => showConsent(app, req, bt.bridgeConsent(req), bt),
       () => showConsent(app, req, null, null),
     );
   }
   return showConsent(app, req, null, null);
 }
 
-/** The bridge rows: what leaves, what arrives and where, every fee, and when. */
-function bridgeCard(req, b, t) {
+/** The bridge rows: what leaves, what arrives and where, every fee, and when. bt: screens/bridge_text.js. */
+function bridgeCard(req, b, bt) {
   const kv = (k, v, testid, note = null) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), h('span', { class: 'v' }, h('span', { 'data-testid': testid, text: v }), note ? h('div', { class: 'small', text: note }) : null));
   const r = b.route;
   if (b.kind === 'collect') {
     return h(
       'div',
       { class: 'card bridge-card', 'data-testid': 'consent-bridge' },
-      kv('You collect', `${formatAmount(b.amount)} ${r.beamSymbol}`, 'consent-get-0'),
-      kv('From', "BEAM's official bridge", 'consent-bridge-from', b.msgId != null ? `transfer #${b.msgId}, from your Ethereum wallet` : 'from your Ethereum wallet'),
-      kv('Network fee', `${formatAmount(req.fee)} BEAM`, 'consent-fee'),
-      kv('Into', 'your BEAM wallet', 'consent-bridge-into'),
+      kv(t('You collect'), `${formatAmount(b.amount)} ${r.beamSymbol}`, 'consent-get-0'),
+      kv(t('From'), t("BEAM's official bridge"), 'consent-bridge-from', b.msgId != null ? t('transfer #{id}, from your Ethereum wallet', { id: b.msgId }) : t('from your Ethereum wallet')),
+      kv(t('Network fee'), `${formatAmount(req.fee)} BEAM`, 'consent-fee'),
+      kv(t('Into'), t('your BEAM wallet'), 'consent-bridge-into'),
     );
   }
-  const when = t.arrivesText(r, t.TO_ETHEREUM);
+  // When it arrives, and under it how long it can take when Ethereum is busy.
+  const when = bt.arrivesParts(r, bt.TO_ETHEREUM);
   return h(
     'div',
     { class: 'card bridge-card', 'data-testid': 'consent-bridge' },
-    kv('You move', `${formatAmount(b.amount)} ${r.beamSymbol}`, 'consent-bridge-amount'),
-    kv('Bridge fee', `${formatAmount(b.fee)} ${r.beamSymbol}`, 'consent-bridge-fee', 'paid to the bridge operator'),
-    kv('Network fee', `${formatAmount(req.fee)} BEAM`, 'consent-fee'),
-    kv('Leaves your BEAM wallet', r.isBeam ? `${formatAmount(b.out)} BEAM` : `${formatAmount(b.out)} ${r.beamSymbol} + ${formatAmount(req.fee)} BEAM`, 'consent-total'),
-    kv('Arrives on Ethereum', `${t.exact(b.receives, r.ethDecimals)} ${r.ethSymbol}`, 'consent-bridge-receives'),
-    h('div', { class: 'kv kv-stack' }, h('span', { class: 'k', text: 'In your Ethereum wallet' }), h('span', { class: 'v mono addr-groups', 'data-testid': 'consent-bridge-to', 'data-address': b.receiver, text: t.grouped(b.receiver) })),
-    kv('Arrives', when.replace(/;.*/, ''), 'consent-bridge-time', when.replace(/^[^;]*; /, '')),
+    kv(t('You move'), `${formatAmount(b.amount)} ${r.beamSymbol}`, 'consent-bridge-amount'),
+    kv(t('Bridge fee'), `${formatAmount(b.fee)} ${r.beamSymbol}`, 'consent-bridge-fee', t('paid to the bridge operator')),
+    kv(t('Network fee'), `${formatAmount(req.fee)} BEAM`, 'consent-fee'),
+    kv(t('Leaves your BEAM wallet'), r.isBeam ? `${formatAmount(b.out)} BEAM` : `${formatAmount(b.out)} ${r.beamSymbol} + ${formatAmount(req.fee)} BEAM`, 'consent-total'),
+    kv(t('Arrives on Ethereum'), `${bt.exact(b.receives, r.ethDecimals)} ${r.ethSymbol}`, 'consent-bridge-receives'),
+    h('div', { class: 'kv kv-stack' }, h('span', { class: 'k', text: t('In your Ethereum wallet') }), h('span', { class: 'v mono addr-groups', 'data-testid': 'consent-bridge-to', 'data-address': b.receiver, text: bt.grouped(b.receiver) })),
+    kv(t('Arrives'), when.time, 'consent-bridge-time', when.slow || when.time),
   );
 }
 
-function showConsent(app, req, bridge, t) {
+function showConsent(app, req, bridge, bt) {
   const wallet = app.wallet;
   const ids = [...new Set([0, ...req.spends.map((a) => a.assetId), ...req.receives.map((a) => a.assetId)])];
   for (const id of ids) if (id !== 0 && !wallet.assetNamed.has(id) && wallet.session) wallet.loadAsset(id);
@@ -215,6 +222,23 @@ function showConsent(app, req, bridge, t) {
   const extras = intentExtras(req);
   const words = (req.native && req.intent && ROW_WORDS[req.intent.action]) || null;
   let acked = !extras.ack;
+  // Not enough: what is missing, what there is, and where to add it; three sentences, each whole.
+  const shortText = (short, native) => {
+    const amount = `${formatAmount(short.need)} ${unit(short.assetId)}`;
+    const need =
+      short.includesFee && !req.spends.some((a) => a.assetId === 0)
+        ? t('You need {amount} for the network fee.', { amount })
+        : short.includesFee
+          ? t('You need {amount}, including the {fee} BEAM network fee.', { amount, fee: formatAmount(req.fee) })
+          : t('You need {amount}.', { amount });
+    const add = native ? t('Add {unit} to this wallet, then try again.', { unit: unit(short.assetId) }) : t('Add {unit} to this wallet (Receive on the Wallet tab), then try again.', { unit: unit(short.assetId) });
+    return `${need} ${t('You have {amount}.', { amount: formatAmount(short.have) })} ${add}`;
+  };
+  const cantSpendText = (native) => {
+    const now = req.fee > 0n ? t("The wallet can't spend this much right now (the {fee} BEAM network fee included).", { fee: formatAmount(req.fee) }) : t("The wallet can't spend this much right now.");
+    const later = native ? t('Part of the balance may be in a payment that has not finished: try again in a minute, or add more.') : t('Part of the balance may be in a payment that has not finished: try again in a minute, or add more on the Wallet tab (Receive).');
+    return `${now} ${later}`;
+  };
 
   return new Promise((resolve) => {
     const sheet = openSheet(
@@ -244,7 +268,7 @@ function showConsent(app, req, bridge, t) {
         const approve = async () => {
           if (busy || !acked) return;
           busy = true;
-          const ok = await confirmIdentity(app, { title: 'Confirm it is you', detail: label, cta: 'Confirm' });
+          const ok = await confirmIdentity(app, { title: t('Confirm it is you'), detail: label, cta: t('Confirm') });
           busy = false;
           if (ok) close(true);
         };
@@ -257,25 +281,25 @@ function showConsent(app, req, bridge, t) {
             'div',
             { class: 'consent-app', 'data-testid': 'consent-app' },
             native ? h('img', { src: 'img/logo.svg', alt: '' }) : h('span', { class: 'app-dot' }, icon('globe')),
-            h('span', { text: native ? 'BEAM Campfire, this wallet' : `${req.appName} asks you to approve` }),
+            h('span', { text: native ? t('BEAM Campfire, this wallet') : t('{name} asks you to approve', { name: req.appName }) }),
           ),
           !native && req.publisher
-            ? h('p', { class: 'tag store', 'data-testid': 'consent-publisher', text: `From BEAM's DApp Store · published by ${req.publisher.name} (${req.publisher.key.slice(0, 8)}…${req.publisher.key.slice(-6)})` })
+            ? h('p', { class: 'tag store', 'data-testid': 'consent-publisher', text: t("From BEAM's DApp Store · published by {publisher} ({key})", { publisher: req.publisher.name, key: `${req.publisher.key.slice(0, 8)}…${req.publisher.key.slice(-6)}` }) })
             : !native && req.unchecked
-              ? h('p', { class: 'tag unchecked', 'data-testid': 'consent-unchecked', text: 'Installed from a file · not checked by BEAM Campfire' })
+              ? h('p', { class: 'tag unchecked', 'data-testid': 'consent-unchecked', text: t('Installed from a file · not checked by BEAM Campfire') })
               : null,
           bridge
-            ? bridgeCard(req, bridge, t)
+            ? bridgeCard(req, bridge, bt)
             : h(
                 'div',
                 { class: 'card' },
-                ...req.spends.map((a, i) => row(words ? (i ? '' : words[0]) : req.kind === 'send' ? 'You send' : req.intent && req.intent.action === 'burn' ? 'Destroyed for good' : 'You pay', a, `consent-pay-${i}`, '')),
+                ...req.spends.map((a, i) => row(words ? (i ? '' : t(words[0])) : req.kind === 'send' ? t('You send') : req.intent && req.intent.action === 'burn' ? t('Destroyed for good') : t('You pay'), a, `consent-pay-${i}`, '')),
                 // A swap's amount is the engine's first build; BEAM may finish it a little lower ("You get at least" below).
-                ...req.receives.map((a, i) => row(words ? (i ? '' : words[1]) : req.intent && req.intent.action === 'swap' ? 'You get about' : 'You receive', a, `consent-get-${i}`, '')),
-                req.address ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'To' }), h('span', { class: 'v mono', text: shorten(req.address, 10, 8) })) : null,
-                req.intent && req.intent.action === 'namePay' ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'To' }), h('span', { class: 'v', 'data-testid': 'consent-to', text: `${req.intent.name}.beam` })) : null,
-                h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Network fee' }), h('span', { class: 'v', 'data-testid': 'consent-fee', text: `${formatAmount(req.fee)} BEAM` })),
-                showTotal ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Total BEAM out' }), h('span', { class: 'v', 'data-testid': 'consent-total', text: `${formatAmount(beamOut)} BEAM` })) : null,
+                ...req.receives.map((a, i) => row(words ? (i ? '' : t(words[1])) : req.intent && req.intent.action === 'swap' ? t('You get about') : t('You receive'), a, `consent-get-${i}`, '')),
+                req.address ? h('div', { class: 'kv' }, h('span', { class: 'k', text: t('To') }), h('span', { class: 'v mono', text: shorten(req.address, 10, 8) })) : null,
+                req.intent && req.intent.action === 'namePay' ? h('div', { class: 'kv' }, h('span', { class: 'k', text: t('To') }), h('span', { class: 'v', 'data-testid': 'consent-to', text: `${req.intent.name}.beam` })) : null, // i18n-ignore: a BEAM name
+                h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Network fee') }), h('span', { class: 'v', 'data-testid': 'consent-fee', text: `${formatAmount(req.fee)} BEAM` })), // i18n-ignore: an amount and its ticker
+                showTotal ? h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Total BEAM out') }), h('span', { class: 'v', 'data-testid': 'consent-total', text: `${formatAmount(beamOut)} BEAM` })) : null, // i18n-ignore: an amount and its ticker
                 ...extras.rows.map(([k, v], i) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), h('span', { class: 'v', 'data-testid': `consent-extra-${i}`, text: v }))),
               ),
           extras.warn ? h('div', { 'data-testid': 'consent-warn' }, notice('warn', extras.warn)) : null,
@@ -297,12 +321,12 @@ function showConsent(app, req, bridge, t) {
               )
             : null,
           // Said before approving; when it cannot be approved, what is missing comes first.
-          bridge && bridge.kind === 'send' && enough ? h('div', { 'data-testid': 'consent-bridge-public' }, notice('info', t.PUBLIC_NOTE)) : null,
+          bridge && bridge.kind === 'send' && enough ? h('div', { 'data-testid': 'consent-bridge-public' }, notice('info', t(bt.PUBLIC_NOTE))) : null,
           native && req.intent && intentNote(req.intent) ? h('div', { 'data-testid': 'consent-intent-note' }, intentNote(req.intent)) : null,
-          ...(extras.notes || []).map((t, i) => h('p', { class: 'small', 'data-testid': `consent-note-${i}`, text: t })),
-          !native && req.comment ? h('p', { class: 'small', text: `The app describes it as: “${req.comment}”` }) : null,
-          notListed.length ? h('p', { class: 'small', 'data-testid': 'consent-unlisted', text: `${notListed.map((a) => `${wallet.label(a.assetId).symbol} is asset #${a.assetId}`).join('; ')}: not on BEAM Campfire's list of known assets. Check the number if the name matters to you.` }) : null,
-          !native ? notice('warn', `Only approve if you trust ${req.appName}. Approving lets it move what is listed above.`) : null,
+          ...(extras.notes || []).map((note, i) => h('p', { class: 'small', 'data-testid': `consent-note-${i}`, text: note })),
+          !native && req.comment ? h('p', { class: 'small', text: t('The app describes it as: “{comment}”', { comment: req.comment }) }) : null,
+          notListed.length ? h('p', { class: 'small', 'data-testid': 'consent-unlisted', text: t("{assets}: not on BEAM Campfire's list of known assets. Check the number if the name matters to you.", { assets: notListed.map((a) => t('{symbol} is asset #{id}', { symbol: wallet.label(a.assetId).symbol, id: a.assetId })).join('; ') }) }) : null,
+          !native ? notice('warn', t('Only approve if you trust {name}. Approving lets it move what is listed above.', { name: req.appName })) : null,
           enough
             ? null
             : h(
@@ -310,10 +334,8 @@ function showConsent(app, req, bridge, t) {
                 { 'data-testid': 'consent-not-enough' },
                 notice(
                   'error',
-                  h('strong', { text: `Not enough ${short ? unit(short.assetId) : spentUnits(req, unit)}. ` }),
-                  short
-                    ? `You need ${formatAmount(short.need)} ${unit(short.assetId)}${short.includesFee && !req.spends.some((a) => a.assetId === 0) ? ' for the network fee' : short.includesFee ? `, including the ${formatAmount(req.fee)} BEAM network fee` : ''}. You have ${formatAmount(short.have)}. Add ${unit(short.assetId)} to this wallet${native ? '' : ' (Receive on the Wallet tab)'}, then try again.`
-                    : `The wallet can't spend this much right now${req.fee > 0n ? ` (the ${formatAmount(req.fee)} BEAM network fee included)` : ''}. Part of the balance may be in a payment that has not finished: try again in a minute, or add more${native ? '' : ' on the Wallet tab (Receive)'}.`,
+                  h('strong', { text: `${t('Not enough {unit}.', { unit: short ? unit(short.assetId) : spentUnits(req, unit) })} ` }),
+                  short ? shortText(short, native) : cantSpendText(native),
                 ),
               ),
           h(
@@ -333,10 +355,10 @@ function showConsent(app, req, bridge, t) {
                       app.go('receive');
                     },
                   },
-                  short ? `Add ${unit(short.assetId)}` : 'Add funds',
+                  short ? t('Add {unit}', { unit: unit(short.assetId) }) : t('Add funds'),
                 )
               : null,
-            h('button', { class: `btn ${enough || native ? 'btn-text' : 'btn-secondary'}`, 'data-testid': 'consent-cancel', onclick: () => close(false) }, 'Cancel'),
+            h('button', { class: `btn ${enough || native ? 'btn-text' : 'btn-secondary'}`, 'data-testid': 'consent-cancel', onclick: () => close(false) }, t('Cancel')),
           ),
         );
       },
@@ -355,13 +377,13 @@ function showConsent(app, req, bridge, t) {
     const onAbort = () => {
       if (sheet.closed) return;
       sheet.close(false);
-      toast('The request was withdrawn. Nothing was sent.');
+      toast(t('The request was withdrawn. Nothing was sent.'));
     };
     sheet.then((v) => {
       off();
       if (req.signal) req.signal.removeEventListener('abort', onAbort);
       // The wallet's own screens show a status page; inside a dApp this is the only sign it went.
-      if (v === true && !req.native) toast('Approved and sent. It shows in Activity, usually within a minute.', 6000);
+      if (v === true && !req.native) toast(t('Approved and sent. It shows in Activity, usually within a minute.'), 6000);
       resolve(v === true);
     });
     if (req.signal) {

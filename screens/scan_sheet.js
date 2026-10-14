@@ -15,16 +15,17 @@ import { icon } from '../lib/icons.js';
 import { openSheet, notice, primary, secondary, textButton } from '../lib/ui.js';
 import { parseScanned, startCameraScan, cameraProblem, cameraSupported, scanImageFile } from '../lib/qr_scan.js';
 import { recognize } from '../lib/scan_recognize.js';
+import { t } from '../lib/i18n.js';
 
 /** Why a code is not what this scanner wants, in words that say where it belongs. */
 function elsewhere(text, wanted) {
   const r = recognize(text);
-  if (r.kind === 'eth' && wanted !== 'eth') return "That's an Ethereum address. Send to it from your Ethereum wallet, or scan a BEAM address.";
-  if ((r.kind === 'beam' || r.kind === 'name') && wanted === 'eth') return "That's a BEAM address. Send to it from your BEAM wallet, or scan an Ethereum address.";
-  if (r.kind === 'code' && wanted !== 'code') return "That's an airdrop code: claim it under Airdrop codes. Point the camera at an address.";
-  if (r.kind === 'unsupported' && r.reason === 'chain') return "That's a payment on another network, which this wallet doesn't use.";
-  if (r.kind === 'unsupported' && r.reason === 'coin') return "That's an address of another coin, which this wallet doesn't hold.";
-  if (r.kind === 'unsupported' && r.reason === 'link') return "That's a web link. BEAM Campfire doesn't open links from codes.";
+  if (r.kind === 'eth' && wanted !== 'eth') return t("That's an Ethereum address. Send to it from your Ethereum wallet, or scan a BEAM address.");
+  if ((r.kind === 'beam' || r.kind === 'name') && wanted === 'eth') return t("That's a BEAM address. Send to it from your BEAM wallet, or scan an Ethereum address.");
+  if (r.kind === 'code' && wanted !== 'code') return t("That's an airdrop code: claim it under Airdrop codes. Point the camera at an address.");
+  if (r.kind === 'unsupported' && r.reason === 'chain') return t("That's a payment on another network, which this wallet doesn't use.");
+  if (r.kind === 'unsupported' && r.reason === 'coin') return t("That's an address of another coin, which this wallet doesn't hold.");
+  if (r.kind === 'unsupported' && r.reason === 'link') return t("That's a web link. BEAM Campfire doesn't open links from codes.");
   return null;
 }
 
@@ -37,14 +38,14 @@ function scanSheet({ title, idle, consider, wrong }) {
   return new Promise((resolve) => {
     let scanner = null;
     let done = false;
-    const video = h('video', { class: 'scan-video', playsinline: true, muted: true, autoplay: true, 'aria-label': 'Camera picture', 'data-testid': 'scan-video' });
+    const video = h('video', { class: 'scan-video', playsinline: true, muted: true, autoplay: true, 'aria-label': t('Camera picture'), 'data-testid': 'scan-video' });
     const stage = h('div', { class: 'scan-stage', 'data-testid': 'scan-stage' }, video, h('div', { class: 'scan-frame', 'aria-hidden': 'true' }));
-    const status = h('p', { class: 'small center', 'aria-live': 'polite', 'data-testid': 'scan-status', text: 'Starting the camera…' });
+    const status = h('p', { class: 'small center', 'aria-live': 'polite', 'data-testid': 'scan-status', text: t('Starting the camera…') });
     const problemBox = h('div');
-    const photo = h('input', { type: 'file', accept: 'image/*', class: 'file-input', 'data-testid': 'scan-photo-input', 'aria-label': 'Choose a photo of the QR code' });
-    const photoBtn = h('label', { class: 'btn btn-secondary' }, icon('file'), 'Use a photo', photo);
-    const pasteBtn = secondary(h('span', {}, 'Paste instead'), () => finish({ paste: true }), { 'data-testid': 'scan-paste' });
-    const privacy = h('p', { class: 'small center', text: 'The picture stays on this phone: BEAM Campfire reads the code here and keeps nothing.' });
+    const photo = h('input', { type: 'file', accept: 'image/*', class: 'file-input', 'data-testid': 'scan-photo-input', 'aria-label': t('Choose a photo of the QR code') });
+    const photoBtn = h('label', { class: 'btn btn-secondary' }, icon('file'), t('Use a photo'), photo);
+    const pasteBtn = secondary(h('span', {}, t('Paste instead')), () => finish({ paste: true }), { 'data-testid': 'scan-paste' });
+    const privacy = h('p', { class: 'small center', text: t('The picture stays on this phone: BEAM Campfire reads the code here and keeps nothing.') });
 
     const finish = (v) => {
       if (done) return;
@@ -72,7 +73,7 @@ function scanSheet({ title, idle, consider, wrong }) {
         problemBox,
         privacy,
         h('div', { class: 'btn-row' }, pasteBtn, photoBtn),
-        textButton('Cancel', () => finish(null), { 'data-testid': 'scan-cancel' }),
+        textButton(t('Cancel'), () => finish(null), { 'data-testid': 'scan-cancel' }),
       ],
       { label: title },
     );
@@ -88,7 +89,7 @@ function scanSheet({ title, idle, consider, wrong }) {
       privacy.classList.add('hidden');
       pasteBtn.classList.add('hidden'); // the problem box has its own, as the primary way on
       status.textContent = '';
-      put(problemBox, h('div', { 'data-testid': 'scan-problem', 'data-code': p.code }, notice('warn', p.text)), primary('Paste instead', () => finish({ paste: true }), { 'data-testid': 'scan-problem-paste' }));
+      put(problemBox, h('div', { 'data-testid': 'scan-problem', 'data-code': p.code }, notice('warn', p.text)), primary(t('Paste instead'), () => finish({ paste: true }), { 'data-testid': 'scan-problem-paste' }));
     }
 
     photo.addEventListener('change', async () => {
@@ -96,16 +97,16 @@ function scanSheet({ title, idle, consider, wrong }) {
       photo.value = '';
       if (!f) return;
       status.className = 'small center';
-      status.textContent = 'Reading the photo…';
+      status.textContent = t('Reading the photo…');
       try {
         const text = await scanImageFile(f);
         if (!text) {
-          status.textContent = 'No QR code found in that photo. Try a sharper one, closer to the code.';
+          status.textContent = t('No QR code found in that photo. Try a sharper one, closer to the code.');
           return;
         }
         take(text);
       } catch {
-        status.textContent = "That photo couldn't be read. Try another, or paste instead.";
+        status.textContent = t("That photo couldn't be read. Try another, or paste instead.");
       }
     });
 
@@ -126,49 +127,49 @@ function scanSheet({ title, idle, consider, wrong }) {
  * A BEAM address for Send and the contact form. Resolves {address, amount?} (lib/qr_scan.js
  * parseScanned), {paste: true}, or null. Another kind of code is named as such; scanning goes on.
  */
-export function scanAddress({ title = 'Scan a QR code' } = {}) {
+export function scanAddress({ title = t('Scan a QR code') } = {}) {
   return scanSheet({
     title,
-    idle: 'Point the camera at the QR code of a BEAM address.',
+    idle: t('Point the camera at the QR code of a BEAM address.'),
     consider: (text) => {
       const r = recognize(text);
       return r.kind === 'beam' || r.kind === 'name' ? parseScanned(text) : null;
     },
-    wrong: (text) => elsewhere(text, 'beam') || "That QR code isn't a BEAM address. Point the camera at the receiver's address.",
+    wrong: (text) => elsewhere(text, 'beam') || t("That QR code isn't a BEAM address. Point the camera at the receiver's address."),
   });
 }
 
 /** An Ethereum address for Ethereum Send: {kind: 'eth', to, valueWei?, token?}, {paste: true}, or null. */
-export function scanEthAddress({ title = 'Scan an Ethereum address' } = {}) {
+export function scanEthAddress({ title = t('Scan an Ethereum address') } = {}) {
   return scanSheet({
     title,
-    idle: 'Point the camera at the QR code of an Ethereum address.',
+    idle: t('Point the camera at the QR code of an Ethereum address.'),
     consider: (text) => {
       const r = recognize(text);
       return r.kind === 'eth' ? r : null;
     },
-    wrong: (text) => elsewhere(text, 'eth') || "That QR code isn't an Ethereum address.",
+    wrong: (text) => elsewhere(text, 'eth') || t("That QR code isn't an Ethereum address."),
   });
 }
 
 /** An airdrop code: {kind: 'code', code}, {paste: true}, or null. */
-export function scanCode({ title = 'Scan a code' } = {}) {
+export function scanCode({ title = t('Scan a code') } = {}) {
   return scanSheet({
     title,
-    idle: 'Point the camera at the QR code of the airdrop code.',
+    idle: t('Point the camera at the QR code of the airdrop code.'),
     consider: (text) => {
       const r = recognize(text);
       return r.kind === 'code' ? r : null;
     },
-    wrong: (text) => elsewhere(text, 'code') || "That QR code isn't an airdrop code.",
+    wrong: (text) => elsewhere(text, 'code') || t("That QR code isn't an airdrop code."),
   });
 }
 
 /** Home's Scan: anything with a meaning (lib/scan_recognize.js), {paste: true}, or null. */
-export function scanAnything({ title = 'Scan a QR code' } = {}) {
+export function scanAnything({ title = t('Scan a QR code') } = {}) {
   return scanSheet({
     title,
-    idle: 'Point the camera at a QR code: a BEAM or Ethereum address, a BEAM name, or an airdrop code.',
+    idle: t('Point the camera at a QR code: a BEAM or Ethereum address, a BEAM name, or an airdrop code.'),
     consider: (text) => {
       const r = recognize(text);
       return r.kind === 'empty' ? null : { ...r, text: String(text).trim().slice(0, 2000) };

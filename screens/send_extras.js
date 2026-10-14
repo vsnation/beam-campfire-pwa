@@ -10,6 +10,7 @@ import { cleanNote, noteHint, NOTE_MAX } from '../lib/payments.js';
 import { shortAddress } from '../lib/addresses.js';
 import { pickContact, contactForm } from './contacts.js';
 import { scanAddress } from './scan_sheet.js';
+import { t, tk } from '../lib/i18n.js';
 
 /**
  * Paying another wallet of this device (re-audit RE1-12): one wallet runs in one tab at a time, and
@@ -17,11 +18,11 @@ import { scanAddress } from './scan_sheet.js';
  * known while that wallet is locked (its addresses are only in its own encrypted file, and none
  * are kept anywhere else), so this is said for a regular address whenever the device has another.
  */
-export const OTHER_WALLET_HINT = 'Paying another of your wallets here? A regular payment needs both open, and only one can be: use its offline address, or after sending, switch to it and then back.';
+export const OTHER_WALLET_HINT = tk('Paying another of your wallets here? A regular payment needs both open, and only one can be: use its offline address, or after sending, switch to it and then back.');
 
 /** OTHER_WALLET_HINT when it applies: `wallets` on this device, `mode` the checked address's (lib/wallet.js sendModeFor). */
 export function otherWalletHint({ wallets, mode }) {
-  return wallets > 1 && mode && mode.receiverMustBeOnline ? OTHER_WALLET_HINT : null;
+  return wallets > 1 && mode && mode.receiverMustBeOnline ? t(OTHER_WALLET_HINT) : null;
 }
 
 /**
@@ -29,14 +30,14 @@ export function otherWalletHint({ wallets, mode }) {
  * was picked or scanned into the form; paste() runs Paste.
  */
 export function recipientButtons(app, { fill, paste }) {
-  const contactsBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'send-contacts', 'aria-label': 'Pay a contact' }, icon('person'), 'Contacts');
-  const scanBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'send-scan', 'aria-label': 'Scan a QR code' }, icon('scan'), 'Scan');
+  const contactsBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'send-contacts', 'aria-label': t('Pay a contact') }, icon('person'), t('Contacts'));
+  const scanBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'send-scan', 'aria-label': t('Scan a QR code') }, icon('scan'), t('Scan'));
   contactsBtn.addEventListener('click', async () => {
     const c = await pickContact(app);
     if (c) fill({ address: c.address });
   });
   scanBtn.addEventListener('click', async () => {
-    const r = await scanAddress({ title: 'Scan an address' });
+    const r = await scanAddress({ title: t('Scan an address') });
     if (r && r.paste) return paste();
     if (r && r.address) fill(r);
   });
@@ -61,12 +62,12 @@ export function contactLine(app, { onSaved = () => {} } = {}) {
     const list = cachedContacts();
     if (!address || name || !list) return put(el);
     const c = findByAddress(list, address);
-    if (c) return put(el, h('p', { class: 'hint good', 'data-testid': 'send-contact-name' }, icon('person', 'inline-icon'), ` ${c.name} · your contact`));
+    if (c) return put(el, h('p', { class: 'hint good', 'data-testid': 'send-contact-name' }, icon('person', 'inline-icon'), ` ${t('{name} · your contact', { name: c.name })}`));
     const look = lookalikeOf(list, address);
     if (look)
-      return put(el, h('div', { 'data-testid': 'send-lookalike' }, notice('warn', h('strong', { text: `Not ${look.name}'s saved address. ` }), `It starts and ends like it (${shortAddress(look.address, 6)}) but the middle differs. Check it with ${look.name} before sending.`)));
+      return put(el, h('div', { 'data-testid': 'send-lookalike' }, notice('warn', h('strong', { text: `${t("Not {name}'s saved address.", { name: look.name })} ` }), t('It starts and ends like it ({address}) but the middle differs. Check it with {name} before sending.', { address: shortAddress(look.address, 6), name: look.name }))));
     if (!ok) return put(el);
-    put(el, textButton(h('span', {}, 'Save as a contact'), async () => {
+    put(el, textButton(h('span', {}, t('Save as a contact')), async () => {
       const saved = await contactForm(app, { address });
       if (saved) {
         update(address, lastState);
@@ -82,12 +83,12 @@ export function contactLine(app, { onSaved = () => {} } = {}) {
  * way to Review), open when the draft has one. draft.note holds it.
  */
 export function noteField(draft) {
-  const input = h('input', { class: 'input', type: 'text', maxlength: String(NOTE_MAX), autocomplete: 'off', placeholder: 'e.g. Rent for March', 'aria-label': 'Note', 'data-testid': 'send-note' });
+  const input = h('input', { class: 'input', type: 'text', maxlength: String(NOTE_MAX), autocomplete: 'off', placeholder: t('e.g. Rent for March'), 'aria-label': t('Note'), 'data-testid': 'send-note' });
   input.value = draft.note || '';
   const hint = h('p', { class: 'hint', 'data-testid': 'send-note-hint', text: noteHint() });
-  const field = h('label', { class: 'field' }, 'Note (only you see it)', input);
+  const field = h('label', { class: 'field' }, t('Note (only you see it)'), input);
   const open = h('div', { class: draft.note ? '' : 'hidden', 'data-testid': 'send-note-box' }, field, hint);
-  const opener = textButton(h('span', {}, 'Add a note (only you see it)'), () => {
+  const opener = textButton(h('span', {}, t('Add a note (only you see it)')), () => {
     opener.classList.add('hidden');
     open.classList.remove('hidden');
     input.focus();

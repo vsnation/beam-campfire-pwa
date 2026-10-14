@@ -28,6 +28,7 @@ import { ROUTES, routeById, SEND_FEE, CLAIM_FEE } from '../lib/bridge/routes.js'
 import { ETH, tokenBySymbol } from '../lib/eth/tokens.js';
 import { BLOCKS } from '../lib/bridge/quote.js';
 import { isOpen } from '../lib/bridge/store.js';
+import { lastErrorText } from '../lib/bridge/controller.js';
 import { ethBadge, doubtNotice, followDoubt } from './eth_ui.js';
 import { openBridgeReview } from './bridge_review.js';
 import { bridgeOf, bridgeProblem, pricesChoice, priceQuestion, pricesOff } from './bridge_ui.js';
@@ -44,7 +45,7 @@ import {
   moveLabel,
   limitsText,
   needsPrices,
-  arrivesText,
+  arrivesParts,
   coinLabel,
   sourceSymbol,
   sourceDecimals,
@@ -53,9 +54,11 @@ import {
   about,
   ABOUT_TO_ETHEREUM_MS,
   ABOUT_TO_BEAM_MS,
+  sentence,
 } from './bridge_text.js';
 import { confirmKeptHere } from './storage_warning.js';
 import { syncReason } from '../lib/sync.js';
+import { t } from '../lib/i18n.js';
 
 const QUOTE_DELAY_MS = 400;
 /** A quote older than this is worked out again when the button is tapped. */
@@ -69,7 +72,7 @@ function usd(prices, id, units, decimals) {
   if (!per) return null;
   const v = (Number(units) / 10 ** decimals) * per;
   if (!Number.isFinite(v)) return null;
-  if (v < 0.01) return 'under $0.01';
+  if (v < 0.01) return t('under $0.01');
   return `≈ $${v >= 1000 ? Math.round(v).toLocaleString('en-US') : v.toFixed(2)}`;
 }
 
@@ -101,10 +104,10 @@ export default function bridgeMove(app, params = {}) {
   const key = () => `${draft.route}-${draft.dir}`;
 
   // ------------------------------------------------------------ elements
-  const input = h('input', { class: 'swap-input', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: '0', 'aria-label': 'Amount to move', 'data-testid': 'bridge-amount' });
+  const input = h('input', { class: 'swap-input', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: '0', 'aria-label': t('Amount to move'), 'data-testid': 'bridge-amount' });
   input.value = draft.amount;
   const openBox = h('div');
-  const chips = h('div', { class: 'bridge-chips', role: 'radiogroup', 'aria-label': 'Coin' });
+  const chips = h('div', { class: 'bridge-chips', role: 'radiogroup', 'aria-label': t('Coin') });
   const fromLabel = h('div', { class: 'swap-label' });
   const fromCoin = h('span', { class: 'asset-pick static' });
   const fromSub = h('div', { class: 'swap-sub' });
@@ -116,9 +119,9 @@ export default function bridgeMove(app, params = {}) {
   const notes = h('div', { class: 'swap-notes' });
   const details = h('div', { class: 'card flat swap-details', 'data-testid': 'bridge-details' });
   const reason = h('p', { class: 'hint center', 'data-testid': 'bridge-reason', 'aria-live': 'polite' });
-  const cta = primary('Move', onMove, { disabled: true, 'data-testid': 'bridge-cta', class: 'btn btn-primary wrap' });
-  const flipBtn = h('button', { class: 'swap-flip', type: 'button', 'aria-label': 'Change direction', 'data-testid': 'bridge-flip', onclick: flip }, icon('swap'));
-  const history = h('button', { class: 'btn btn-text btn-small', type: 'button', 'data-testid': 'bridge-history', onclick: () => app.go('bridgeList', { back: 'bridgeMove' }) }, 'History');
+  const cta = primary(t('Move'), onMove, { disabled: true, 'data-testid': 'bridge-cta', class: 'btn btn-primary wrap' });
+  const flipBtn = h('button', { class: 'swap-flip', type: 'button', 'aria-label': t('Change direction'), 'data-testid': 'bridge-flip', onclick: flip }, icon('swap'));
+  const history = h('button', { class: 'btn btn-text btn-small', type: 'button', 'data-testid': 'bridge-history', onclick: () => app.go('bridgeList', { back: 'bridgeMove' }) }, t('History'));
   const body = h('div', { class: 'stack' });
 
   // ------------------------------------------------------------ state
@@ -135,19 +138,19 @@ export default function bridgeMove(app, params = {}) {
   function ctaState() {
     const r = route();
     const sym = sourceSymbol(r, draft.dir);
-    if (openError) return { off: "The bridge couldn't open. Try again above." };
-    if (!s) return { off: 'Opening the bridge…' };
-    if (busy) return { off: 'Getting it ready…' };
-    if (toEth() && !wallet.state.sync.canSend) return { off: `Moving to Ethereum is paused: ${syncReason(wallet.state.sync.title)}.` };
-    if (!toEth() && s.w.doubt()) return { off: 'Paused until your last Ethereum transaction is settled (above).' };
+    if (openError) return { off: t("The bridge couldn't open. Try again above.") };
+    if (!s) return { off: t('Opening the bridge…') };
+    if (busy) return { off: t('Getting it ready…') };
+    if (toEth() && !wallet.state.sync.canSend) return { off: t('Moving to Ethereum is paused: {reason}.', { reason: syncReason(wallet.state.sync.title) }) };
+    if (!toEth() && s.w.doubt()) return { off: t('Paused until your last Ethereum transaction is settled (above).') };
     const gate = priceGate();
-    if (gate === 'ask') return { off: 'Allow prices above to see the bridge fee.' };
-    if (gate === 'off') return { off: 'Prices are off, so this move cannot be priced.' };
+    if (gate === 'ask') return { off: t('Allow prices above to see the bridge fee.') };
+    if (gate === 'off') return { off: t('Prices are off, so this move cannot be priced.') };
     const a = amountState();
     if (a.error) return { off: a.error };
-    if (a.value == null || a.value <= 0n) return { off: `Enter how much ${sym} to move.` };
-    if (quoting || !quote) return { off: 'Working out the fees…' };
-    if (quote.block) return { off: quote.block.title.replace(/\.?$/, '.') };
+    if (a.value == null || a.value <= 0n) return { off: t('Enter how much {coin} to move.', { coin: sym }) };
+    if (quoting || !quote) return { off: t('Working out the fees…') };
+    if (quote.block) return { off: sentence(quote.block.title) };
     return { off: null };
   }
 
@@ -155,8 +158,8 @@ export default function bridgeMove(app, params = {}) {
   function coinPill(onBeam) {
     const r = route();
     if (onBeam) return [assetBadge(wallet.label(r.beamAssetId), { size: 'small' }), h('span', { text: r.beamSymbol })];
-    const t = r.isNativeEth ? ETH : tokenBySymbol(r.ethSymbol);
-    return [ethBadge(t, 'small'), h('span', { text: r.ethSymbol })];
+    const token = r.isNativeEth ? ETH : tokenBySymbol(r.ethSymbol);
+    return [ethBadge(token, 'small'), h('span', { text: r.ethSymbol })];
   }
 
   function render() {
@@ -171,7 +174,7 @@ export default function bridgeMove(app, params = {}) {
 
     // An open move, one tap away.
     const open = ctl ? ctl.crossings.filter(isOpen) : [];
-    history.textContent = open.length ? `History (${open.length})` : 'History';
+    history.textContent = open.length ? t('History ({count})', { count: open.length }) : t('History');
     if (open.length) {
       const c = open[0];
       const w = crossingWords(c, { blocksLeft: ctl.blocksLeft(c) });
@@ -200,17 +203,17 @@ export default function bridgeMove(app, params = {}) {
 
     // From
     const ethAddr = s ? s.w.state.address : null;
-    fromLabel.textContent = toEth() ? 'From your BEAM wallet' : 'From your Ethereum wallet';
+    fromLabel.textContent = toEth() ? t('From your BEAM wallet') : t('From your Ethereum wallet');
     put(fromCoin, ...coinPill(toEth()));
     const have = bal && balFor === key() ? bal.source : null;
     put(
       fromSub,
-      h('span', { class: 'grow', 'data-testid': 'bridge-balance', text: have == null ? (s ? 'Available: …' : '') : `Available: ${rounded(have, srcDec, 8)} ${srcSym}` }),
-      s ? h('button', { class: 'btn btn-text btn-small', type: 'button', 'data-testid': 'bridge-max', onclick: useMax }, 'Max') : null,
+      h('span', { class: 'grow', 'data-testid': 'bridge-balance', text: have == null ? (s ? t('Available: …') : '') : t('Available: {amount}', { amount: `${rounded(have, srcDec, 8)} ${srcSym}` }) }),
+      s ? h('button', { class: 'btn btn-text btn-small', type: 'button', 'data-testid': 'bridge-max', onclick: useMax }, t('Max')) : null,
     );
 
     // To
-    put(toLabel, toEth() ? 'To your Ethereum wallet' : 'To your BEAM wallet', ethAddr && toEth() ? h('span', { class: 'mono addr', text: ` ${shortAddr(ethAddr)}` }) : null);
+    put(toLabel, toEth() ? t('To your Ethereum wallet') : t('To your BEAM wallet'), ethAddr && toEth() ? h('span', { class: 'mono addr', text: ` ${shortAddr(ethAddr)}` }) : null);
     put(toCoin, ...coinPill(!toEth()));
     const a = amountState();
     const q = quote && !quoting && a.value != null && quote.route === r && quote.direction === d ? quote : null;
@@ -221,14 +224,18 @@ export default function bridgeMove(app, params = {}) {
     const fee = q ? q.fee : cond && condFor === key() ? cond.fee : null;
     const costs = [];
     if (q && q.fee != null) {
-      if (toEth()) costs.push(`Plus ${feeText(q.fee, srcDec)} ${srcSym} bridge fee and ${coin(SEND_FEE, 8, 'BEAM')} network fee. ${about(ABOUT_TO_ETHEREUM_MS)}.`);
+      const bridgeFee = `${feeText(q.fee, srcDec)} ${srcSym}`;
+      if (toEth()) costs.push(`${t('Plus {fee} bridge fee and {networkFee} network fee.', { fee: bridgeFee, networkFee: coin(SEND_FEE, 8, 'BEAM') })} ${sentence(about(ABOUT_TO_ETHEREUM_MS))}`);
       else {
-        const gas = q.plan ? `, up to ${roundedUp(q.plan.maxGasCost, 18, 6)} ETH network fee` : '';
-        costs.push(`Plus ${feeText(q.fee, srcDec)} ${srcSym} bridge fee${gas}, and ${coin(CLAIM_FEE, 8, 'BEAM')} to collect it. ${about(ABOUT_TO_BEAM_MS)}.`);
+        const claimFee = coin(CLAIM_FEE, 8, 'BEAM');
+        const plus = q.plan
+          ? t('Plus {fee} bridge fee, up to {gas} ETH network fee, and {claimFee} to collect it.', { fee: bridgeFee, gas: roundedUp(q.plan.maxGasCost, 18, 6), claimFee })
+          : t('Plus {fee} bridge fee, and {claimFee} to collect it.', { fee: bridgeFee, claimFee });
+        costs.push(`${plus} ${sentence(about(ABOUT_TO_BEAM_MS))}`);
       }
     }
     const worth = q ? usd(q.prices, r.coingeckoId, receives, dstDec) : null;
-    put(toSub, h('span', { class: 'grow', text: costs[0] || (s ? `You receive ${dstSym}` : '') }), worth ? h('span', { class: 'nowrap', text: worth }) : null);
+    put(toSub, h('span', { class: 'grow', text: costs[0] || (s ? t('You receive {coin}', { coin: dstSym }) : '') }), worth ? h('span', { class: 'nowrap', text: worth }) : null);
 
     // Limits, before anything is typed.
     // Once a quote prices it, the line under "You receive" says it with numbers.
@@ -244,27 +251,28 @@ export default function bridgeMove(app, params = {}) {
       const gate = priceGate();
       if (gate === 'ask') n.push(priceQuestion({ allow: () => choosePrices(true), refuse: () => choosePrices(false) }));
       if (gate === 'off') n.push(pricesOff({ allow: () => choosePrices(true), useWbeam: () => pickRoute('beam', TO_BEAM) }));
-      if (toEth() && !wallet.state.sync.canSend) n.push(notice('info', 'Your BEAM wallet is catching up with the network. Moving to Ethereum works once it is up to date.'));
+      if (toEth() && !wallet.state.sync.canSend) n.push(notice('info', t('Your BEAM wallet is catching up with the network. Moving to Ethereum works once it is up to date.')));
       // Moving to BEAM signs from the Ethereum wallet: a transaction of it in doubt holds this back.
       const doubt = !toEth() ? s.w.doubt() : null;
       if (doubt) n.push(doubtNotice(app, doubt, { testid: 'bridge-eth-doubt', onForgotten: () => render() }));
       // Collecting on BEAM needs BEAM: said before typing, not after.
       if (!toEth() && bal && balFor === key() && bal.beam < CLAIM_FEE && !(q && q.block && q.block.code === BLOCKS.noClaimFee)) {
-        n.push(blockNotice({ code: BLOCKS.noClaimFee, title: `Your BEAM wallet needs ${coin(CLAIM_FEE, 8, 'BEAM')} to collect it`, detail: `Coins moved to BEAM are collected with a BEAM transaction. Your BEAM wallet has ${coin(bal.beam, 8, 'BEAM')}. Receive a little BEAM first, then move.` }));
+        n.push(blockNotice({ code: BLOCKS.noClaimFee, title: t('Your BEAM wallet needs {fee} to collect it', { fee: coin(CLAIM_FEE, 8, 'BEAM') }), detail: t('Coins moved to BEAM are collected with a BEAM transaction. Your BEAM wallet has {have}. Receive a little BEAM first, then move.', { have: coin(bal.beam, 8, 'BEAM') }) }));
       }
       const b = q ? q.block : !gate && cond && condFor === key() && cond.block && cond.block.code !== BLOCKS.noAmount ? cond.block : null;
       if (b && b.code !== BLOCKS.noAmount) n.push(blockNotice(b));
-      for (const w of q ? q.warnings : []) n.push(h('div', { 'data-testid': `bridge-warning-${w.code}` }, notice('warn', h('strong', { text: `${w.title}. ` }), w.detail)));
+      for (const w of q ? q.warnings : []) n.push(h('div', { 'data-testid': `bridge-warning-${w.code}` }, notice('warn', h('strong', { text: `${sentence(w.title)} ` }), w.detail)));
     }
     put(notes, ...n);
 
     // Details.
     const rows = [];
     const row = (k, v, tid, note = null) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), h('span', { class: 'v' }, h('span', { 'data-testid': tid, text: v }), note ? h('div', { class: 'small', text: note }) : null));
-    rows.push(row('Bridge fee', fee == null ? (priceGate() ? '—' : s ? '…' : '—') : `${feeText(fee, srcDec)} ${srcSym}`, 'bridge-fee', 'paid to the bridge operator'));
-    rows.push(row('BEAM network fee', coin(toEth() ? SEND_FEE : CLAIM_FEE, 8, 'BEAM'), 'bridge-beam-fee', toEth() ? null : 'when you collect it'));
-    if (!toEth()) rows.push(row('Ethereum network fee', q && q.plan ? `up to ${roundedUp(q.plan.maxGasCost, 18, 6)} ETH` : 'priced once you type an amount', 'bridge-eth-fee'));
-    rows.push(row('Arrives', arrivesText(r, d).replace(/;.*/, ''), 'bridge-time', toEth() ? arrivesText(r, d).replace(/^[^;]*; /, '') : null));
+    rows.push(row(t('Bridge fee'), fee == null ? (priceGate() ? '—' : s ? '…' : '—') : `${feeText(fee, srcDec)} ${srcSym}`, 'bridge-fee', t('paid to the bridge operator')));
+    rows.push(row(t('BEAM network fee'), coin(toEth() ? SEND_FEE : CLAIM_FEE, 8, 'BEAM'), 'bridge-beam-fee', toEth() ? null : t('when you collect it')));
+    if (!toEth()) rows.push(row(t('Ethereum network fee'), q && q.plan ? t('up to {amount}', { amount: `${roundedUp(q.plan.maxGasCost, 18, 6)} ETH` }) : t('priced once you type an amount'), 'bridge-eth-fee'));
+    const arrives = arrivesParts(r, d);
+    rows.push(row(t('Arrives'), arrives.time, 'bridge-time', toEth() ? arrives.slow : null));
     put(details, ...rows);
 
     const st = ctaState();
@@ -276,15 +284,15 @@ export default function bridgeMove(app, params = {}) {
 
   function blockNotice(b) {
     const way = {
-      [BLOCKS.noClaimFee]: ['Receive BEAM', () => app.go('receive')],
-      [BLOCKS.noBeamForFee]: ['Receive BEAM', () => app.go('receive')],
-      [BLOCKS.noEthForGas]: ['Receive ETH', () => app.go('ethReceive')],
-      [BLOCKS.network]: ['Try again', () => refresh(true)],
-      [BLOCKS.noPrice]: ['Try again', () => refresh(true)],
+      [BLOCKS.noClaimFee]: [t('Receive BEAM'), () => app.go('receive')],
+      [BLOCKS.noBeamForFee]: [t('Receive BEAM'), () => app.go('receive')],
+      [BLOCKS.noEthForGas]: [t('Receive ETH'), () => app.go('ethReceive')],
+      [BLOCKS.network]: [t('Try again'), () => refresh(true)],
+      [BLOCKS.noPrice]: [t('Try again'), () => refresh(true)],
     }[b.code];
     const el = notice(
       b.code === BLOCKS.frozen ? 'error' : 'warn',
-      h('strong', { text: `${b.title.replace(/\.?$/, '.')} ` }),
+      h('strong', { text: `${sentence(b.title)} ` }),
       b.detail || '',
       way ? h('div', { class: 'btn-row prompt-actions' }, secondary(way[0], way[1], { class: 'btn btn-secondary btn-small', 'data-testid': 'bridge-block-action' })) : null,
     );
@@ -341,7 +349,7 @@ export default function bridgeMove(app, params = {}) {
       q = await s.ctl.quote(route(), draft.dir, a.value);
     } catch (e) {
       q = null;
-      if (alive && mine === seq) error = { title: "Couldn't work out the fees.", detail: `${e.message} Nothing was sent; try again in a minute.` };
+      if (alive && mine === seq) error = { title: t("Couldn't work out the fees."), detail: t('{reason} Nothing was sent; try again in a minute.', { reason: String(e.message) }) };
     }
     if (!alive || mine !== seq) return null;
     quote = q;
@@ -390,7 +398,7 @@ export default function bridgeMove(app, params = {}) {
   async function choosePrices(allowed) {
     await app.setPrefs({ bridgePrices: allowed });
     if (!alive) return;
-    toast(allowed ? 'Bridge prices from CoinGecko are on' : 'Bridge prices are off');
+    toast(allowed ? t('Bridge prices from CoinGecko are on') : t('Bridge prices are off'));
     refresh(false);
   }
 
@@ -405,7 +413,7 @@ export default function bridgeMove(app, params = {}) {
       error = null;
       requoteSoon(0);
     } catch (e) {
-      error = { title: "Couldn't work out the most you can move.", detail: e.message };
+      error = { title: t("Couldn't work out the most you can move."), detail: e.message };
       render();
     }
   }
@@ -428,7 +436,7 @@ export default function bridgeMove(app, params = {}) {
         const fresh = await requote();
         if (!alive) return;
         if (!fresh || fresh.block || fresh.fee !== q.fee || fresh.receives !== q.receives) {
-          error = { title: 'The fees changed.', detail: 'Check the new numbers, then move.' };
+          error = { title: t('The fees changed.'), detail: t('Check the new numbers, then move.') };
           render();
           return;
         }
@@ -454,7 +462,7 @@ export default function bridgeMove(app, params = {}) {
       if (!alive) return;
       busy = false;
       if (c.state === 'failed') {
-        error = { title: 'Nothing was sent.', detail: c.lastError || '' };
+        error = { title: t('Nothing was sent.'), detail: lastErrorText(c.lastError) || '' };
         render();
         return;
       }
@@ -463,7 +471,7 @@ export default function bridgeMove(app, params = {}) {
     } catch (e) {
       if (!alive) return;
       busy = false;
-      error = { title: 'Nothing was sent.', detail: `${e.message}${/\.$/.test(e.message || '') ? '' : '.'}` };
+      error = { title: t('Nothing was sent.'), detail: sentence(e.message) };
       render();
     }
   }
@@ -494,13 +502,13 @@ export default function bridgeMove(app, params = {}) {
     }
     if (offCtl) offCtl();
     offCtl = s.ctl.onChange(() => render());
-    if (params.created) toast(params.created === 'import' ? 'Ethereum wallet imported' : 'Ethereum wallet ready');
+    if (params.created) toast(params.created === 'import' ? t('Ethereum wallet imported') : t('Ethereum wallet ready'));
     await loadSide();
     requoteSoon(0);
   }
 
   // ------------------------------------------------------------ the screen
-  const intro = h('p', { class: 'small', text: "Between your own BEAM and Ethereum wallets, through BEAM's official bridge." });
+  const intro = h('p', { class: 'small', text: t("Between your own BEAM and Ethereum wallets, through BEAM's official bridge.") });
   const form = [
     openBox,
     chips,
@@ -525,11 +533,11 @@ export default function bridgeMove(app, params = {}) {
           'div',
           { class: 'card empty', 'data-testid': 'bridge-no-eth' },
           icon('bridge'),
-          h('h3', { text: 'Add an Ethereum wallet to use the bridge' }),
-          h('p', { class: 'small', text: 'The bridge moves coins between your own BEAM wallet and your own Ethereum wallet, so you need one of each. An Ethereum wallet takes a minute to add, here in BEAM Campfire; then you come back here.' }),
+          h('h3', { text: t('Add an Ethereum wallet to use the bridge') }),
+          h('p', { class: 'small', text: t('The bridge moves coins between your own BEAM wallet and your own Ethereum wallet, so you need one of each. An Ethereum wallet takes a minute to add, here in BEAM Campfire; then you come back here.') }),
         ),
       );
-      put(actions, primary('Create an Ethereum wallet', () => app.go('ethStart', { from: 'bridge' }), { 'data-testid': 'bridge-add-eth' }));
+      put(actions, primary(t('Create an Ethereum wallet'), () => app.go('ethStart', { from: 'bridge' }), { 'data-testid': 'bridge-add-eth' }));
       history.classList.add('hidden');
       return;
     }
@@ -544,7 +552,7 @@ export default function bridgeMove(app, params = {}) {
   // An Ethereum transaction in doubt: followed while this screen is open, so the move opens up once it is settled.
   const stopDoubt = followDoubt(app, () => (s && !toEth() ? s.w : null), () => render());
 
-  const el = screen({ title: 'Move coins', back: () => app.back(back), right: history, cls: 'swap bridge' }, body);
+  const el = screen({ title: t('Move coins'), back: () => app.back(back), right: history, cls: 'swap bridge' }, body);
   el.appendChild(actions);
   return {
     el,

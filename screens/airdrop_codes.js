@@ -29,8 +29,10 @@ import { formatAmount } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
 import { evictionRisk } from '../lib/storage.js';
 import { STORAGE_TEXT } from './storage_warning.js';
+import { t, tn, tk, asSentence } from '../lib/i18n.js';
 
-const STATUS_TEXT = { [CODE_STATUS.available]: 'Not claimed', [CODE_STATUS.claimed]: 'Claimed', [CODE_STATUS.notFound]: 'Not on the network', [CODE_STATUS.takenBack]: 'Taken back', [CODE_STATUS.unknown]: '' };
+// What the network last said about a code, shown as t(STATUS_TEXT[status]).
+const STATUS_TEXT = { [CODE_STATUS.available]: tk('Not claimed'), [CODE_STATUS.claimed]: tk('Claimed'), [CODE_STATUS.notFound]: tk('Not on the network'), [CODE_STATUS.takenBack]: tk('Taken back'), [CODE_STATUS.unknown]: '' };
 const WAIT_MS = 10000;
 
 export default function airdropCodes(app, p = {}) {
@@ -49,11 +51,14 @@ export default function airdropCodes(app, p = {}) {
   const toBatches = () => app.go('airdropBatches', {}, { replace: Boolean(p.justCreated) });
   const isV3 = () => batch && batch.contractId === V3_CID;
   const n = () => batch.codes.length;
-  const plural = (k, one, many) => `${k} ${k === 1 ? one : many}`;
 
   function summaryLine() {
     const same = batch.codes.every((c) => c.value === batch.codes[0].value);
-    return h('p', { class: 'lead', 'data-testid': 'codes-summary', text: same ? `${plural(n(), 'code', 'codes')} · ${amountText(batch.assetId, BigInt(batch.codes[0].value))} each` : `${n()} codes · ${amountText(batch.assetId, batchTotal(batch))} in total` });
+    // Not all the same: two codes or more, so English always says "codes".
+    const text = same
+      ? tn({ one: '{n} code · {amount} each', other: '{n} codes · {amount} each' }, n(), { amount: amountText(batch.assetId, BigInt(batch.codes[0].value)) })
+      : tn({ one: '{n} code · {amount} in total', other: '{n} codes · {amount} in total' }, n(), { amount: amountText(batch.assetId, batchTotal(batch)) });
+    return h('p', { class: 'lead', 'data-testid': 'codes-summary', text });
   }
 
   /** New codes for the same airdrop: same asset, amount per code, count and prepaid fee. */
@@ -71,9 +76,9 @@ export default function airdropCodes(app, p = {}) {
     const confirmed = st === 'checking' || failedAt === 2;
     const c = at.confirmations;
     const rows = [
-      { mark: 'done', label: 'Batch sent' },
-      { mark: confirmed ? 'done' : failedAt === 1 ? 'failed' : 'active', label: 'Confirmed by the network', note: confirmed ? null : c == null ? 'waiting' : `${Math.min(c, CONFIRMATIONS_BEFORE_CHECK)} of ${CONFIRMATIONS_BEFORE_CHECK}` },
-      { mark: failedAt === 2 ? 'failed' : confirmed ? 'active' : 'waiting', label: 'Every code checked', note: confirmed && at.total ? `${at.done || 0} of ${at.total}` : null },
+      { mark: 'done', label: t('Batch sent') },
+      { mark: confirmed ? 'done' : failedAt === 1 ? 'failed' : 'active', label: t('Confirmed by the network'), note: confirmed ? null : c == null ? t('waiting') : t('{n} of {total}', { n: Math.min(c, CONFIRMATIONS_BEFORE_CHECK), total: CONFIRMATIONS_BEFORE_CHECK }) },
+      { mark: failedAt === 2 ? 'failed' : confirmed ? 'active' : 'waiting', label: t('Every code checked'), note: confirmed && at.total ? t('{n} of {total}', { n: at.done || 0, total: at.total }) : null },
     ];
     return h(
       'div',
@@ -86,49 +91,50 @@ export default function airdropCodes(app, p = {}) {
   function renderV3NotReady() {
     const st = v3 ? v3.state : 'waiting';
     if (st === 'failed') {
-      const why = CHECK_PROBLEM_TEXT[v3.problem] || 'A code did not check out.';
-      const el = notice('error', h('strong', { text: 'Do not share these codes. ' }), `${why} Someone may have copied this batch while it was on its way, so the codes could point to empty vouchers. Your funds are safe: ${v3.mined ? 'take this batch back in My batches to get them back,' : 'nothing more was locked,'} and make new codes.`);
+      const why = CHECK_PROBLEM_TEXT[v3.problem] ? t(CHECK_PROBLEM_TEXT[v3.problem]) : t('A code did not check out.');
+      const safe = v3.mined ? t('Your funds are safe: take this batch back in My batches to get them back, and make new codes.') : t('Your funds are safe: nothing more was locked, and make new codes.');
+      const el = notice('error', h('strong', { text: `${t('Do not share these codes.')} ` }), `${why} ${t('Someone may have copied this batch while it was on its way, so the codes could point to empty vouchers.')} ${safe}`);
       el.dataset.testid = 'codes-check-failed';
       put(body, summaryLine(), el);
-      put(actions, primary('Make new codes', makeNew, { 'data-testid': 'codes-make-new' }), v3.mined ? secondary('Take the batch back', toBatches, { 'data-testid': 'codes-take-back' }) : h('button', { class: 'btn btn-text', onclick: toBatches }, 'My batches'));
+      put(actions, primary(t('Make new codes'), makeNew, { 'data-testid': 'codes-make-new' }), v3.mined ? secondary(t('Take the batch back'), toBatches, { 'data-testid': 'codes-take-back' }) : h('button', { class: 'btn btn-text', onclick: toBatches }, t('My batches')));
       return;
     }
     if (st === 'notSent') {
-      const el = notice('info', h('strong', { text: 'This batch did not go through. ' }), v3.onChain ? 'The network turned it down, so nothing was locked and these codes hold nothing. Do not use them: make new codes.' : 'It was never sent, so nothing was locked and these codes hold nothing. They stay saved here anyway.');
+      const el = notice('info', h('strong', { text: `${t('This batch did not go through.')} ` }), v3.onChain ? t('The network turned it down, so nothing was locked and these codes hold nothing. Do not use them: make new codes.') : t('It was never sent, so nothing was locked and these codes hold nothing. They stay saved here anyway.'));
       el.dataset.testid = 'codes-not-sent';
       put(body, summaryLine(), el);
-      put(actions, primary('Make new codes', makeNew, { 'data-testid': 'codes-make-new' }), h('button', { class: 'btn btn-text', onclick: toBatches }, 'My batches'));
+      put(actions, primary(t('Make new codes'), makeNew, { 'data-testid': 'codes-make-new' }), h('button', { class: 'btn btn-text', onclick: toBatches }, t('My batches')));
       return;
     }
     const parts = [
-      p.justCreated ? notice('success', h('strong', { text: 'Batch sent. ' }), 'Wait a few minutes before sharing the codes.') : null,
+      p.justCreated ? notice('success', h('strong', { text: `${t('Batch sent.')} ` }), t('Wait a few minutes before sharing the codes.')) : null,
       summaryLine(),
       steps(),
-      h('p', { class: 'small', 'data-testid': 'codes-wait-why' }, 'Before you share them, BEAM Campfire makes sure every code points to the batch you made, so nobody can swap them for empty ones. The codes appear here once that is done. You can leave this screen and come back.'),
+      h('p', { class: 'small', 'data-testid': 'codes-wait-why' }, t('Before you share them, BEAM Campfire makes sure every code points to the batch you made, so nobody can swap them for empty ones. The codes appear here once that is done. You can leave this screen and come back.')),
     ];
     if (st === 'error') {
-      const el = notice('error', `The codes could not be checked: ${v3.error.message} They are saved on this device. `, h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'codes-check-again', onclick: () => runCheck() }, 'Check again'));
+      const el = notice('error', `${t('The codes could not be checked: {reason} They are saved on this device.', { reason: v3.error.message })} `, h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'codes-check-again', onclick: () => runCheck() }, t('Check again')));
       el.dataset.testid = 'codes-check-error';
       parts.push(el);
     }
     put(body, ...parts);
-    put(actions, h('button', { class: 'btn btn-text', onclick: toBatches }, 'My batches'));
+    put(actions, h('button', { class: 'btn btn-text', onclick: toBatches }, t('My batches')));
   }
 
   function render() {
     if (!alive) return;
     if (away) {
-      put(body, h('div', { class: 'card empty', 'data-testid': 'codes-away' }, icon('lock'), h('p', { class: 'small', text: 'Codes hidden while BEAM Campfire is in the background.' })));
+      put(body, h('div', { class: 'card empty', 'data-testid': 'codes-away' }, icon('lock'), h('p', { class: 'small', text: t('Codes hidden while BEAM Campfire is in the background.') })));
       put(actions);
       return;
     }
     if (error) {
-      put(body, notice('error', `The saved codes could not be opened: ${error.message} They stay saved on this device. `, h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: load }, 'Try again')));
-      put(actions, secondary('My batches', toBatches));
+      put(body, notice('error', `${t('The saved codes could not be opened: {reason} They stay saved on this device.', { reason: error.message })} `, h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: load }, t('Try again'))));
+      put(actions, secondary(t('My batches'), toBatches));
       return;
     }
     if (!batch) {
-      put(body, h('div', { class: 'card empty' }, h('div', { class: 'spinner' }), h('p', { class: 'small', text: 'Opening your saved codes…' })));
+      put(body, h('div', { class: 'card empty' }, h('div', { class: 'spinner' }), h('p', { class: 'small', text: t('Opening your saved codes…') })));
       return;
     }
     if (isV3() && (!v3 || v3.state !== 'ready')) return renderV3NotReady();
@@ -136,30 +142,44 @@ export default function airdropCodes(app, p = {}) {
     // offered for sharing; once none is left, nothing is (release audit 0.2.16).
     const open = isV3() ? batch.codes.filter((c) => c.status !== CODE_STATUS.claimed && c.status !== CODE_STATUS.takenBack) : batch.codes;
     const all = open.map((c) => c.code).join('\n');
-    const copyAll = open.length ? primary(`Copy all ${plural(open.length, 'code', 'codes')}`, () => copySecret(all, `${plural(open.length, 'code', 'codes')} copied`, { app }), { 'data-testid': 'codes-copy-all' }) : null;
+    const allCopied = tn({ one: '{n} code copied', other: '{n} codes copied' }, open.length);
+    const codeCopied = t('Code copied');
+    const copyAll = open.length ? primary(tn({ one: 'Copy all {n} code', other: 'Copy all {n} codes' }, open.length), () => copySecret(all, allCopied, { app }), { 'data-testid': 'codes-copy-all' }) : null;
+    const gasPaid = BigInt(batch.gasPerVoucher || '0') > 0n;
+    const readyText = open.length === batch.codes.length
+      ? (gasPaid ? t('Every code is on the network in your batch, with its claim fee paid.') : t('Every code is on the network in your batch.'))
+      : gasPaid
+        ? tn({ one: '{n} code is still on the network in your batch, with its claim fee paid.', other: '{n} codes are still on the network in your batch, with their claim fees paid.' }, open.length)
+        : tn({ one: '{n} code is still on the network in your batch.', other: '{n} codes are still on the network in your batch.' }, open.length);
     const ready = !isV3()
       ? null
       : open.length
-        ? notice('success', h('strong', { text: 'Ready to share. ' }), `${open.length === batch.codes.length ? 'Every code is' : `${plural(open.length, 'code is', 'codes are')} still`} on the network in your batch${BigInt(batch.gasPerVoucher || '0') > 0n ? ', with its claim fee paid' : ''}.`)
-        : notice('info', h('strong', { text: 'Nothing left to share. ' }), 'Every code of this batch was claimed or taken back.');
+        ? notice('success', h('strong', { text: asSentence(t('Ready to share.')) }), readyText)
+        : notice('info', h('strong', { text: asSentence(t('Nothing left to share.')) }), t('Every code of this batch was claimed or taken back.'));
+    const note = STORAGE_TEXT.codesNote[evictionRisk(app)];
     if (ready) ready.dataset.testid = 'codes-ready';
     put(
       body,
       ready ||
         (p.justCreated
-          ? notice('success', h('strong', { text: 'Batch sent. ' }), 'The codes start working once the network confirms it, usually within 2 minutes.')
+          ? notice('success', h('strong', { text: `${t('Batch sent.')} ` }), t('The codes start working once the network confirms it, usually within 2 minutes.'))
           : batch.txStatus === TX_STATUS.broadcast || batch.txStatus === TX_STATUS.unconfirmed
-            ? notice('info', 'This batch is waiting for the network. The codes start working once it is confirmed.')
+            ? notice('info', t('This batch is waiting for the network. The codes start working once it is confirmed.'))
             : batch.txStatus === TX_STATUS.failed
-              ? notice('info', 'This batch was never sent, so these codes hold nothing. They stay saved here anyway.')
+              ? notice('info', t('This batch was never sent, so these codes hold nothing. They stay saved here anyway.'))
               : null),
       summaryLine(),
       batch.txStatus === TX_STATUS.failed
         ? null
-        : notice('warn', h('strong', { text: 'These codes are the only key to the locked funds. ' }), `Anyone who has a code can claim it, so send each one only to its person. They are kept only on this device, in this wallet: copy them or save the file somewhere safe.${STORAGE_TEXT.codesNote[evictionRisk(app)] || ''}`),
+        : notice(
+            'warn',
+            h('strong', { text: `${t('These codes are the only key to the locked funds.')} ` }),
+            // The storage note is its own sentence, after a space (its key may still start with that space).
+            `${t('Anyone who has a code can claim it, so send each one only to its person. They are kept only on this device, in this wallet: copy them or save the file somewhere safe.')}${note ? ` ${t(note)}` : ''}`,
+          ),
       // Copying is the job: the button sits above the list, however long it is.
-      open.length ? h('div', { class: 'btn-row' }, copyAll, typeof navigator.share === 'function' ? secondary('Share', () => navigator.share({ text: all }).catch(() => {}), { 'data-testid': 'codes-share' }) : null) : null,
-      h('button', { class: 'btn btn-text link-left', type: 'button', 'data-testid': 'codes-csv', onclick: () => saveCsv(batch) }, icon('download'), 'Save as CSV file'),
+      open.length ? h('div', { class: 'btn-row' }, copyAll, typeof navigator.share === 'function' ? secondary(t('Share'), () => navigator.share({ text: all }).catch(() => {}), { 'data-testid': 'codes-share' }) : null) : null,
+      h('button', { class: 'btn btn-text link-left', type: 'button', 'data-testid': 'codes-csv', onclick: () => saveCsv(batch) }, icon('download'), t('Save as CSV file')),
       h(
         'div',
         { class: 'card list codes-list', 'data-testid': 'codes-list' },
@@ -168,24 +188,24 @@ export default function airdropCodes(app, p = {}) {
             'div',
             { class: 'row asset-row code-row' },
             h('span', { class: 'code-n', text: String(i + 1) }),
-            h('span', { class: 'main' }, h('div', { class: 't mono code-text', 'data-testid': 'code', text: c.code }), STATUS_TEXT[c.status] ? h('div', { class: 's', text: STATUS_TEXT[c.status] }) : null),
-            h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Copy code ${i + 1}`, onclick: () => copySecret(c.code, 'Code copied', { app }) }, icon('copy')),
+            h('span', { class: 'main' }, h('div', { class: 't mono code-text', 'data-testid': 'code', text: c.code }), STATUS_TEXT[c.status] ? h('div', { class: 's', text: t(STATUS_TEXT[c.status]) }) : null),
+            h('button', { class: 'icon-btn', type: 'button', 'aria-label': t('Copy code {n}', { n: i + 1 }), onclick: () => copySecret(c.code, codeCopied, { app }) }, icon('copy')),
           ),
         ),
       ),
     );
-    put(actions, h('button', { class: 'btn btn-text', onclick: toBatches }, 'My batches'));
+    put(actions, h('button', { class: 'btn btn-text', onclick: toBatches }, t('My batches')));
   }
 
   /** The codes as the desktop's CSV, to the share sheet (iPhone: Save to Files) or a download. Made on the tap, kept nowhere. */
   async function saveCsv(b) {
     try {
       const file = csvFile(b, { formatValue: (v) => formatAmount(v), assetLabel: wallet.label(b.assetId).unit });
-      const how = await deliverExport(file, { title: 'Airdrop codes' });
+      const how = await deliverExport(file, { title: t('Airdrop codes') });
       if (how === 'cancelled') return;
-      toast(`${how === 'shared' ? 'Shared' : 'Saved'} ${file.name}. Anyone who opens it can claim the codes: keep it private.`, 6000);
+      toast(how === 'shared' ? t('Shared {file}. Anyone who opens it can claim the codes: keep it private.', { file: file.name }) : t('Saved {file}. Anyone who opens it can claim the codes: keep it private.', { file: file.name }), 6000);
     } catch {
-      toast("Couldn't save the file. Try Copy all codes instead.");
+      toast(t("Couldn't save the file. Try Copy all codes instead."));
     }
   }
 
@@ -224,7 +244,7 @@ export default function airdropCodes(app, p = {}) {
     try {
       const list = await airdrop(app).savedBatches();
       batch = list.find((b) => b.localId === p.localId) || null;
-      if (!batch) error = new Error('This batch is not among the codes saved on this device.');
+      if (!batch) error = new Error(t('This batch is not among the codes saved on this device.'));
     } catch (e) {
       error = e;
     }
@@ -244,7 +264,7 @@ export default function airdropCodes(app, p = {}) {
   });
 
   load();
-  const el = screen({ title: p.justCreated ? 'Your airdrop codes' : 'Airdrop codes', back: () => app.back(p.justCreated ? 'airdrop' : 'airdropBatches'), cls: 'airdrop-codes feature' }, body);
+  const el = screen({ title: p.justCreated ? t('Your airdrop codes') : t('Airdrop codes'), back: () => app.back(p.justCreated ? 'airdrop' : 'airdropBatches'), cls: 'airdrop-codes feature' }, body);
   el.appendChild(actions);
   return {
     el,

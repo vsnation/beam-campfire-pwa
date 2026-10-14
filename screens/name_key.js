@@ -17,26 +17,27 @@ import { screen, notice, copyText, onHidden, onShown } from '../lib/ui.js';
 import { encodeQr, qrSvgPath } from '../lib/qr.js';
 import { checkCode } from '../lib/bans.js';
 import { bans } from './names.js';
+import { t } from '../lib/i18n.js';
 
 function qrOf(text) {
   const qr = encodeQr(text, { ecl: 'M' });
   const n = qr.size + 8;
-  return svg('svg', { viewBox: `0 0 ${n} ${n}`, 'shape-rendering': 'crispEdges', role: 'img', 'aria-label': 'QR code of the name key' }, svg('rect', { width: n, height: n, fill: '#ffffff' }), svg('path', { d: qrSvgPath(qr, 4), fill: '#000000' }));
+  return svg('svg', { viewBox: `0 0 ${n} ${n}`, 'shape-rendering': 'crispEdges', role: 'img', 'aria-label': t('QR code of the name key') }, svg('rect', { width: n, height: n, fill: '#ffffff' }), svg('path', { d: qrSvgPath(qr, 4), fill: '#000000' }));
 }
 
 export default function nameKey(app) {
   let key = null;
   let alive = true;
   const box = h('div', { class: 'name-stack' });
-  const cta = h('button', { class: 'btn btn-primary', 'data-testid': 'name-key-copy', disabled: true, onclick: () => key && copyText(key, 'Name key copied') }, icon('copy'), h('span', { text: 'Copy my name key' }));
+  const cta = h('button', { class: 'btn btn-primary', 'data-testid': 'name-key-copy', disabled: true, onclick: () => key && copyText(key, t('Name key copied')) }, icon('copy'), h('span', { text: t('Copy my name key') }));
 
   async function load() {
-    put(box, h('div', { class: 'card empty' }, h('div', { class: 'spinner' }), h('p', { class: 'small', text: 'Reading your name key…' })));
+    put(box, h('div', { class: 'card empty' }, h('div', { class: 'spinner' }), h('p', { class: 'small', text: t('Reading your name key…') })));
     try {
       key = await bans().myKey();
     } catch (e) {
       if (!alive) return;
-      put(box, notice('error', `Your name key could not be read: ${e.message} `, h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: load }, 'Try again')));
+      put(box, notice('error', t('Your name key could not be read: {reason}', { reason: e.message }), ' ', h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: load }, t('Try again'))));
       return;
     }
     if (!alive) return;
@@ -53,7 +54,7 @@ export default function nameKey(app) {
         { class: 'card key-card' },
         h('div', { class: 'qr' }, qrOf(key)),
         h('p', { class: 'check-code mono center', 'data-testid': 'name-key-check', text: checkCode(key) }),
-        h('p', { class: 'small center', 'data-testid': 'name-key-hint', text: 'Whoever gives you a name reads out 16 characters. They must match these, every one.' }),
+        h('p', { class: 'small center', 'data-testid': 'name-key-hint', text: t('Whoever gives you a name reads out 16 characters. They must match these, every one.') }),
         h('p', { class: 'mono small center', 'data-testid': 'name-key', text: key }),
       ),
     );
@@ -66,10 +67,10 @@ export default function nameKey(app) {
 
   load();
   const el = screen(
-    { title: 'Receive a name', back: () => app.back('names'), cls: 'names feature sticky-actions', actions: [cta] },
-    h('p', { class: 'lead', text: "To move a name into this wallet, give its current owner this key. They paste it under the name's Transfer." }),
+    { title: t('Receive a name'), back: () => app.back('names'), cls: 'names feature sticky-actions', actions: [cta] },
+    h('p', { class: 'lead', text: t("To move a name into this wallet, give its current owner this key. They paste it under the name's Transfer.") }),
     box,
-    h('p', { class: 'small', 'data-testid': 'name-key-safe', text: 'Sharing it is safe: it cannot move money. Anyone who has it can see which names belong to this wallet.' }),
+    h('p', { class: 'small', 'data-testid': 'name-key-safe', text: t('Sharing it is safe: it cannot move money. Anyone who has it can see which names belong to this wallet.') }),
   );
   return {
     el,

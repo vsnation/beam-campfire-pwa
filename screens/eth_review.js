@@ -19,6 +19,7 @@ import { confirmIdentity } from '../lib/auth_ui.js';
 import { prepareSend, signAndSend, costRose, SendError } from '../lib/eth/send.js';
 import { ETH } from '../lib/eth/tokens.js';
 import { amountText, exactText, ethText, ethMaxText, groupedAddress, highFeeBlock, doubtNotice } from './eth_ui.js';
+import { t } from '../lib/i18n.js';
 
 /** Re-checked before signing when the review is older than this. */
 const FRESH_MS = 60000;
@@ -33,10 +34,10 @@ export function openEthReview(app, w, first) {
     const p = prepared;
     const blocked = p.highFee && !feeAck;
     const isEth = p.asset === ETH;
-    const label = `Send ${amountText(p.amount, p.asset, { approx: false })}`;
+    const label = t('Send {amount}', { amount: amountText(p.amount, p.asset, { approx: false }) });
     const total = isEth
-      ? [h('span', { 'data-testid': 'eth-review-total', text: `about ${ethText(p.amount + p.fees.likely)}` }), h('div', { class: 'small', text: `at most ${ethMaxText(p.amount + p.fees.upTo)}` })]
-      : [h('span', { 'data-testid': 'eth-review-total', text: `${amountText(p.amount, p.asset, { approx: false })} + about ${ethText(p.fees.likely)}` }), h('div', { class: 'small', text: `fee at most ${ethMaxText(p.fees.upTo)}` })];
+      ? [h('span', { 'data-testid': 'eth-review-total', text: t('about {fee}', { fee: ethText(p.amount + p.fees.likely) }) }), h('div', { class: 'small', text: t('at most {fee}', { fee: ethMaxText(p.amount + p.fees.upTo) }) })]
+      : [h('span', { 'data-testid': 'eth-review-total', text: t('{amount} + about {fee}', { amount: amountText(p.amount, p.asset, { approx: false }), fee: ethText(p.fees.likely) }) }), h('div', { class: 'small', text: t('fee at most {fee}', { fee: ethMaxText(p.fees.upTo) }) })];
 
     const confirm = async () => {
       if (busy || blocked) return;
@@ -56,17 +57,17 @@ export function openEthReview(app, w, first) {
             prepared = fresh;
             feeAck = false;
             busy = false;
-            message = notice('warn', 'The network fee went up since you opened this. Check the new amounts, then send.');
+            message = notice('warn', t('The network fee went up since you opened this. Check the new amounts, then send.'));
             return rerender();
           }
           prepared = { ...prepared, preparedAt: fresh.preparedAt };
         }
-        const ok = await confirmIdentity(app, { title: 'Confirm the payment', detail: `${amountText(p.amount, p.asset, { approx: false })} to ${shorten(p.recipient, 8, 6)}`, cta: 'Confirm' });
+        const ok = await confirmIdentity(app, { title: t('Confirm the payment'), detail: t('{amount} to {address}', { amount: amountText(p.amount, p.asset, { approx: false }), address: shorten(p.recipient, 8, 6) }), cta: t('Confirm') });
         if (!ok) {
           busy = false;
           return;
         }
-        message = h('p', { class: 'small center', 'data-testid': 'eth-sending', text: 'Signing and sending…' });
+        message = h('p', { class: 'small center', 'data-testid': 'eth-sending', text: t('Signing and sending…') });
         rerender();
         const r = await signAndSend(app, w.rpc, prepared, { ethId: w.ethId });
         await w.reloadOutbox().catch(() => {});
@@ -78,22 +79,22 @@ export function openEthReview(app, w, first) {
         if (e && e.code === 'in_doubt') message = doubtNotice(app, e.entry, { inSheet: true, testid: 'eth-review-doubt' });
         else {
           const why = e instanceof SendError ? e.message : `${e.message}${/\.$/.test(e.message) ? '' : '.'}`;
-          message = notice('error', `Nothing was sent. ${why}`);
+          message = notice('error', t('Nothing was sent. {reason}', { reason: why }));
         }
         rerender();
       }
     };
 
     return [
-      h('h2', { text: 'Check before sending' }),
+      h('h2', { text: t('Check before sending') }),
       h('div', { class: 'big-amount', 'data-testid': 'eth-review-amount', text: exactText(p.amount, p.asset) }),
       h(
         'div',
         { class: 'card' },
-        h('div', { class: 'kv kv-stack' }, h('span', { class: 'k', text: 'To' }), h('span', { class: 'v mono addr-groups', 'data-testid': 'eth-review-to', 'data-address': p.recipient, text: groupedAddress(p.recipient) })),
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Network' }), h('span', { class: 'v', text: 'Ethereum' })),
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Network fee' }), h('span', { class: 'v' }, h('span', { 'data-testid': 'eth-review-fee', text: `about ${ethText(p.fees.likely)}` }), h('div', { class: 'small', 'data-testid': 'eth-review-fee-max', text: `at most ${ethMaxText(p.fees.upTo)}` }))),
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Total' }), h('span', { class: 'v' }, ...total)),
+        h('div', { class: 'kv kv-stack' }, h('span', { class: 'k', text: t('To') }), h('span', { class: 'v mono addr-groups', 'data-testid': 'eth-review-to', 'data-address': p.recipient, text: groupedAddress(p.recipient) })),
+        h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Network') }), h('span', { class: 'v', text: 'Ethereum' })), // i18n-ignore: a brand name
+        h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Network fee') }), h('span', { class: 'v' }, h('span', { 'data-testid': 'eth-review-fee', text: t('about {fee}', { fee: ethText(p.fees.likely) }) }), h('div', { class: 'small', 'data-testid': 'eth-review-fee-max', text: t('at most {fee}', { fee: ethMaxText(p.fees.upTo) }) }))),
+        h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Total') }), h('span', { class: 'v' }, ...total)),
       ),
       ...(p.highFee
         ? highFeeBlock({
@@ -106,11 +107,11 @@ export function openEthReview(app, w, first) {
             },
           })
         : []),
-      notice('info', 'Ethereum payments cannot be cancelled or undone once sent, and anyone can see them.'),
+      notice('info', t('Ethereum payments cannot be cancelled or undone once sent, and anyone can see them.')),
       message,
-      h('button', { class: 'btn btn-primary', onclick: confirm, disabled: busy || blocked, 'data-testid': 'eth-review-send' }, busy ? 'Sending…' : label),
-      h('button', { class: 'btn btn-text', onclick: () => close(false), disabled: busy, 'data-testid': 'eth-review-change' }, 'Change'),
+      h('button', { class: 'btn btn-primary', onclick: confirm, disabled: busy || blocked, 'data-testid': 'eth-review-send' }, busy ? t('Sending…') : label),
+      h('button', { class: 'btn btn-text', onclick: () => close(false), disabled: busy, 'data-testid': 'eth-review-change' }, t('Change')),
     ];
-  }, { label: 'Check before sending' });
+  }, { label: t('Check before sending') });
   return sheet;
 }

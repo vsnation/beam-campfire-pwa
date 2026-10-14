@@ -6,16 +6,17 @@ import { icon } from '../lib/icons.js';
 import { formatAmount } from '../lib/amount.js';
 import { wallet, isPendingTx } from '../lib/wallet.js';
 import { loadCoins, privateBalanceText, COIN_TEXT, coinStatusText, coinKind, splitStatusText } from '../lib/coins.js';
+import { t } from '../lib/i18n.js';
 
 /** Home's balance: one tap to the coins and Split coins. */
 export function coinsLink(app) {
-  return h('button', { class: 'btn btn-text btn-small coins-link', type: 'button', 'data-testid': 'open-coins', onclick: () => app.go('coins') }, h('span', { text: 'Coins' }), icon('chevron'));
+  return h('button', { class: 'btn btn-text btn-small coins-link', type: 'button', 'data-testid': 'open-coins', onclick: () => app.go('coins') }, h('span', { text: t('Coins') }), icon('chevron'));
 }
 
 // The coins behind a private balance, read once per change of the balances (get_utxo).
 let cache = { session: null, sig: null, coins: null, loading: false };
 
-const sigOf = (s) => [...s.totals].map(([id, t]) => `${id}:${t.maturing}:${t.maturingMp || 0n}:${t.available}`).join('|');
+const sigOf = (s) => [...s.totals].map(([id, tot]) => `${id}:${tot.maturing}:${tot.maturingMp || 0n}:${tot.available}`).join('|');
 
 /** The private coins of assetId BEAM is holding back, or null until they are read. Each read re-renders through the wallet's change event. */
 export function privateCoins(assetId) {
@@ -41,20 +42,20 @@ export function privateCoins(assetId) {
 }
 
 /** The parts of a "maturing" amount for a one-line summary: regular coins, then private ones. */
-export function maturingParts(t, { withPrivate = true } = {}) {
-  if (!t || !(t.maturing > 0n)) return [];
-  const mp = t.maturingMp || 0n;
-  const regular = t.maturing - mp;
+export function maturingParts(tot, { withPrivate = true } = {}) {
+  if (!tot || !(tot.maturing > 0n)) return [];
+  const mp = tot.maturingMp || 0n;
+  const regular = tot.maturing - mp;
   const out = [];
-  if (regular > 0n) out.push(`${formatAmount(regular)} maturing`);
-  if (withPrivate && mp > 0n) out.push(`${formatAmount(mp)} private, not yet spendable`);
+  if (regular > 0n) out.push(t('{amount} maturing', { amount: formatAmount(regular) }));
+  if (withPrivate && mp > 0n) out.push(t('{amount} private, not yet spendable', { amount: formatAmount(mp) }));
   return out;
 }
 
 /** Under a balance: a private amount BEAM still holds back, and when it can be spent. One tap shows each coin. */
 export function privateLine(app, s, assetId = 0, unit = null) {
-  const t = s.totals.get(Number(assetId));
-  if (!t || !(t.maturingMp > 0n)) return null;
+  const tot = s.totals.get(Number(assetId));
+  if (!tot || !(tot.maturingMp > 0n)) return null;
   const coins = privateCoins(assetId);
   const u = unit || wallet.label(assetId).unit;
   const height = s.status ? Number(s.status.current_height) : null;
@@ -62,7 +63,7 @@ export function privateLine(app, s, assetId = 0, unit = null) {
     'button',
     { class: 'private-line', type: 'button', 'data-testid': 'private-maturing', onclick: () => app.go('coins', { assetId: Number(assetId) }) },
     icon('shield'),
-    h('span', { text: privateBalanceText(t.maturingMp, u, coins, height) }),
+    h('span', { text: privateBalanceText(tot.maturingMp, u, coins, height) }),
     icon('chevron'),
   );
 }
@@ -78,28 +79,28 @@ export function splitRow(app, tx, onclick) {
     { class: 'row', onclick, 'data-txid': tx.txId, 'data-split': '1' },
     h('span', { class: `ico ${failed ? 'fail' : 'swap'}` }, icon(isPendingTx(tx) ? 'clock' : 'coins')),
     h('span', { class: 'main' }, h('div', { class: 't', text: splitStatusText(tx) }), h('div', { class: 's', text: `${fmtDate(tx.create_time)} · ${formatAmount(BigInt(tx.value || 0))} ${unit}` })),
-    h('span', { class: 'end', text: `−${formatAmount(BigInt(tx.fee || 0))} BEAM` }),
+    h('span', { class: 'end', text: `−${formatAmount(BigInt(tx.fee || 0))} BEAM` }), // i18n-ignore: an amount and the ticker
   );
 }
 
 /** A split's details (Activity's sheet). */
-export function splitDetail(app, t, close, kv) {
-  const unit = wallet.label(t.asset_id || 0).unit;
+export function splitDetail(app, tx, close, kv) {
+  const unit = wallet.label(tx.asset_id || 0).unit;
   return [
-    h('h2', { 'data-testid': 'tx-detail-title', text: splitStatusText(t) }),
-    h('div', { class: 'big-amount', text: `${formatAmount(BigInt(t.value || 0))} ${unit}` }),
+    h('h2', { 'data-testid': 'tx-detail-title', text: splitStatusText(tx) }),
+    h('div', { class: 'big-amount', text: `${formatAmount(BigInt(tx.value || 0))} ${unit}` }),
     h(
       'div',
       { class: 'card' },
-      kv('Status', splitStatusText(t)),
-      kv('Date', fmtDate(t.create_time)),
-      kv('What happened', 'Split into new coins in this wallet'),
-      kv('Network fee', `${formatAmount(BigInt(t.fee || 0))} BEAM`),
-      t.kernel && /[1-9a-f]/.test(t.kernel) ? kv('Kernel ID', `${t.kernel.slice(0, 10)}…${t.kernel.slice(-8)}`, { copy: t.kernel }) : null,
-      t.failure_reason ? kv('Reason', t.failure_reason) : null,
+      kv(t('Status'), splitStatusText(tx)),
+      kv(t('Date'), fmtDate(tx.create_time)),
+      kv(t('What happened'), t('Split into new coins in this wallet')),
+      kv(t('Network fee'), `${formatAmount(BigInt(tx.fee || 0))} BEAM`),
+      tx.kernel && /[1-9a-f]/.test(tx.kernel) ? kv(t('Kernel ID'), `${tx.kernel.slice(0, 10)}…${tx.kernel.slice(-8)}`, { copy: tx.kernel }) : null,
+      tx.failure_reason ? kv(t('Reason'), tx.failure_reason) : null, // failure_reason: the engine's own words
     ),
-    h('p', { class: 'small', text: 'Nothing left your wallet but the network fee.' }),
-    h('button', { class: 'btn btn-text', onclick: () => close() }, 'Close'),
+    h('p', { class: 'small', text: t('Nothing left your wallet but the network fee.') }),
+    h('button', { class: 'btn btn-text', onclick: () => close() }, t('Close')),
   ];
 }
 
@@ -131,8 +132,8 @@ export function coinList(summary, symbol, height) {
             );
           }),
         )
-      : h('div', { class: 'card empty', 'data-testid': 'coin-list-empty' }, icon('coins'), h('p', { text: COIN_TEXT.empty })),
-    rows.length ? h('p', { class: 'small', text: COIN_TEXT.note }) : null,
-    anyPrivate ? h('p', { class: 'small', 'data-testid': 'coin-private-note', text: COIN_TEXT.privateNote }) : null,
+      : h('div', { class: 'card empty', 'data-testid': 'coin-list-empty' }, icon('coins'), h('p', { text: t(COIN_TEXT.empty) })),
+    rows.length ? h('p', { class: 'small', text: t(COIN_TEXT.note) }) : null,
+    anyPrivate ? h('p', { class: 'small', 'data-testid': 'coin-private-note', text: COIN_TEXT.privateNote() }) : null,
   ];
 }

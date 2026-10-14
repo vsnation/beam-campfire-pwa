@@ -14,19 +14,20 @@ import { screen, primary, secondary, notice, copyText } from '../lib/ui.js';
 import { qrElement } from './receive.js';
 import { ethWallet } from '../lib/eth/wallet.js';
 import { groupedAddress } from './eth_ui.js';
+import { t, tNodes } from '../lib/i18n.js';
 
 export default function ethReceive(app) {
   const qrBox = h('div', { class: 'qr' }, h('div', { class: 'spinner' }));
   const addrText = h('p', { class: 'mono addr-groups', 'data-testid': 'eth-receive-address' });
   const canShare = typeof navigator.share === 'function';
-  const shareBtn = primary(h('span', {}, canShare ? 'Share address' : 'Copy address'), () => (canShare ? share() : copy()), { disabled: true, 'data-testid': 'eth-share' });
+  const shareBtn = primary(h('span', {}, canShare ? t('Share address') : t('Copy address')), () => (canShare ? share() : copy()), { disabled: true, 'data-testid': 'eth-share' });
   shareBtn.prepend(icon(canShare ? 'share' : 'copy'));
-  const copyBtn = canShare ? secondary(h('span', {}, 'Copy'), copy, { disabled: true, 'data-testid': 'eth-copy' }) : null;
+  const copyBtn = canShare ? secondary(h('span', {}, t('Copy')), copy, { disabled: true, 'data-testid': 'eth-copy' }) : null;
   if (copyBtn) copyBtn.prepend(icon('copy'));
   let address = null;
 
   function copy() {
-    if (address) copyText(address, 'Address copied');
+    if (address) copyText(address, t('Address copied'));
   }
   async function share() {
     try {
@@ -41,7 +42,7 @@ export default function ethReceive(app) {
     if (!w) return app.go('ethHome');
     address = w.state.address;
     qrBox.replaceChildren(qrElement(address));
-    qrBox.firstChild.setAttribute('aria-label', 'QR code of the Ethereum address');
+    qrBox.firstChild.setAttribute('aria-label', t('QR code of the Ethereum address'));
     addrText.textContent = groupedAddress(address);
     addrText.dataset.address = address;
     shareBtn.disabled = false;
@@ -49,11 +50,11 @@ export default function ethReceive(app) {
   })();
 
   const el = screen(
-    { title: 'Receive on Ethereum', back: () => app.back('ethHome'), actions: [shareBtn, copyBtn] },
+    { title: t('Receive on Ethereum'), back: () => app.back('ethHome'), actions: [shareBtn, copyBtn] },
     qrBox,
     h('div', { class: 'address-box' }, addrText),
-    notice('info', h('strong', { text: 'Ethereum mainnet only: ' }), 'ETH and Ethereum tokens such as WBEAM, USDT or USDC. Payments arrive even while this app is closed.'),
-    h('p', { class: 'small', text: 'Everything this address receives is public on Ethereum. For private payments, use your BEAM address.' }),
+    notice('info', ...tNodes('{lead} ETH and Ethereum tokens such as WBEAM, USDT or USDC. Payments arrive even while this app is closed.', { lead: h('strong', { text: t('Ethereum mainnet only:') }) })),
+    h('p', { class: 'small', text: t('Everything this address receives is public on Ethereum. For private payments, use your BEAM address.') }),
   );
   return { el };
 }

@@ -43,6 +43,7 @@ import { signAndBroadcast, permitSigner, walletAsset } from '../lib/eth/uniswap_
 import { ethBadge, highFeeBlock, doubtNotice } from './eth_ui.js';
 import { feeShare, isHighFee } from '../lib/eth/send.js';
 import { secondOpinionWords } from '../lib/eth/second_opinion.js';
+import { t, tn, tk } from '../lib/i18n.js';
 
 // ------------------------------------------------------------------ words
 
@@ -54,8 +55,8 @@ export function kv(label, value, extra = {}, note = null) {
 }
 
 /** A token's badge: ETH's diamond, WBEAM as BEAM, others as letters. */
-export function tokenBadge(t, size = '') {
-  return ethBadge(walletAsset(t) || { symbol: t.symbol }, size);
+export function tokenBadge(tok, size = '') {
+  return ethBadge(walletAsset(tok) || { symbol: tok.symbol }, size);
 }
 
 // ------------------------------------------------------------------ pools
@@ -90,10 +91,10 @@ function priceOf(r, a, b) {
  * how much of it each takes.
  */
 export function poolsList({ rows, error, a, b, quote, retry }) {
-  const intro = h('p', { class: 'small', text: `Every Uniswap pool between ${a.symbol} and ${b.symbol}, from Uniswap's own records (v2, v3 and v4).` });
-  if (error) return [intro, notice('error', h('strong', { text: "Couldn't read the pools. " }), 'Your Ethereum server did not answer. Nothing was sent.', retry ? h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-secondary btn-small', onclick: retry }, 'Try again')) : null)];
-  if (!rows) return [intro, h('p', { class: 'small', 'data-testid': 'uni-pools-loading', text: `Looking at every Uniswap pool between ${a.symbol} and ${b.symbol}…` }), h('div', { class: 'progress indeterminate' }, h('div'))];
-  if (!rows.length) return [intro, notice('info', `No pool between ${a.symbol} and ${b.symbol}. The swap can still go through another token (ETH, USDC, USDT, DAI, WBTC or WBEAM) when both sides trade with it.`)];
+  const intro = h('p', { class: 'small', text: t("Every Uniswap pool between {pay} and {receive}, from Uniswap's own records (v2, v3 and v4).", { pay: a.symbol, receive: b.symbol }) });
+  if (error) return [intro, notice('error', h('strong', { text: `${t("Couldn't read the pools.")} ` }), t('Your Ethereum server did not answer. Nothing was sent.'), retry ? h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-secondary btn-small', onclick: retry }, t('Try again'))) : null)];
+  if (!rows) return [intro, h('p', { class: 'small', 'data-testid': 'uni-pools-loading', text: t('Looking at every Uniswap pool between {pay} and {receive}…', { pay: a.symbol, receive: b.symbol }) }), h('div', { class: 'progress indeterminate' }, h('div'))];
+  if (!rows.length) return [intro, notice('info', t('No pool between {pay} and {receive}. The swap can still go through another token (ETH, USDC, USDT, DAI, WBTC or WBEAM) when both sides trade with it.', { pay: a.symbol, receive: b.symbol }))];
   const samePair = quote && quote.tokenIn.sameAsset(a) && quote.tokenOut.sameAsset(b);
   const live = rows.filter((r) => r.state && r.state.isLive);
   const deepest = live.length ? poolDepth(live[0].state) : 0n;
@@ -106,8 +107,9 @@ export function poolsList({ rows, error, a, b, quote, retry }) {
   const viaShare = via.reduce((s, p) => s + quote.shareOf(p), 0);
   return [
     intro,
-    h('p', { class: 'small', 'data-testid': 'uni-pools-summary', text: `${live.length} of ${rows.length} pools can trade now. Your swap is shared between the pools that, together, give you the most, so no one pool moves far.` }),
-    via.length ? h('p', { class: 'small', 'data-testid': 'uni-pools-via', text: `Another ${Math.max(1, Math.round(viaShare * 100))}% of your swap goes through a second token, on pools not listed here.` }) : null,
+    // "pools" whatever the count, as before ("1 of 1 pools"): a plain text, not a count form.
+    h('p', { class: 'small', 'data-testid': 'uni-pools-summary', text: t('{live} of {total} pools can trade now. Your swap is shared between the pools that, together, give you the most, so no one pool moves far.', { live: live.length, total: rows.length }) }),
+    via.length ? h('p', { class: 'small', 'data-testid': 'uni-pools-via', text: t('Another {share} of your swap goes through a second token, on pools not listed here.', { share: `${Math.max(1, Math.round(viaShare * 100))}%` }) }) : null,
     h(
       'div',
       { class: 'pool-list' },
@@ -117,27 +119,30 @@ export function poolsList({ rows, error, a, b, quote, retry }) {
         const bar = h('div', { class: 'depth' }, h('div'));
         if (isLive && deepest > 0n) bar.firstChild.style.setProperty('width', `${Math.max(2, Math.min(100, Number((poolDepth(r.state) * 1000n) / deepest) / 10))}%`);
         const hooks = r.pool instanceof UniV4Pool && r.pool.hasHooks;
-        const weth = r.pool.version === 'v4' && r.pool.currency0 !== NATIVE_ETH && (a.isEthLike || b.isEthLike) ? ' · WETH' : '';
+        const weth = r.pool.version === 'v4' && r.pool.currency0 !== NATIVE_ETH && (a.isEthLike || b.isEthLike) ? ' · WETH' : ''; // i18n-ignore: a token symbol after the separator
+        const fee = feeText(r.pool.fee);
         return h(
           'div',
           { class: `card flat pool-row${used ? ' used' : ''}`, 'data-testid': 'uni-pool', 'data-pool': r.pool.id, 'data-share': used || '' },
-          h('div', { class: 'banner' }, h('strong', { text: `Uniswap ${r.pool.version}` }), h('span', { class: 'small grow', text: `${feeText(r.pool.fee)} fee${hooks ? ' · hook' : ''}${weth}` }), used ? h('span', { class: 'share', text: `${used} of your swap` }) : isLive ? null : h('span', { class: 'small', text: 'empty' })),
+          // i18n-ignore: the brand and the pool's version (v2, v3, v4)
+          h('div', { class: 'banner' }, h('strong', { text: `Uniswap ${r.pool.version}` }), h('span', { class: 'small grow', text: `${hooks ? t('{fee} fee · hook', { fee }) : t('{fee} fee', { fee })}${weth}` }), used ? h('span', { class: 'share', text: t('{share} of your swap', { share: used }) }) : isLive ? null : h('span', { class: 'small', text: t('empty') })),
           isLive ? h('div', { class: 'small', text: priceOf(r, a, b) }) : null,
           isLive ? bar : null,
         );
       }),
-      rows.length > 40 ? h('p', { class: 'small', text: `…and ${rows.length - 40} more without liquidity.` }) : null,
+      rows.length > 40 ? h('p', { class: 'small', text: tn({ one: '…and {n} more without liquidity.', other: '…and {n} more without liquidity.' }, rows.length - 40) }) : null,
     ),
   ];
 }
 
 // ------------------------------------------------------------------ price protection
 
+// Shown with t(): read before any language is known.
 const SLIPPAGE_WORDS = {
-  50: '0.5%: strict; fails more often when others trade',
-  100: '1%: a good default',
-  300: '3%: for small pools that move a lot',
-  500: '5%: only for very thin pools',
+  50: tk('0.5%: strict; fails more often when others trade'),
+  100: tk('1%: a good default'),
+  300: tk('3%: for small pools that move a lot'),
+  500: tk('5%: only for very thin pools'),
 };
 
 /** The price protection choices → the bips chosen, or undefined. */
@@ -145,18 +150,18 @@ export function pickSlippage(current) {
   return new Promise((resolve) => {
     openSheet(
       (close) => [
-        h('h2', { text: 'Price protection' }),
-        h('p', { class: 'lead', text: 'If the price moves against you by more than this before your swap is mined, Ethereum cancels the swap and you keep your coins (only the network fee is spent). Also called slippage.' }),
+        h('h2', { text: t('Price protection') }),
+        h('p', { class: 'lead', text: t('If the price moves against you by more than this before your swap is mined, Ethereum cancels the swap and you keep your coins (only the network fee is spent). Also called slippage.') }),
         h(
           'div',
           { class: 'card list' },
           ...SLIPPAGE_CHOICES.map((b) =>
-            h('button', { class: `row${b === current ? ' on' : ''}`, role: 'radio', 'aria-checked': String(b === current), 'data-testid': `uni-slippage-${b}`, onclick: () => close(b) }, h('span', { class: `radio${b === current ? ' on' : ''}` }), h('span', { class: 'main' }, h('div', { class: 't', text: SLIPPAGE_WORDS[b] }))),
+            h('button', { class: `row${b === current ? ' on' : ''}`, role: 'radio', 'aria-checked': String(b === current), 'data-testid': `uni-slippage-${b}`, onclick: () => close(b) }, h('span', { class: `radio${b === current ? ' on' : ''}` }), h('span', { class: 'main' }, h('div', { class: 't', text: t(SLIPPAGE_WORDS[b]) }))),
           ),
         ),
-        h('button', { class: 'btn btn-text', onclick: () => close() }, 'Close'),
+        h('button', { class: 'btn btn-text', onclick: () => close() }, t('Close')),
       ],
-      { label: 'Price protection' },
+      { label: t('Price protection') },
     ).then(resolve);
   });
 }
@@ -169,8 +174,8 @@ export function pickSlippage(current) {
  * amount. Resolves true once Ethereum has confirmed the approval.
  */
 export function openAllowSheet(app, { w, svc, approval }) {
-  const t = approval.token;
-  const asset = walletAsset(t);
+  const tok = approval.token;
+  const asset = walletAsset(tok);
   const twoSteps = approval.kind === 'resetThenApprove';
   let txs = null;
   let phase = 'choose'; // choose | sending | waiting | failed
@@ -191,7 +196,7 @@ export function openAllowSheet(app, { w, svc, approval }) {
             error = null;
             return rerender();
           }
-          const ok = await confirmIdentity(app, { title: `Allow ${t.symbol}`, detail: `Uniswap may move exactly ${amt(approval.amount, t)}`, cta: 'Confirm' });
+          const ok = await confirmIdentity(app, { title: t('Allow {symbol}', { symbol: tok.symbol }), detail: t('Uniswap may move exactly {amount}', { amount: amt(approval.amount, tok) }), cta: t('Confirm') });
           if (!ok) return;
           phase = 'sending';
           error = null;
@@ -200,14 +205,14 @@ export function openAllowSheet(app, { w, svc, approval }) {
             for (const tx of txs) {
               const r = await signAndBroadcast(app, w, tx, { kind: tx.kind, asset, amount: tx.kind === 'approveReset' ? 0n : approval.amount, extra: { spender: ADDRESSES.permit2 } });
               // Refused: most likely not sent, but the server may have passed it on (lib/eth/send.js keeps checking).
-              if (!r.sent && (r.entry.refusedAt || r.entry.state === 'rejected')) throw new Error(`Your Ethereum server refused it: "${r.error && r.error.message}". It most likely did not go through; it shows in your Ethereum activity while BEAM Campfire checks.`);
+              if (!r.sent && (r.entry.refusedAt || r.entry.state === 'rejected')) throw new Error(t('Your Ethereum server refused it: "{reason}". It most likely did not go through; it shows in your Ethereum activity while BEAM Campfire checks.', { reason: String(r.error && r.error.message) }));
               hash = r.entry.hash;
               phase = 'waiting';
               rerender();
               const done = await svc.waitForReceipt(hash, { every: 2000 });
               await w.followOpen().catch(() => {});
-              if (!done) throw new Error('Ethereum has not confirmed it yet. It may still go through; try the swap again in a minute.');
-              if (!done.success) throw new Error('Ethereum refused it. Nothing was approved.');
+              if (!done) throw new Error(t('Ethereum has not confirmed it yet. It may still go through; try the swap again in a minute.'));
+              if (!done.success) throw new Error(t('Ethereum refused it. Nothing was approved.'));
             }
             close(true);
           } catch (e) {
@@ -217,39 +222,40 @@ export function openAllowSheet(app, { w, svc, approval }) {
               error = null;
             } else {
               phase = 'failed';
-              error = e instanceof EthRpcError ? `Your Ethereum server said: "${e.message}". Nothing was approved.` : e.message;
+              error = e instanceof EthRpcError ? t('Your Ethereum server said: "{reason}". Nothing was approved.', { reason: e.message }) : e.message;
             }
             rerender();
           }
         };
         return [
-          h('h2', { text: `Allow ${t.symbol}` }),
-          h('p', { class: 'lead', text: `Before ${t.symbol} can be swapped, Ethereum needs your permission for Uniswap to move it. This is its own transaction; nothing is swapped yet, and the swap comes right after.` }),
-          h('p', { class: 'small', 'data-testid': 'uni-approve-explain', text: `Exactly what this swap uses: ${amt(approval.amount, t)}. The next swap of ${t.symbol} asks again.` }),
-          twoSteps ? notice('info', h('strong', { text: `${t.symbol} takes two steps. ` }), `${t.symbol} only changes a permission from zero, so BEAM Campfire first sets the old one to 0, then to the new amount: two transactions, one confirmation.`) : null,
+          h('h2', { text: t('Allow {symbol}', { symbol: tok.symbol }) }),
+          h('p', { class: 'lead', text: t('Before {symbol} can be swapped, Ethereum needs your permission for Uniswap to move it. This is its own transaction; nothing is swapped yet, and the swap comes right after.', { symbol: tok.symbol }) }),
+          h('p', { class: 'small', 'data-testid': 'uni-approve-explain', text: t('Exactly what this swap uses: {amount}. The next swap of {symbol} asks again.', { amount: amt(approval.amount, tok), symbol: tok.symbol }) }),
+          twoSteps ? notice('info', h('strong', { text: `${t('{symbol} takes two steps.', { symbol: tok.symbol })} ` }), t('{symbol} only changes a permission from zero, so BEAM Campfire first sets the old one to 0, then to the new amount: two transactions, one confirmation.', { symbol: tok.symbol })) : null,
           h(
             'div',
             { class: 'card flat swap-details' },
-            kv('Token', h('span', {}, `${t.symbol} `, h('span', { class: 'mono nowrap', text: `(${shorten(toChecksumAddress(t.address), 6, 4)})` }))),
-            kv('Allowed to move it', h('span', {}, 'Uniswap Permit2 ', h('span', { class: 'mono nowrap', text: `(${shorten(toChecksumAddress(ADDRESSES.permit2), 6, 4)})` }))),
-            kv('Network fee', likely === null ? '…' : `about ${ethAbout(likely)}`, { 'data-testid': 'uni-approve-fee' }, most === null ? null : `at most ${ethAtMost(most)}`),
+            kv(t('Token'), h('span', {}, `${tok.symbol} `, h('span', { class: 'mono nowrap', text: `(${shorten(toChecksumAddress(tok.address), 6, 4)})` }))),
+            // i18n-ignore: the contract's name, as Uniswap calls it
+            kv(t('Allowed to move it'), h('span', {}, 'Uniswap Permit2 ', h('span', { class: 'mono nowrap', text: `(${shorten(toChecksumAddress(ADDRESSES.permit2), 6, 4)})` }))),
+            kv(t('Network fee'), likely === null ? '…' : t('about {amount}', { amount: ethAbout(likely) }), { 'data-testid': 'uni-approve-fee' }, most === null ? null : t('at most {amount}', { amount: ethAtMost(most) })),
           ),
-          phase === 'waiting' ? notice('info', h('strong', { text: 'Waiting for Ethereum to confirm… ' }), 'Usually under a minute. The swap review opens by itself.') : null,
+          phase === 'waiting' ? notice('info', h('strong', { text: `${t('Waiting for Ethereum to confirm…')} ` }), t('Usually under a minute. The swap review opens by itself.')) : null,
           doubt ? doubtNotice(app, doubt, { inSheet: true, testid: 'uni-approve-doubt' }) : null,
           phase === 'failed' && error ? (() => {
-            const n = notice('error', h('strong', { text: "The permission didn't go through. " }), error);
+            const n = notice('error', h('strong', { text: `${t("The permission didn't go through.")} ` }), error);
             n.dataset.testid = 'uni-approve-failed';
             return n;
           })() : null,
           h(
             'div',
             { class: 'sheet-actions' },
-            h('button', { class: 'btn btn-primary', onclick: allow, disabled: busy || !txs, 'data-testid': 'uni-approve-cta' }, phase === 'sending' ? 'Sending…' : phase === 'waiting' ? 'Waiting for Ethereum…' : `Allow ${amt(approval.amount, t)}`),
-            h('button', { class: 'btn btn-text', onclick: () => close(false), disabled: busy, 'data-testid': 'uni-approve-cancel' }, 'Not now'),
+            h('button', { class: 'btn btn-primary', onclick: allow, disabled: busy || !txs, 'data-testid': 'uni-approve-cta' }, phase === 'sending' ? t('Sending…') : phase === 'waiting' ? t('Waiting for Ethereum…') : t('Allow {amount}', { amount: amt(approval.amount, tok) })),
+            h('button', { class: 'btn btn-text', onclick: () => close(false), disabled: busy, 'data-testid': 'uni-approve-cancel' }, t('Not now')),
           ),
         ];
       },
-      { label: `Allow ${t.symbol}`, dismissable: false },
+      { label: t('Allow {symbol}', { symbol: tok.symbol }), dismissable: false },
     );
     sheet.then((v) => resolve(v === true));
     svc
@@ -260,7 +266,7 @@ export function openAllowSheet(app, { w, svc, approval }) {
       })
       .catch((e) => {
         phase = 'failed';
-        error = `The permission could not be prepared: ${e.message}`;
+        error = t('The permission could not be prepared: {reason}', { reason: e.message });
         if (!sheet.closed) sheet.rerender();
       });
   });
@@ -286,12 +292,12 @@ export function secondOpinionBlock(check, { server, amount, ack, onAck, testid =
 
 /** The price-change warning from 3 %, and from 10 % the box to tick before the swap can be sent. */
 export function impactBlock(q, block, ack, onAck) {
-  const warn = notice(block ? 'error' : 'warn', h('strong', { text: `This swap moves the price ${percentText(q.priceImpact)}. ` }), 'The pools are small for this amount, so you get noticeably less than the current rate. A smaller amount gets a better price.');
+  const warn = notice(block ? 'error' : 'warn', h('strong', { text: `${t('This swap moves the price {percent}.', { percent: percentText(q.priceImpact) })} ` }), t('The pools are small for this amount, so you get noticeably less than the current rate. A smaller amount gets a better price.'));
   warn.dataset.testid = 'uni-impact-warning';
   if (!block) return [warn];
   const box = h('input', { type: 'checkbox', 'data-testid': 'uni-impact-ack', checked: ack });
   box.addEventListener('change', () => onAck(box.checked));
-  return [warn, h('label', { class: 'check-row' }, box, h('span', { text: `I accept getting ${percentText(q.priceImpact)} less` }))];
+  return [warn, h('label', { class: 'check-row' }, box, h('span', { text: t('I accept getting {percent} less', { percent: percentText(q.priceImpact) }) }))];
 }
 
 /**
@@ -325,7 +331,7 @@ export function openReviewSheet(app, { w, svc, review: first, acceptImpact, chec
             error = null;
             return rerender();
           }
-          const ok = await confirmIdentity(app, { title: 'Confirm the swap', detail: `${amtShown(q.amountIn, q.tokenIn)} for at least ${amtShown(review.minimumOut, q.tokenOut, { floor: true })}`, cta: 'Confirm' });
+          const ok = await confirmIdentity(app, { title: t('Confirm the swap'), detail: t('{pay} for at least {receive}', { pay: amtShown(q.amountIn, q.tokenIn), receive: amtShown(review.minimumOut, q.tokenOut, { floor: true }) }), cta: t('Confirm') });
           if (!ok) return;
           busy = true;
           error = null;
@@ -338,11 +344,11 @@ export function openReviewSheet(app, { w, svc, review: first, acceptImpact, chec
             if (e instanceof UniGasChanged) {
               review = Object.freeze({ ...review, gasLimit: e.gasLimit, maxGasCost: e.gasLimit * review.fees.maxFeePerGas, expectedGasCost: e.gasLimit * (review.fees.baseFee + review.fees.maxPriorityFeePerGas) });
               feeAck = false;
-              error = 'The swap needs a little more gas than first measured. The network fee below is updated; nothing was sent.';
-            } else if (e instanceof UniRouteChanged) error = 'One of the pools on this route would not actually trade, so BEAM Campfire left it out. Go back for the next best price.';
-            else if (e instanceof EthRpcError && (e.code === 3 || /revert/i.test(e.message))) error = 'Ethereum would refuse this swap now, most often because the price moved past your protection since this review. Nothing was sent. Tap Change for a new price.';
-            else if (e instanceof EthRpcError) error = `Your Ethereum server would not build it: "${e.message}". Nothing was sent.`;
-            else error = `Couldn't build the swap: ${e.message} Nothing was sent.`;
+              error = t('The swap needs a little more gas than first measured. The network fee below is updated; nothing was sent.');
+            } else if (e instanceof UniRouteChanged) error = t('One of the pools on this route would not actually trade, so BEAM Campfire left it out. Go back for the next best price.');
+            else if (e instanceof EthRpcError && (e.code === 3 || /revert/i.test(e.message))) error = t('Ethereum would refuse this swap now, most often because the price moved past your protection since this review. Nothing was sent. Tap Change for a new price.');
+            else if (e instanceof EthRpcError) error = t('Your Ethereum server would not build it: "{reason}". Nothing was sent.', { reason: e.message });
+            else error = t("Couldn't build the swap: {reason} Nothing was sent.", { reason: e.message });
             return rerender();
           }
           try {
@@ -358,32 +364,32 @@ export function openReviewSheet(app, { w, svc, review: first, acceptImpact, chec
           } catch (e) {
             busy = false;
             if (e && e.code === 'in_doubt') doubt = e.entry;
-            else error = `Nothing was sent. ${e.message}`;
+            else error = t('Nothing was sent. {reason}', { reason: e.message });
             rerender();
           }
         };
         const hooked = q.pools.some((p) => p instanceof UniV4Pool && p.hasHooks);
         return [
-          h('h2', { text: 'Check before swapping' }),
+          h('h2', { text: t('Check before swapping') }),
           h(
             'div',
             { class: 'card review-amounts' },
-            h('div', { class: 'review-line' }, tokenBadge(q.tokenIn), h('div', { class: 'grow' }, h('div', { class: 'small', text: 'You pay' }), h('div', { class: 'big', 'data-testid': 'uni-review-pay', title: amt(q.amountIn, q.tokenIn), text: amtShown(q.amountIn, q.tokenIn) }), h('div', { class: 'small', 'data-testid': 'uni-review-total', text: `+ the network fee, about ${ethAbout(review.expectedGasCost)}` }))),
-            h('div', { class: 'review-line' }, tokenBadge(q.tokenOut), h('div', { class: 'grow' }, h('div', { class: 'small', text: 'You receive about' }), h('div', { class: 'big', 'data-testid': 'uni-review-receive', title: amt(q.amountOut, q.tokenOut), text: amtShown(q.amountOut, q.tokenOut) }))),
-            notice('success', h('strong', { 'data-testid': 'uni-review-minimum', text: `You receive at least ${amtShown(review.minimumOut, q.tokenOut, { floor: true })}. Ethereum enforces this. ` }), `If the price moves more than ${bipsText(review.slippageBips)} first, Ethereum cancels the swap and only the network fee is spent.`),
+            h('div', { class: 'review-line' }, tokenBadge(q.tokenIn), h('div', { class: 'grow' }, h('div', { class: 'small', text: t('You pay') }), h('div', { class: 'big', 'data-testid': 'uni-review-pay', title: amt(q.amountIn, q.tokenIn), text: amtShown(q.amountIn, q.tokenIn) }), h('div', { class: 'small', 'data-testid': 'uni-review-total', text: t('+ the network fee, about {fee}', { fee: ethAbout(review.expectedGasCost) }) }))),
+            h('div', { class: 'review-line' }, tokenBadge(q.tokenOut), h('div', { class: 'grow' }, h('div', { class: 'small', text: t('You receive about') }), h('div', { class: 'big', 'data-testid': 'uni-review-receive', title: amt(q.amountOut, q.tokenOut), text: amtShown(q.amountOut, q.tokenOut) }))),
+            notice('success', h('strong', { 'data-testid': 'uni-review-minimum', text: `${t('You receive at least {amount}. Ethereum enforces this.', { amount: amtShown(review.minimumOut, q.tokenOut, { floor: true }) })} ` }), t('If the price moves more than {protection} first, Ethereum cancels the swap and only the network fee is spent.', { protection: bipsText(review.slippageBips) })),
           ),
           h(
             'div',
             { class: 'card flat swap-details' },
-            kv('Rate', rateText(q)),
-            kv('Route', routeText(q), {}, routeNote(q)),
-            kv('Price change from your swap', q.priceImpact == null ? 'Unknown' : percentText(q.priceImpact), { class: `v${review.impact === 'none' ? '' : ' bad'}` }),
+            kv(t('Rate'), rateText(q)),
+            kv(t('Route'), routeText(q), {}, routeNote(q)),
+            kv(t('Price change from your swap'), q.priceImpact == null ? t('Unknown') : percentText(q.priceImpact), { class: `v${review.impact === 'none' ? '' : ' bad'}` }),
             h(
               'button',
               {
                 class: 'kv kv-tap',
                 type: 'button',
-                title: 'Also called slippage tolerance',
+                title: t('Also called slippage tolerance'),
                 'data-testid': 'uni-review-protection',
                 disabled: busy,
                 onclick: async () => {
@@ -394,12 +400,13 @@ export function openReviewSheet(app, { w, svc, review: first, acceptImpact, chec
                   rerender();
                 },
               },
-              h('span', { class: 'k', text: 'Price protection' }),
-              h('span', { class: 'v' }, bipsText(review.slippageBips), h('div', { class: 'small', text: 'Tap to change' })),
+              h('span', { class: 'k', text: t('Price protection') }),
+              h('span', { class: 'v' }, bipsText(review.slippageBips), h('div', { class: 'small', text: t('Tap to change') })),
             ),
-            kv('Network fee', `about ${ethAbout(review.expectedGasCost)}`, { 'data-testid': 'uni-review-fee' }, `at most ${ethAtMost(review.maxGasCost)}`),
-            h('div', { class: 'kv kv-stack' }, h('span', { class: 'k', text: 'Sent to' }), h('span', { class: 'v', 'data-testid': 'uni-review-router' }, 'Uniswap Universal Router ', h('span', { class: 'mono nowrap', text: `(${shorten(toChecksumAddress(ADDRESSES.universalRouter), 6, 4)})` }))),
-            review.needsPermit ? kv('You also sign', `Uniswap may take exactly ${amt(q.amountIn, q.tokenIn)}, for ${PERMIT_LIFE_SECONDS / 60} minutes`, { 'data-testid': 'uni-review-permit' }) : null,
+            kv(t('Network fee'), t('about {amount}', { amount: ethAbout(review.expectedGasCost) }), { 'data-testid': 'uni-review-fee' }, t('at most {amount}', { amount: ethAtMost(review.maxGasCost) })),
+            // i18n-ignore: the contract's name, as Uniswap calls it
+            h('div', { class: 'kv kv-stack' }, h('span', { class: 'k', text: t('Sent to') }), h('span', { class: 'v', 'data-testid': 'uni-review-router' }, 'Uniswap Universal Router ', h('span', { class: 'mono nowrap', text: `(${shorten(toChecksumAddress(ADDRESSES.universalRouter), 6, 4)})` }))),
+            review.needsPermit ? kv(t('You also sign'), tn({ one: 'Uniswap may take exactly {amount}, for {n} minute', other: 'Uniswap may take exactly {amount}, for {n} minutes' }, PERMIT_LIFE_SECONDS / 60, { amount: amt(q.amountIn, q.tokenIn) }), { 'data-testid': 'uni-review-permit' }) : null,
           ),
           ...(review.impact === 'none' ? [] : impactBlock(q, review.impact === 'block', ack, (v) => {
             ack = v;
@@ -428,8 +435,8 @@ export function openReviewSheet(app, { w, svc, review: first, acceptImpact, chec
                 testid: 'uni-high-fee',
               })
             : []),
-          hooked ? notice('warn', h('strong', { text: 'This route uses a pool with a hook. ' }), 'A hook is extra code its creator added to the pool. Your minimum above is still enforced by Uniswap.') : null,
-          h('p', { class: 'small', text: 'Ethereum swaps cannot be undone once sent, and anyone can see them.' }),
+          hooked ? notice('warn', h('strong', { text: `${t('This route uses a pool with a hook.')} ` }), t('A hook is extra code its creator added to the pool. Your minimum above is still enforced by Uniswap.')) : null,
+          h('p', { class: 'small', text: t('Ethereum swaps cannot be undone once sent, and anyone can see them.') }),
           error ? (() => {
             const n = notice('warn', error);
             n.dataset.testid = 'uni-review-error';
@@ -439,12 +446,12 @@ export function openReviewSheet(app, { w, svc, review: first, acceptImpact, chec
           h(
             'div',
             { class: 'sheet-actions' },
-            h('button', { class: 'btn btn-primary', onclick: swap, disabled: busy || blocked, 'data-testid': 'uni-review-cta' }, busy ? 'Signing and sending…' : `Swap ${amtShown(q.amountIn, q.tokenIn)}`),
-            h('button', { class: 'btn btn-text', onclick: () => close(null), disabled: busy, 'data-testid': 'uni-review-change' }, 'Change'),
+            h('button', { class: 'btn btn-primary', onclick: swap, disabled: busy || blocked, 'data-testid': 'uni-review-cta' }, busy ? t('Signing and sending…') : t('Swap {amount}', { amount: amtShown(q.amountIn, q.tokenIn) })),
+            h('button', { class: 'btn btn-text', onclick: () => close(null), disabled: busy, 'data-testid': 'uni-review-change' }, t('Change')),
           ),
         ];
       },
-      { label: 'Check before swapping', dismissable: false },
+      { label: t('Check before swapping'), dismissable: false },
     );
     sheet.then((v) => resolve(typeof v === 'string' ? v : null));
   });

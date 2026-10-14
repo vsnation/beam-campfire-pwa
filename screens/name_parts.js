@@ -6,6 +6,7 @@ import { formatAmount } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
 import { STATUS, holdEndHeight, dateOf, BLOCK_SECONDS } from '../lib/bans.js';
 import { day } from './names.js';
+import { t, tn } from '../lib/i18n.js';
 
 /** A name expiring within this many days asks to be renewed (kNamesRenewSoonDays). */
 export const RENEW_SOON_DAYS = 30;
@@ -15,10 +16,11 @@ export const priceText = (p) => `${formatAmount(p.amount)} ${wallet.label(p.asse
 /** Whole days from block `from` to block `to` (a block a minute). */
 export const daysBetween = (from, to) => Math.floor(((to - from) * BLOCK_SECONDS) / 86400);
 
+// No screen shows this any more: each says a whole sentence (statusWords, names.js renewWarning).
 export function inDays(n) {
   if (n <= 0) return 'today';
   if (n === 1) return 'tomorrow';
-  return `in ${n} days`;
+  return `in ${n} days`; // i18n-ignore: not shown (the screens say whole sentences); kept for its unit test
 }
 
 /**
@@ -27,18 +29,25 @@ export function inDays(n) {
  */
 export function statusWords(d, clock) {
   const tip = clock.tipHeight;
-  const sale = d.salePrice ? `For sale at ${priceText(d.salePrice)}` : null;
+  const sale = d.salePrice ? t('For sale at {price}', { price: priceText(d.salePrice) }) : null;
   switch (d.status) {
     case STATUS.availableAgain:
-      return { text: `Expired on ${day(dateOf(d.expireHeight, clock))} · anyone can register it now`, tone: 'gone', sale: null };
+      return { text: t('Expired on {date} · anyone can register it now', { date: day(dateOf(d.expireHeight, clock)) }), tone: 'gone', sale: null };
     case STATUS.onHold:
-      return { text: `Expired · renew by ${day(dateOf(holdEndHeight(d.expireHeight), clock))} to keep it`, tone: 'bad', sale };
+      return { text: t('Expired · renew by {date} to keep it', { date: day(dateOf(holdEndHeight(d.expireHeight), clock)) }), tone: 'bad', sale };
     default: {
       const left = daysBetween(tip, d.expireHeight);
-      if (left <= RENEW_SOON_DAYS) return { text: `Expires ${inDays(left)}`, tone: 'soon', sale };
-      return { text: `Until ${day(dateOf(d.expireHeight, clock))}`, tone: 'ok', sale };
+      if (left <= RENEW_SOON_DAYS) return { text: expiresText(left), tone: 'soon', sale };
+      return { text: t('Until {date}', { date: day(dateOf(d.expireHeight, clock)) }), tone: 'ok', sale };
     }
   }
+}
+
+/** "Expires today", "Expires tomorrow", "Expires in 12 days". */
+function expiresText(days) {
+  if (days <= 0) return t('Expires today');
+  if (days === 1) return t('Expires tomorrow');
+  return tn({ one: 'Expires in {n} day', other: 'Expires in {n} days' }, days);
 }
 
 /** Whether the owner should renew `d` now: expired (and still theirs), or within 30 days of it. */
@@ -52,17 +61,17 @@ export function needsRenewal(d, tipHeight) {
 export function pendingWords(p) {
   switch (p && p.kind) {
     case 'register':
-      return 'Registering: shows here once confirmed, usually within 2 minutes';
+      return t('Registering: shows here once confirmed, usually within 2 minutes');
     case 'buy':
-      return 'Buying: yours once confirmed, usually within 2 minutes';
+      return t('Buying: yours once confirmed, usually within 2 minutes');
     case 'renew':
-      return 'Renewing: the new date shows once confirmed';
+      return t('Renewing: the new date shows once confirmed');
     case 'transfer':
-      return 'Transferring: it leaves this wallet once confirmed';
+      return t('Transferring: it leaves this wallet once confirmed');
     case 'sell':
-      return 'Listing for sale: anyone can buy it once confirmed';
+      return t('Listing for sale: anyone can buy it once confirmed');
     case 'unlist':
-      return 'Coming off sale once confirmed';
+      return t('Coming off sale once confirmed');
     default:
       return null;
   }

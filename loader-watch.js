@@ -26,6 +26,46 @@
 
   var WARNING = "This app's web address is serving code BEAM Campfire did not sign. Don't enter your password here.";
 
+  // Its words in each language the app ships, inside this signed file: nothing else of the page may
+  // load once this stops it, and words kept in storage could be rewritten by any script that ever ran on
+  // this address (release audit 0.2.17). Only the language name comes from storage, checked against
+  // these. test/unit/i18n_tripwire.test.mjs keeps this table equal to the catalogs.
+  var TEXTS = {
+    "ru": {
+      "Stop: unsigned code": "Стоп: неподписанный код",
+      "This app's web address is serving code BEAM Campfire did not sign. Don't enter your password here.": "По веб-адресу этого приложения отдаётся код, который BEAM Campfire не подписывал. Не вводите здесь пароль.",
+      "BEAM Campfire stopped before opening.": "BEAM Campfire остановился, не открывшись.",
+      "Your coins are on the BEAM blockchain, not in this app. Open them in BEAM Campfire desktop or another BEAM wallet, with your 12 words or with your exported wallet.db file and its password.": "Ваши монеты — в блокчейне BEAM, а не в этом приложении. Откройте их в BEAM Campfire для компьютера или в другом кошельке BEAM — с помощью ваших 12 слов или экспортированного файла wallet.db и его пароля.",
+      "Close this app now. Do not reopen it from the same address or enter any password or words in it.": "Закройте это приложение сейчас. Не открывайте его снова с того же адреса и не вводите в нём никаких паролей или слов."
+    },
+    "zh-Hans": {
+      "Stop: unsigned code": "停止：未签名的代码",
+      "This app's web address is serving code BEAM Campfire did not sign. Don't enter your password here.": "此应用的网址正在提供 BEAM Campfire 未签名的代码。不要在这里输入你的密码。",
+      "BEAM Campfire stopped before opening.": "BEAM Campfire 在打开前已停止。",
+      "Your coins are on the BEAM blockchain, not in this app. Open them in BEAM Campfire desktop or another BEAM wallet, with your 12 words or with your exported wallet.db file and its password.": "你的币在 BEAM 区块链上，而不在这个应用里。可以在 BEAM Campfire 桌面版或其他 BEAM 钱包中打开它们，使用你的 12 个助记词，或使用你导出的 wallet.db 文件及其密码。",
+      "Close this app now. Do not reopen it from the same address or enter any password or words in it.": "请立即关闭此应用。不要从同一地址重新打开它，也不要在其中输入任何密码或助记词。"
+    },
+    "ja": {
+      "Stop: unsigned code": "停止：署名のないコード",
+      "This app's web address is serving code BEAM Campfire did not sign. Don't enter your password here.": "このアプリのウェブアドレスから、BEAM Campfireが署名していないコードが配信されています。ここにパスワードを入力しないでください。",
+      "BEAM Campfire stopped before opening.": "BEAM Campfireは開く前に停止しました。",
+      "Your coins are on the BEAM blockchain, not in this app. Open them in BEAM Campfire desktop or another BEAM wallet, with your 12 words or with your exported wallet.db file and its password.": "コインはこのアプリの中ではなく、BEAMブロックチェーン上にあります。BEAM Campfireデスクトップ版または他のBEAMウォレットで、12個の単語、またはエクスポートしたwallet.dbファイルとそのパスワードを使って開いてください。",
+      "Close this app now. Do not reopen it from the same address or enter any password or words in it.": "今すぐこのアプリを閉じてください。同じアドレスから開き直したり、パスワードや単語を入力したりしないでください。"
+    }
+  };
+  var lang = null;
+  try {
+    var kept = JSON.parse(window.localStorage.getItem('campfire-lang-early') || 'null');
+    lang = kept && typeof kept.lang === 'string' && Object.prototype.hasOwnProperty.call(TEXTS, kept.lang) ? kept.lang : null;
+  } catch (e) {
+    lang = null; // storage blocked, or none kept: English
+  }
+  var words = lang ? TEXTS[lang] : null;
+  function tr(text) {
+    var v = words && Object.prototype.hasOwnProperty.call(words, text) ? words[text] : null;
+    return typeof v === 'string' && v ? v : text;
+  }
+
   function el(tag, cls, text) {
     var e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -44,17 +84,18 @@
     var body = document.body || document.documentElement.appendChild(document.createElement('body'));
     var main = el('main', 'screen tripwire');
     main.setAttribute('data-testid', 'tripwire-early');
+    if (lang) main.setAttribute('lang', lang);
     var content = el('div', 'content');
-    content.appendChild(el('h2', 'title', 'Stop: unsigned code'));
+    content.appendChild(el('h2', 'title', tr('Stop: unsigned code')));
     var n = el('div', 'notice error');
     n.setAttribute('role', 'alert');
     var g = el('div', 'grow');
-    g.appendChild(el('strong', null, WARNING));
-    g.appendChild(document.createTextNode(' BEAM Campfire stopped before opening.'));
+    g.appendChild(el('strong', null, tr(WARNING)));
+    g.appendChild(document.createTextNode(' ' + tr('BEAM Campfire stopped before opening.')));
     n.appendChild(g);
     content.appendChild(n);
-    content.appendChild(el('p', 'lead', 'Your coins are on the BEAM blockchain, not in this app. Open them in BEAM Campfire desktop or another BEAM wallet, with your 12 words or with your exported wallet.db file and its password.'));
-    content.appendChild(el('p', 'small', 'Close this app now. Do not reopen it from the same address or enter any password or words in it.'));
+    content.appendChild(el('p', 'lead', tr('Your coins are on the BEAM blockchain, not in this app. Open them in BEAM Campfire desktop or another BEAM wallet, with your 12 words or with your exported wallet.db file and its password.')));
+    content.appendChild(el('p', 'small', tr('Close this app now. Do not reopen it from the same address or enter any password or words in it.')));
     main.appendChild(content);
     while (body.firstChild) body.removeChild(body.firstChild);
     body.appendChild(main);

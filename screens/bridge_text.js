@@ -8,8 +8,12 @@
 // Words the screens never use: relayer, pipe, message, b2e, e2b. "The bridge"
 // is BEAM's official bridge; its fee is "the bridge fee, paid to the bridge
 // operator"; claiming on BEAM is "collecting".
+//
+// The words are in the person's language (lib/i18n.js); the chains' names, the coins' symbols and
+// the numbers are not translated.
 
 import { BEAM_DECIMALS, SEND_FEE, CLAIM_FEE, routeById, grothToEth, ethToGroth } from '../lib/bridge/routes.js';
+import { t, tn, tk, dateLocale } from '../lib/i18n.js';
 
 const MIN = 60000;
 export const TO_ETHEREUM = 'toEthereum';
@@ -75,62 +79,79 @@ export const feeText = (v, decimals) => roundedUp(v, decimals, v >= 10n ** BigIn
  * nothing typed is floored away later.
  */
 export function parseBridgeAmount(text, route, direction) {
-  const t = String(text ?? '').trim();
-  if (!t) return { value: null, error: null };
-  if (t.includes(',')) return { value: null, error: 'Use a dot for decimals, like 0.5' };
-  if (!/^[0-9]*\.?[0-9]*$/.test(t) || t === '.') return { value: null, error: 'Enter a number, like 0.5' };
-  const dot = t.indexOf('.');
-  const whole = dot < 0 ? t : t.slice(0, dot);
-  const frac = dot < 0 ? '' : t.slice(dot + 1);
+  const typed = String(text ?? '').trim();
+  if (!typed) return { value: null, error: null };
+  if (typed.includes(',')) return { value: null, error: t('Use a dot for decimals, like 0.5') };
+  if (!/^[0-9]*\.?[0-9]*$/.test(typed) || typed === '.') return { value: null, error: t('Enter a number, like 0.5') };
+  const dot = typed.indexOf('.');
+  const whole = dot < 0 ? typed : typed.slice(0, dot);
+  const frac = dot < 0 ? '' : typed.slice(dot + 1);
   const places = movableDecimals(route);
-  if (frac.length > places) return { value: null, error: `${sourceSymbol(route, direction)} moves with at most ${places} decimals` };
+  if (frac.length > places) return { value: null, error: tn({ one: '{coin} moves with at most {n} decimal', other: '{coin} moves with at most {n} decimals' }, places, { coin: sourceSymbol(route, direction) }) };
   const dec = sourceDecimals(route, direction);
   const value = BigInt(whole || '0') * 10n ** BigInt(dec) + BigInt(frac.padEnd(dec, '0') || '0');
   const groth = toEth(direction) ? value : ethToGroth(route, value);
-  if (groth >= 1n << 63n) return { value: null, error: 'That amount is too large' };
+  if (groth >= 1n << 63n) return { value: null, error: t('That amount is too large') };
   return { value, error: null };
 }
 
 /** "About 1 hour", "About 2 minutes". */
 export function about(ms) {
   const min = Math.round(ms / MIN);
-  if (min >= 90) return `About ${Math.round(min / 60)} hours`;
-  if (min >= 55) return 'About 1 hour';
-  if (min <= 1) return 'About a minute';
-  return `About ${min} minutes`;
+  if (min >= 90) return tn({ one: 'About {n} hour', other: 'About {n} hours' }, Math.round(min / 60));
+  if (min >= 55) return t('About 1 hour');
+  if (min <= 1) return t('About a minute');
+  return tn({ one: 'About {n} minute', other: 'About {n} minutes' }, min);
 }
 
-/** "up to 11 hours". */
-export function upTo(ms) {
+/** "up to 11 hours when Ethereum is busy": the slow tail of a move to Ethereum. */
+export function whenBusy(ms) {
   const hours = Math.floor(ms / (60 * MIN));
-  return hours >= 2 ? `up to ${hours} hours` : `up to ${Math.round(ms / MIN)} minutes`;
+  return hours >= 2
+    ? tn({ one: 'up to {n} hour when Ethereum is busy', other: 'up to {n} hours when Ethereum is busy' }, hours)
+    : tn({ one: 'up to {n} minute when Ethereum is busy', other: 'up to {n} minutes when Ethereum is busy' }, Math.round(ms / MIN));
 }
 
-/** "just now", "5 min ago", "2 h ago", "Oct 9". */
-export function ago(t, now = Date.now()) {
-  const d = now - t;
-  if (d < MIN) return 'just now';
-  if (d < 60 * MIN) return `${Math.floor(d / MIN)} min ago`;
-  if (d < 24 * 60 * MIN) return `${Math.floor(d / (60 * MIN))} h ago`;
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const l = new Date(t);
+/** "just now", "5 min ago", "2 h ago", "Oct 9" (the date in the person's language). */
+export function ago(at, now = Date.now()) {
+  const d = now - at;
+  if (d < MIN) return t('just now');
+  if (d < 60 * MIN) return tn({ one: '{n} min ago', other: '{n} min ago' }, Math.floor(d / MIN));
+  if (d < 24 * 60 * MIN) return tn({ one: '{n} h ago', other: '{n} h ago' }, Math.floor(d / (60 * MIN)));
+  const l = new Date(at);
+  const locale = dateLocale();
+  if (locale) return l.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; // i18n-ignore: English month names, read only in English (other languages: Intl above)
   return `${months[l.getMonth()]} ${l.getDate()}`;
 }
 
-/** When a move arrives, in words. */
+/**
+ * When a move arrives, in words: {time, slow}. To Ethereum, "About 1 hour" and "up to 11 hours when
+ * Ethereum is busy"; to BEAM, "About 2 minutes, then you collect it" and null.
+ */
+export function arrivesParts(route, direction) {
+  if (toEth(direction)) return { time: about(ABOUT_TO_ETHEREUM_MS), slow: whenBusy(slowestToEthereumMs(route)) };
+  return { time: t('{time}, then you collect it', { time: about(ABOUT_TO_BEAM_MS) }), slow: null };
+}
+
+/** When a move arrives, in one line ("About 1 hour; up to 11 hours when Ethereum is busy"): its parts, "; " between them. */
 export function arrivesText(route, direction) {
-  return toEth(direction) ? `${about(ABOUT_TO_ETHEREUM_MS)}; ${upTo(slowestToEthereumMs(route))} when Ethereum is busy` : `${about(ABOUT_TO_BEAM_MS)}, then you collect it`;
+  const { time, slow } = arrivesParts(route, direction);
+  return slow ? `${time}; ${slow}` : time;
 }
 
 /** The primary button: "Move 300 BEAM to Ethereum", "Move 0.5 ETH to BEAM"; "Move to Ethereum" before an amount. */
 export function moveLabel(route, direction, amount) {
-  const where = destinationChain(direction);
-  if (amount == null || amount <= 0n) return `Move to ${where}`;
-  return `Move ${coin(amount, sourceDecimals(route, direction), sourceSymbol(route, direction))} to ${where}`;
+  if (amount == null || amount <= 0n) return toEth(direction) ? t('Move to Ethereum') : t('Move to BEAM');
+  const what = coin(amount, sourceDecimals(route, direction), sourceSymbol(route, direction));
+  return toEth(direction) ? t('Move {amount} to Ethereum', { amount: what }) : t('Move {amount} to BEAM', { amount: what });
 }
 
 /** "Collect 0.5 bETH". */
-export const collectLabel = (route, groth) => `Collect ${coin(groth, BEAM_DECIMALS, route.beamSymbol)}`;
+export const collectLabel = (route, groth) => t('Collect {amount}', { amount: coin(groth, BEAM_DECIMALS, route.beamSymbol) });
+
+/** `s` as a sentence: as it is when it ends with a full stop, else with one ("{sentence}." in the person's language). */
+export const sentence = (s) => (/[.。．]$/.test(String(s)) ? String(s) : t('{sentence}.', { sentence: String(s) }));
 
 /** Whether the bridge fee of `route` going `direction` follows CoinGecko's prices (all but WBEAM → BEAM). */
 export const needsPrices = (route, direction) => toEth(direction) || !route.isBeam;
@@ -143,25 +164,24 @@ export function limitsText(route, direction, fee = null) {
   if (toEth(direction)) {
     const dec = sourceDecimals(route, direction);
     const sym = sourceSymbol(route, direction);
-    const parts = [];
-    if (fee != null) parts.push(`more than the bridge fee (now ${feeText(fee, dec)} ${sym})`);
-    if (route.maxGroth != null) parts.push(`at most ${exact(route.maxGroth, BEAM_DECIMALS)} ${sym} per move`);
-    if (!parts.length) return null;
-    const s = parts.join(', ');
-    return `${s[0].toUpperCase()}${s.slice(1)}.`;
+    const most = route.maxGroth != null ? exact(route.maxGroth, BEAM_DECIMALS) : null;
+    if (fee != null && most != null) return t('More than the bridge fee (now {fee} {coin}), at most {max} {coin} per move.', { fee: feeText(fee, dec), max: most, coin: sym });
+    if (fee != null) return t('More than the bridge fee (now {fee} {coin}).', { fee: feeText(fee, dec), coin: sym });
+    if (most != null) return t('At most {max} {coin} per move.', { max: most, coin: sym });
+    return null;
   }
-  return `Collecting it on BEAM costs ${coin(CLAIM_FEE, BEAM_DECIMALS, 'BEAM')} from your BEAM wallet.`;
+  return t('Collecting it on BEAM costs {fee} from your BEAM wallet.', { fee: coin(CLAIM_FEE, BEAM_DECIMALS, 'BEAM') });
 }
 
 /** Why a coin can be stopped on Ethereum while it crosses; null when it cannot. */
 export function freezeNote(route) {
   switch (route.id) {
     case 'beam':
-      return 'WBEAM can be paused by its issuer. If that happens while your coins are crossing, the bridge cannot pay WBEAM out until it is lifted.';
+      return t('WBEAM can be paused by its issuer. If that happens while your coins are crossing, the bridge cannot pay WBEAM out until it is lifted.');
     case 'usdt':
-      return "Tether can freeze the bridge's USDT. If that happens while your coins are crossing, the bridge cannot pay USDT out until it is lifted.";
+      return t("Tether can freeze the bridge's USDT. If that happens while your coins are crossing, the bridge cannot pay USDT out until it is lifted.");
     case 'wbtc':
-      return 'WBTC can be paused by its issuer. If that happens while your coins are crossing, the bridge cannot pay WBTC out until it is lifted.';
+      return t('WBTC can be paused by its issuer. If that happens while your coins are crossing, the bridge cannot pay WBTC out until it is lifted.');
     default:
       return null;
   }
@@ -172,7 +192,8 @@ export function grouped(address) {
   return `${address.slice(0, 2)} ${address.slice(2).match(/.{1,4}/g).join(' ')}`;
 }
 
-export const PUBLIC_NOTE = "Moving is public on both chains: the amount and your Ethereum address can be seen by anyone. BEAM's privacy does not cover a move.";
+/** Shown with t(PUBLIC_NOTE) (bridge_review.js, consent.js). */
+export const PUBLIC_NOTE = tk("Moving is public on both chains: the amount and your Ethereum address can be seen by anyone. BEAM's privacy does not cover a move.");
 
 /**
  * The bridge rows of the approve sheet, from what the engine reported (req)

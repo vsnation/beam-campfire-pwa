@@ -15,11 +15,12 @@ import { icon } from '../lib/icons.js';
 import { assetBadge, secondary, textButton, toast } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
 import { tokenSubtitle, copyWarning } from '../lib/meta.js';
-import { holdings, holdsAny, portfolio, beamEstimate, valueEstimate, tokensWord, NO_PRICE } from '../lib/tokens.js';
+import { holdings, holdsAny, portfolio, beamEstimate, valueEstimate, NO_PRICE } from '../lib/tokens.js';
 import { hiddenIds, hiddenLoaded, loadHidden } from '../lib/hidden_tokens.js';
 import { fiatEstimate, fiatAllowed, fiatUnasked, currencyOf, currencyWords, FIAT_CURRENCIES } from '../lib/fiat.js';
 import { marketPricer, refreshMarket, beamPrice } from '../lib/token_market.js';
 import { maturingParts } from './coins_ui.js';
+import { t, tn } from '../lib/i18n.js';
 
 /** BEAM's price to show now ({price, currency}), asking CoinGecko in the background when due and allowed. */
 export const priceNow = (app) => beamPrice(app).get();
@@ -27,28 +28,40 @@ export const priceNow = (app) => beamPrice(app).get();
 /** "≈ $2.31" or the BEAM estimate, for a token row; "" while prices are unknown. */
 function rowValue(app, hd, pricer, price) {
   if (!pricer) return '';
-  if (hd.value == null) return NO_PRICE;
+  if (hd.value == null) return t(NO_PRICE);
   const money = fiatEstimate(hd.value, price);
-  return money ? `${money}${hd.sale ? ' if sold now' : ''}` : valueEstimate(hd.value, hd.sale);
+  if (!money) return valueEstimate(hd.value, hd.sale);
+  return hd.sale ? t('{amount} if sold now', { amount: money }) : money;
 }
 
 /** The question before any price is asked: once, remembered either way. */
 function priceQuestion(app, onAnswer) {
-  const words = currencyWords(currencyOf(app.prefs));
+  // "dollars" for USD, else the currency's code (lib/fiat.js currencyWords): a whole sentence for each.
+  const cur = currencyOf(app.prefs);
+  const usd = cur === 'USD';
+  const currency = currencyWords(cur);
   const answer = async (yes) => {
     await app.setPrefs({ fiatPrices: yes });
     if (yes) beamPrice(app).refresh({ force: true });
-    else toast(`No prices are asked. Settings → Values in ${words} turns them on.`, 4000);
+    else toast(usd ? t('No prices are asked. Settings → Values in dollars turns them on.') : t('No prices are asked. Settings → Values in {currency} turns them on.', { currency }), 4000);
     onAnswer();
   };
   return h(
     'div',
     { class: 'card price-ask', 'data-testid': 'price-ask' },
-    h('h3', { text: `Show values in ${words}?` }),
-    h('p', { class: 'small', text: "This asks CoinGecko for BEAM's price; it sees your IP address, not your wallet. Token values come from BEAM's DEX and ask no one." }),
-    h('div', { class: 'btn-row prompt-actions' }, secondary(`Show in ${words}`, () => answer(true), { class: 'btn btn-secondary btn-small', 'data-testid': 'price-allow' }), textButton('Not now', () => answer(false), { class: 'btn btn-text btn-small', 'data-testid': 'price-refuse' })),
+    h('h3', { text: usd ? t('Show values in dollars?') : t('Show values in {currency}?', { currency }) }),
+    h('p', { class: 'small', text: t("This asks CoinGecko for BEAM's price; it sees your IP address, not your wallet. Token values come from BEAM's DEX and ask no one.") }),
+    h(
+      'div',
+      { class: 'btn-row prompt-actions' },
+      secondary(usd ? t('Show in dollars') : t('Show in {currency}', { currency }), () => answer(true), { class: 'btn btn-secondary btn-small', 'data-testid': 'price-allow' }),
+      textButton(t('Not now'), () => answer(false), { class: 'btn btn-text btn-small', 'data-testid': 'price-refuse' }),
+    ),
   );
 }
+
+/** "Values in dollars" / "Values in EUR": the switch's name in Settings. */
+const valuesIn = (cur) => (cur === 'USD' ? t('Values in dollars') : t('Values in {currency}', { currency: currencyWords(cur) }));
 
 /**
  * Home's token parts. el: the price question and the token list (placed under
@@ -76,11 +89,11 @@ export function homeTokens(app) {
     const lines = [];
     if (p.priced) {
       const money = fiatEstimate(p.totalGroth, priceNow(app));
-      lines.push(h('div', { class: 'pending total-line', 'data-testid': 'portfolio-total', text: `Total with tokens ${beamEstimate(p.totalGroth)}${money ? ` · ${money}` : ''}` }));
+      lines.push(h('div', { class: 'pending total-line', 'data-testid': 'portfolio-total', text: t('Total with tokens {value}', { value: `${beamEstimate(p.totalGroth)}${money ? ` · ${money}` : ''}` }) }));
     } else {
-      lines.push(h('div', { class: 'pending total-line', 'data-testid': 'portfolio-total', text: `Plus ${tokensWord(p.tokens)}` }));
+      lines.push(h('div', { class: 'pending total-line', 'data-testid': 'portfolio-total', text: tn({ one: 'Plus {n} token', other: 'Plus {n} tokens' }, p.tokens) }));
     }
-    if (p.unpriced) lines.push(h('div', { class: 'pending', 'data-testid': 'portfolio-note', text: `${tokensWord(p.unpriced)} ${p.unpriced === 1 ? 'has' : 'have'} no price and ${p.unpriced === 1 ? 'is' : 'are'} not counted.` }));
+    if (p.unpriced) lines.push(h('div', { class: 'pending', 'data-testid': 'portfolio-note', text: tn({ one: '{n} token has no price and is not counted.', other: '{n} tokens have no price and are not counted.' }, p.unpriced) }));
     return lines;
   }
 
@@ -104,18 +117,18 @@ export function homeTokens(app) {
       ask,
       ...(list.length
         ? [
-            h('p', { class: 'section-title', text: 'Tokens' }),
+            h('p', { class: 'section-title', text: t('Tokens') }),
             shown.length
               ? h(
                   'div',
                   { class: 'card list', 'data-testid': 'tokens' },
                   ...shown.map((hd) => {
-                    const { id, totals: t } = hd;
+                    const { id, totals: tot } = hd;
                     const l = app.wallet.label(id);
                     const pending = [];
-                    if (t.receiving > 0n) pending.push(`+${formatAmount(t.receiving)} incoming`);
-                    if (t.sending > 0n) pending.push(`−${formatAmount(t.sending)} outgoing`);
-                    pending.push(...maturingParts(t));
+                    if (tot.receiving > 0n) pending.push(t('+{amount} incoming', { amount: formatAmount(tot.receiving) }));
+                    if (tot.sending > 0n) pending.push(t('−{amount} outgoing', { amount: formatAmount(tot.sending) }));
+                    pending.push(...maturingParts(tot));
                     const warning = copyWarning(l);
                     // Two held assets with one ticker (CHAD #187 and #190) show their numbers.
                     const sub = tokenSubtitle(l);
@@ -129,13 +142,13 @@ export function homeTokens(app) {
                         'span',
                         { class: 'main' },
                         h('div', { class: 't', 'data-testid': 'token-name', text: l.name }),
-                        h('div', { class: 's', 'data-testid': 'token-sub', text: hd.hidden ? `Hidden · ${shownSub}` : shownSub }),
+                        h('div', { class: 's', 'data-testid': 'token-sub', text: hd.hidden ? t('Hidden · {sub}', { sub: shownSub }) : shownSub }),
                         warning ? h('div', { class: 'warn-line', 'data-testid': 'token-warning', text: warning }) : null,
                       ),
                       h(
                         'span',
                         { class: 'end' },
-                        h('div', { 'data-testid': 'token-balance', text: `${formatAmount(t.available)} ${l.pool ? 'LP' : l.symbol}` }),
+                        h('div', { 'data-testid': 'token-balance', text: `${formatAmount(tot.available)} ${l.pool ? 'LP' : l.symbol}` }), // i18n-ignore: an amount and its ticker
                         pending.length ? h('div', { class: 'small', text: pending.join(' · ') }) : null,
                         value ? h('div', { class: 'small', 'data-testid': 'token-value', text: value }) : null,
                       ),
@@ -156,7 +169,7 @@ export function homeTokens(app) {
                     },
                   },
                   icon('eye'),
-                  showHidden ? 'Hide them again' : `Show ${hiddenHeld === 1 ? '1 hidden token' : `${hiddenHeld} hidden tokens`}`,
+                  showHidden ? t('Hide them again') : tn({ one: 'Show {n} hidden token', other: 'Show {n} hidden tokens' }, hiddenHeld),
                 )
               : null,
           ]
@@ -176,27 +189,27 @@ export function tokenSettings(app) {
   function render() {
     const on = fiatAllowed(app.prefs);
     const cur = currencyOf(app.prefs);
-    const sw = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': `Values in ${currencyWords(cur)}`, 'data-testid': 'price-switch', checked: on });
+    const sw = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': valuesIn(cur), 'data-testid': 'price-switch', checked: on });
     sw.addEventListener('change', async () => {
       await app.setPrefs({ fiatPrices: sw.checked });
       if (sw.checked) beamPrice(app).refresh({ force: true });
       else beamPrice(app).forget();
-      toast(sw.checked ? `Values in ${currencyWords(cur)} are on` : 'Prices are off: nothing is asked of CoinGecko');
+      toast(sw.checked ? (cur === 'USD' ? t('Values in dollars are on') : t('Values in {currency} are on', { currency: currencyWords(cur) })) : t('Prices are off: nothing is asked of CoinGecko'));
       render();
     });
-    const sel = h('select', { class: 'inline', 'aria-label': 'Currency', 'data-testid': 'currency-select' }, ...FIAT_CURRENCIES.map(([code, name]) => h('option', { value: code, text: `${code} · ${name}` })));
+    const sel = h('select', { class: 'inline', 'aria-label': t('Currency'), 'data-testid': 'currency-select' }, ...FIAT_CURRENCIES.map(([code, name]) => h('option', { value: code, text: `${code} · ${t(name)}` })));
     sel.value = cur;
     sel.addEventListener('change', async () => {
       await app.setPrefs({ fiatCurrency: sel.value });
       beamPrice(app).forget();
       beamPrice(app).refresh({ force: true });
-      toast(`Values in ${sel.value}`);
+      toast(t('Values in {currency}', { currency: sel.value }));
       render();
     });
     const hiddenCount = hiddenIds(app).size;
     put(
       box,
-      h('p', { class: 'section-title', text: 'Tokens and prices' }),
+      h('p', { class: 'section-title', text: t('Tokens and prices') }),
       h(
         'div',
         { class: 'card list' },
@@ -204,11 +217,11 @@ export function tokenSettings(app) {
           'label',
           { class: 'row' },
           h('span', { class: 'ico' }, icon('globe')),
-          h('span', { class: 'main' }, h('div', { class: 't', text: `Values in ${currencyWords(cur)}` }), h('div', { class: 's wrap', text: "BEAM's price from CoinGecko, which sees your IP address. Off: values in BEAM only." })),
+          h('span', { class: 'main' }, h('div', { class: 't', text: valuesIn(cur) }), h('div', { class: 's wrap', text: t("BEAM's price from CoinGecko, which sees your IP address. Off: values in BEAM only.") })),
           sw,
         ),
-        on ? h('div', { class: 'row' }, h('span', { class: 'ico' }, icon('settings')), h('span', { class: 'main' }, h('div', { class: 't', text: 'Currency' })), sel) : null,
-        row('eye', 'Hidden tokens', hiddenCount ? `${tokensWord(hiddenCount)} hidden from Wallet` : 'None', () => app.go('hiddenTokens'), { 'data-testid': 'hidden-tokens-row' }),
+        on ? h('div', { class: 'row' }, h('span', { class: 'ico' }, icon('settings')), h('span', { class: 'main' }, h('div', { class: 't', text: t('Currency') })), sel) : null,
+        row('eye', t('Hidden tokens'), hiddenCount ? tn({ one: '{n} token hidden from Wallet', other: '{n} tokens hidden from Wallet' }, hiddenCount) : t('None'), () => app.go('hiddenTokens'), { 'data-testid': 'hidden-tokens-row' }),
       ),
     );
   }

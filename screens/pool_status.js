@@ -17,11 +17,13 @@ import { wallet, contractMoves, spentElsewhere } from '../lib/wallet.js';
 import { spentElsewhereNotice } from './tx_status.js';
 import { loadPools } from '../lib/dex_pools.js';
 import { unit, poolParams } from './pool_parts.js';
+import { t, tk } from '../lib/i18n.js';
 
+// Shown with t(): this table is read before any language is known.
 const WORDS = {
-  add: { wait: 'Adding to the pool', done: 'Added to the pool', failed: 'The deposit failed', cancelled: 'Deposit cancelled', pays: 'You add', receives: ['You get', 'You got'] },
-  withdraw: { wait: 'Taking out of the pool', done: 'Taken out of the pool', failed: 'The withdrawal failed', cancelled: 'Withdrawal cancelled', pays: 'You return', receives: ['You get back', 'You got back'] },
-  create: { wait: 'Creating the pool', done: 'Pool created', failed: 'The pool was not created', cancelled: 'Pool creation cancelled', pays: 'Deposit (locked)', receives: ['You get', 'You got'] },
+  add: { wait: tk('Adding to the pool'), done: tk('Added to the pool'), failed: tk('The deposit failed'), cancelled: tk('Deposit cancelled'), pays: tk('You add'), receives: [tk('You get'), tk('You got')] },
+  withdraw: { wait: tk('Taking out of the pool'), done: tk('Taken out of the pool'), failed: tk('The withdrawal failed'), cancelled: tk('Withdrawal cancelled'), pays: tk('You return'), receives: [tk('You get back'), tk('You got back')] },
+  create: { wait: tk('Creating the pool'), done: tk('Pool created'), failed: tk('The pool was not created'), cancelled: tk('Pool creation cancelled'), pays: tk('Deposit (locked)'), receives: [tk('You get'), tk('You got')] },
 };
 
 export default function poolTx(app, p) {
@@ -45,36 +47,36 @@ export default function poolTx(app, p) {
     put(
       body,
       h('div', { class: `status-icon ${done ? 'ok' : failed ? 'bad' : 'wait'}` }, icon(done ? 'check' : failed ? 'close' : 'clock')),
-      h('h2', { class: 'title center', 'data-testid': 'pool-tx-title', 'data-status': String(s), text: done ? words.done : failed ? (s === 2 ? words.cancelled : words.failed) : words.wait }),
+      h('h2', { class: 'title center', 'data-testid': 'pool-tx-title', 'data-status': String(s), text: t(done ? words.done : failed ? (s === 2 ? words.cancelled : words.failed) : words.wait) }),
       h(
         'div',
         { class: 'card', 'data-testid': 'pool-tx-card' },
-        ...pays.map((a, i) => line(i === 0 ? words.pays : '', a, '', `pool-tx-pay-${i}`)),
-        ...receives.map((a, i) => line(i === 0 ? words.receives[done ? 1 : 0] : '', a, approx, `pool-tx-get-${i}`)),
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Network fee' }), h('span', { class: 'v', 'data-testid': 'pool-tx-fee', text: `${formatAmount(tx && tx.fee != null ? BigInt(tx.fee) : p.fee)} BEAM` })),
+        ...pays.map((a, i) => line(i === 0 ? t(words.pays) : '', a, '', `pool-tx-pay-${i}`)),
+        ...receives.map((a, i) => line(i === 0 ? t(words.receives[done ? 1 : 0]) : '', a, approx, `pool-tx-get-${i}`)),
+        h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Network fee') }), h('span', { class: 'v', 'data-testid': 'pool-tx-fee', text: `${formatAmount(tx && tx.fee != null ? BigInt(tx.fee) : p.fee)} BEAM` })), // i18n-ignore: an amount and its ticker
         tx && tx.kernel && /[1-9a-f]/.test(tx.kernel)
-          ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Kernel ID' }), h('button', { class: 'v mono btn-text', 'data-testid': 'pool-tx-kernel', 'data-kernel': tx.kernel, onclick: () => copyText(tx.kernel, 'Kernel ID copied'), text: shorten(tx.kernel, 10, 8) }))
+          ? h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Kernel ID') }), h('button', { class: 'v mono btn-text', 'data-testid': 'pool-tx-kernel', 'data-kernel': tx.kernel, onclick: () => copyText(tx.kernel, t('Kernel ID copied')), text: shorten(tx.kernel, 10, 8) }))
           : null,
       ),
       done
         ? notice(
             'success',
             p.action === 'create'
-              ? 'The pool is on the blockchain, empty. Add the first coins: they set its price.'
+              ? t('The pool is on the blockchain, empty. Add the first coins: they set its price.')
               : p.action === 'withdraw'
-                ? 'The coins are back in your wallet. Your new balance is on the Wallet tab; the move is in Activity.'
-                : `Your share is in your wallet as ${unit(p.lpToken)}. It is on the Wallet tab; the move is in Activity.`,
+                ? t('The coins are back in your wallet. Your new balance is on the Wallet tab; the move is in Activity.')
+                : t('Your share is in your wallet as {unit}. It is on the Wallet tab; the move is in Activity.', { unit: unit(p.lpToken) }),
           )
         : failed && spentElsewhere(tx)
           ? spentElsewhereNotice(app)
           : failed
-          ? notice(s === 2 ? 'info' : 'error', `${s === 4 && tx.failure_reason ? `${tx.failure_reason}. ` : ''}Nothing moved: your coins stay in your wallet.`)
-          : notice('info', 'On its way to the blockchain. This usually takes a minute or two; keep BEAM Campfire open until it is done.'),
+          ? notice(s === 2 ? 'info' : 'error', s === 4 && tx.failure_reason ? t('{reason}. Nothing moved: your coins stay in your wallet.', { reason: String(tx.failure_reason) }) : t('Nothing moved: your coins stay in your wallet.'))
+          : notice('info', t('On its way to the blockchain. This usually takes a minute or two; keep BEAM Campfire open until it is done.')),
     );
     if (done && p.action === 'create') {
-      put(actions, primary('Add the first coins', () => toPool({ mode: 'add' }), { 'data-testid': 'pool-tx-add-first' }), secondary('Done', () => app.go('pools', {}, { replace: true }), { 'data-testid': 'pool-tx-done' }));
+      put(actions, primary(t('Add the first coins'), () => toPool({ mode: 'add' }), { 'data-testid': 'pool-tx-add-first' }), secondary(t('Done'), () => app.go('pools', {}, { replace: true }), { 'data-testid': 'pool-tx-done' }));
     } else {
-      put(actions, primary('Done', () => (p.action === 'create' ? app.go('pools', {}, { replace: true }) : toPool()), { 'data-testid': 'pool-tx-done' }));
+      put(actions, primary(t('Done'), () => (p.action === 'create' ? app.go('pools', {}, { replace: true }) : toPool()), { 'data-testid': 'pool-tx-done' }));
     }
     if (done && !doneSeen) {
       doneSeen = true;
@@ -86,8 +88,8 @@ export default function poolTx(app, p) {
 
   async function poll() {
     try {
-      const t = await wallet.txStatus(p.txId);
-      tx = { ...(wallet.state.txs.find((x) => x.txId === p.txId) || {}), ...t };
+      const st = await wallet.txStatus(p.txId);
+      tx = { ...(wallet.state.txs.find((x) => x.txId === p.txId) || {}), ...st };
       render();
     } catch {
       /* keep the last state */
@@ -96,16 +98,16 @@ export default function poolTx(app, p) {
 
   const timer = setInterval(poll, 3000);
   const off = wallet.onChange(() => {
-    const t = wallet.state.txs.find((x) => x.txId === p.txId);
-    if (t) {
-      tx = { ...tx, ...t };
+    const found = wallet.state.txs.find((x) => x.txId === p.txId);
+    if (found) {
+      tx = { ...tx, ...found };
       render();
     }
   });
   render();
   poll();
 
-  const el = h('main', { class: 'screen', 'data-testid': 'pool-tx', 'data-txid': p.txId }, h('header', { class: 'topbar' }, h('h1', { text: p.action === 'create' ? 'New pool' : 'Pool' })), body, actions);
+  const el = h('main', { class: 'screen', 'data-testid': 'pool-tx', 'data-txid': p.txId }, h('header', { class: 'topbar' }, h('h1', { text: p.action === 'create' ? t('New pool') : t('Pool') })), body, actions);
   return {
     el,
     destroy() {

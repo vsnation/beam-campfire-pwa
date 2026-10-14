@@ -17,7 +17,8 @@ import { screen, primary, notice } from '../lib/ui.js';
 import { isOpen } from '../lib/bridge/store.js';
 import { CLAIM_FEE, BEAM_DECIMALS } from '../lib/bridge/routes.js';
 import { bridgeOf, bridgeProblem, crossingRow } from './bridge_ui.js';
-import { coin, collectLabel } from './bridge_text.js';
+import { coin, collectLabel, sentence } from './bridge_text.js';
+import { t, tn } from '../lib/i18n.js';
 
 export default function bridgeList(app, params = {}) {
   const body = h('div', { class: 'stack' });
@@ -41,7 +42,7 @@ export default function bridgeList(app, params = {}) {
       return;
     }
     if (!s) {
-      put(body, h('div', { class: 'center pad' }, h('div', { class: 'spinner', role: 'progressbar', 'aria-label': 'Opening' })));
+      put(body, h('div', { class: 'center pad' }, h('div', { class: 'spinner', role: 'progressbar', 'aria-label': t('Opening') })));
       put(actions);
       return;
     }
@@ -58,19 +59,19 @@ export default function bridgeList(app, params = {}) {
           'div',
           { class: 'card empty', 'data-testid': 'bridge-list-empty' },
           icon('bridge'),
-          h('h3', { text: 'No moves yet' }),
-          h('p', { class: 'small', text: 'Coins you move between your BEAM and Ethereum wallets show up here, with where each one is.' }),
+          h('h3', { text: t('No moves yet') }),
+          h('p', { class: 'small', text: t('Coins you move between your BEAM and Ethereum wallets show up here, with where each one is.') }),
         ),
       );
-      put(actions, primary('Move coins', () => app.go('bridgeMove'), { 'data-testid': 'bridge-list-move' }));
+      put(actions, primary(t('Move coins'), () => app.go('bridgeMove'), { 'data-testid': 'bridge-list-move' }));
       return;
     }
     put(
       body,
       waitingItems().length ? found : null,
-      going.length ? h('p', { class: 'section-title', text: 'On their way' }) : null,
+      going.length ? h('p', { class: 'section-title', text: t('On their way') }) : null,
       going.length ? h('div', { class: 'card list', 'data-testid': 'bridge-list-open' }, ...going.map((c) => crossingRow(s.ctl, c, go(c)))) : null,
-      finished.length ? h('p', { class: 'section-title', text: 'Finished' }) : null,
+      finished.length ? h('p', { class: 'section-title', text: t('Finished') }) : null,
       finished.length ? h('div', { class: 'card list', 'data-testid': 'bridge-list-done' }, ...finished.map((c) => crossingRow(s.ctl, c, go(c)))) : null,
       waitingItems().length ? null : found,
     );
@@ -85,19 +86,21 @@ export default function bridgeList(app, params = {}) {
   /** "Waiting for you on BEAM" with a Collect button each; or, when nothing is, one quiet line. */
   function waitingView() {
     const items = waitingItems();
-    const again = h('button', { class: 'btn btn-text btn-small', disabled: checking || collecting !== null, onclick: checkWaiting, 'data-testid': 'bridge-waiting-check' }, 'Check again');
+    const again = h('button', { class: 'btn btn-text btn-small', disabled: checking || collecting !== null, onclick: checkWaiting, 'data-testid': 'bridge-waiting-check' }, t('Check again'));
     const problem = waitError ? h('div', { 'data-testid': 'bridge-waiting-error' }, notice('warn', waitError)) : null;
     if (!items.length) {
-      const failed = waiting && waiting.failed.length ? ` BEAM did not answer for ${waiting.failed.length === 1 ? 'one coin' : `${waiting.failed.length} coins`}.` : '';
-      const line = checking ? 'Checking the bridge for coins waiting for this wallet…' : waiting ? `Nothing ${s && s.ctl.crossings.length ? 'else ' : ''}is waiting for this wallet on the bridge.${failed}` : null;
+      const n = waiting ? waiting.failed.length : 0;
+      const failed = n ? ` ${n === 1 ? t('BEAM did not answer for one coin.') : tn({ one: 'BEAM did not answer for {n} coin.', other: 'BEAM did not answer for {n} coins.' }, n)}` : '';
+      const nothing = s && s.ctl.crossings.length ? t('Nothing else is waiting for this wallet on the bridge.') : t('Nothing is waiting for this wallet on the bridge.');
+      const line = checking ? t('Checking the bridge for coins waiting for this wallet…') : waiting ? `${nothing}${failed}` : null;
       if (!line && !problem) return null;
       return h('div', { class: 'stack', 'data-testid': 'bridge-waiting', 'data-count': '0' }, problem, line ? h('p', { class: 'small center', 'data-testid': 'bridge-waiting-none' }, h('span', { text: `${line} ` }), checking ? null : again) : null);
     }
     return h(
       'div',
       { class: 'stack', 'data-testid': 'bridge-waiting', 'data-count': String(items.length) },
-      h('p', { class: 'section-title', text: 'Waiting for you on BEAM' }),
-      h('p', { class: 'small', text: `The bridge holds these for this wallet. Collecting one is a BEAM transaction with a ${coin(CLAIM_FEE, BEAM_DECIMALS, 'BEAM')} network fee.` }),
+      h('p', { class: 'section-title', text: t('Waiting for you on BEAM') }),
+      h('p', { class: 'small', text: t('The bridge holds these for this wallet. Collecting one is a BEAM transaction with a {fee} network fee.', { fee: coin(CLAIM_FEE, BEAM_DECIMALS, 'BEAM') }) }),
       problem,
       h(
         'div',
@@ -107,8 +110,8 @@ export default function bridgeList(app, params = {}) {
             'div',
             { class: 'row', 'data-testid': 'bridge-waiting-row', 'data-route': i.route.id, 'data-msg': String(i.msgId) },
             h('span', { class: 'ico in' }, icon('download')),
-            h('span', { class: 'main' }, h('div', { class: 't', text: coin(i.amount, BEAM_DECIMALS, i.route.beamSymbol) }), h('div', { class: 's', text: `Bridge transfer #${i.msgId}` })),
-            h('button', { class: 'btn btn-secondary btn-small', disabled: collecting !== null, onclick: () => collectOne(i), 'aria-label': collectLabel(i.route, i.amount), 'data-testid': 'bridge-waiting-collect' }, collecting === i.msgId ? 'Collecting…' : 'Collect'),
+            h('span', { class: 'main' }, h('div', { class: 't', text: coin(i.amount, BEAM_DECIMALS, i.route.beamSymbol) }), h('div', { class: 's', text: t('Bridge transfer #{number}', { number: i.msgId }) })),
+            h('button', { class: 'btn btn-secondary btn-small', disabled: collecting !== null, onclick: () => collectOne(i), 'aria-label': collectLabel(i.route, i.amount), 'data-testid': 'bridge-waiting-collect' }, collecting === i.msgId ? t('Collecting…') : t('Collect')),
           ),
         ),
       ),
@@ -124,7 +127,7 @@ export default function bridgeList(app, params = {}) {
     try {
       waiting = await s.ctl.waiting();
     } catch {
-      waitError = "Couldn't ask the bridge on BEAM right now. Nothing is lost: try again in a minute.";
+      waitError = t("Couldn't ask the bridge on BEAM right now. Nothing is lost: try again in a minute.");
     }
     checking = false;
     render();
@@ -142,7 +145,7 @@ export default function bridgeList(app, params = {}) {
       if (alive) return app.go('bridgeCrossing', { id: c.id, back: 'bridgeList' });
     } catch (e) {
       collecting = null;
-      waitError = e && e.code === 'rejected' ? 'You did not approve it, so nothing was collected. It is still waiting for you.' : `${e.message}${/\.$/.test(e.message || '') ? '' : '.'}`;
+      waitError = e && e.code === 'rejected' ? t('You did not approve it, so nothing was collected. It is still waiting for you.') : sentence(e.message);
     }
     if (alive) await checkWaiting();
   }
@@ -166,7 +169,7 @@ export default function bridgeList(app, params = {}) {
 
   render();
   open();
-  const el = screen({ title: 'Your moves', back, cls: 'bridge' }, body);
+  const el = screen({ title: t('Your moves'), back, cls: 'bridge' }, body);
   el.appendChild(actions);
   return {
     el,

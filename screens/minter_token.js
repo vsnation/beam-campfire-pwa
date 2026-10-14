@@ -15,6 +15,7 @@ import { cleanText } from '../lib/meta.js';
 import { minter, tokenAmount, limitText, rememberMetadata, problemNotice, tokenTitle, forgetOnLock } from './minter.js';
 import { mintedShare } from './minter_tokens.js';
 import { syncReason } from '../lib/sync.js';
+import { t } from '../lib/i18n.js';
 
 export default function minterToken(app, p = {}) {
   forgetOnLock(app);
@@ -30,21 +31,21 @@ export default function minterToken(app, p = {}) {
     if (!alive) return;
     if (error || missing) {
       put(body, problemNotice(error || { code: 'noSuchToken' }, 'token-problem'));
-      put(actions, primary('Try again', load, { 'data-testid': 'token-retry' }));
+      put(actions, primary(t('Try again'), load, { 'data-testid': 'token-retry' }));
       return;
     }
     if (!token) {
-      put(body, h('div', { class: 'card empty' }, h('div', { class: 'spinner' }), h('p', { class: 'small', text: 'Reading the token from the Minter…' })));
+      put(body, h('div', { class: 'card empty' }, h('div', { class: 'spinner' }), h('p', { class: 'small', text: t('Reading the token from the Minter…') })));
       put(actions);
       return;
     }
-    const t = token;
+    const tok = token;
     title.textContent = wallet.label(assetId).unit;
-    const f = metadataFields(t.metadata) || {};
+    const f = metadataFields(tok.metadata) || {};
     const held = wallet.available(assetId);
     const kv = (k, v, testid) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), h('span', { class: 'v', 'data-testid': testid, text: v }));
     const stack = (k, v, testid) => h('div', { class: 'kv kv-stack' }, h('span', { class: 'k', text: k }), h('span', { class: 'v plain', 'data-testid': testid, text: v }));
-    const share = mintedShare(t);
+    const share = mintedShare(tok);
     const bar = h('div', { class: 'progress token-bar' }, h('div'));
     if (share != null) bar.firstChild.style.width = `${Math.max(0, Math.min(1, share)) * 100}%`;
     // Chain text is untrusted: printable characters only, and never a link.
@@ -59,32 +60,32 @@ export default function minterToken(app, p = {}) {
       h(
         'div',
         { class: 'card flat swap-details', 'data-testid': 'token-facts' },
-        kv('Minted so far', tokenAmount(assetId, t.minted), 'token-minted'),
-        kv('Maximum supply', limitText(assetId, t.limit), 'token-limit'),
-        unlimited(t.limit) ? null : kv('Can still be minted', tokenAmount(assetId, t.mintable), 'token-mintable'),
-        kv('In this wallet', tokenAmount(assetId, held), 'token-held'),
-        kv('Who can mint it', t.isOwner ? 'This wallet' : t.ownerCid ? 'A contract' : 'Another wallet', 'token-owner'),
+        kv(t('Minted so far'), tokenAmount(assetId, tok.minted), 'token-minted'),
+        kv(t('Maximum supply'), limitText(assetId, tok.limit), 'token-limit'),
+        unlimited(tok.limit) ? null : kv(t('Can still be minted'), tokenAmount(assetId, tok.mintable), 'token-mintable'),
+        kv(t('In this wallet'), tokenAmount(assetId, held), 'token-held'),
+        kv(t('Who can mint it'), tok.isOwner ? t('This wallet') : tok.ownerCid ? t('A contract') : t('Another wallet'), 'token-owner'),
       ),
       desc || long || color || site
         ? h(
             'div',
             { class: 'card flat swap-details', 'data-testid': 'token-details' },
-            desc ? stack('Description', desc, 'token-desc') : null,
-            long ? stack('More about it', long, 'token-long-desc') : null,
-            color ? kv('Colour', color, 'token-color') : null,
-            site ? stack('Website (as written by its creator)', site, 'token-site') : null,
+            desc ? stack(t('Description'), desc, 'token-desc') : null,
+            long ? stack(t('More about it'), long, 'token-long-desc') : null,
+            color ? kv(t('Colour'), color, 'token-color') : null,
+            site ? stack(t('Website (as written by its creator)'), site, 'token-site') : null,
           )
         : null,
-      h('p', { class: 'small', text: 'Created with BEAM’s Minter. These details are on the chain for good.' }),
+      h('p', { class: 'small', text: t('Created with BEAM’s Minter. These details are on the chain for good.') }),
     );
-    const canMint = t.isOwner && t.mintable > 0n;
-    const why = canMint && !wallet.state.sync.canSend ? h('p', { class: 'hint center', text: `Minting is paused: ${syncReason(wallet.state.sync.title)}.` }) : null;
+    const canMint = tok.isOwner && tok.mintable > 0n;
+    const why = canMint && !wallet.state.sync.canSend ? h('p', { class: 'hint center', text: t('Minting is paused: {state}.', { state: syncReason(wallet.state.sync.title) }) }) : null;
     put(
       actions,
       why,
-      canMint ? primary('Mint more', () => app.go('minterMint', { assetId }), { disabled: !wallet.state.sync.canSend, 'data-testid': 'token-mint' }) : null,
-      held > 0n ? (canMint ? secondary : primary)(`Burn ${wallet.label(assetId).unit}`, () => app.go('burn', { assetId }), { 'data-testid': 'token-burn' }) : null,
-      !canMint && held === 0n ? h('p', { class: 'small center', text: t.isOwner ? `Every ${wallet.label(assetId).unit} that can exist was minted.` : 'Only the wallet that created this token can mint it.' }) : null,
+      canMint ? primary(t('Mint more'), () => app.go('minterMint', { assetId }), { disabled: !wallet.state.sync.canSend, 'data-testid': 'token-mint' }) : null,
+      held > 0n ? (canMint ? secondary : primary)(t('Burn {unit}', { unit: wallet.label(assetId).unit }), () => app.go('burn', { assetId }), { 'data-testid': 'token-burn' }) : null,
+      !canMint && held === 0n ? h('p', { class: 'small center', text: tok.isOwner ? t('Every {unit} that can exist was minted.', { unit: wallet.label(assetId).unit }) : t('Only the wallet that created this token can mint it.') }) : null,
     );
   }
 
@@ -94,12 +95,12 @@ export default function minterToken(app, p = {}) {
     token = null;
     render();
     try {
-      const t = await minter().token(assetId);
+      const tok = await minter().token(assetId);
       if (!alive) return;
-      if (!t) missing = true;
+      if (!tok) missing = true;
       else {
-        rememberMetadata(assetId, t.metadata);
-        token = t;
+        rememberMetadata(assetId, tok.metadata);
+        token = tok;
         if (!wallet.assetNamed.has(assetId)) wallet.loadAsset(assetId);
       }
     } catch (e) {

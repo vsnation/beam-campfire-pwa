@@ -25,16 +25,19 @@ import { beamText, groth, buySteps } from '../lib/buy/words.js';
 import { buySiteUrl } from '../lib/buy/hosts.js';
 import { qrElement } from './receive.js';
 import { coinBadge } from './buy_screens.js';
+import { t, dateLocale } from '../lib/i18n.js';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// English's day and month ("9 Oct"; en-GB's own short month says "Sept"). Other languages: their own.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; // i18n-ignore: English only; other languages use toLocaleDateString(dateLocale())
 
 /** "14:05 today" or "14:05 on 9 Oct". */
 export function untilText(ms, now = Date.now()) {
-  const t = new Date(ms);
+  const d = new Date(ms);
   const n = new Date(now);
-  const hm = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
-  if (t.toDateString() === n.toDateString()) return `${hm} today`;
-  return `${hm} on ${t.getDate()} ${MONTHS[t.getMonth()]}`;
+  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  if (d.toDateString() === n.toDateString()) return t('{time} today', { time });
+  const loc = dateLocale();
+  return t('{time} on {date}', { time, date: loc ? d.toLocaleDateString(loc, { day: 'numeric', month: 'short' }) : `${d.getDate()} ${MONTHS[d.getMonth()]}` });
 }
 
 function kv(label, value, extra = {}) {
@@ -51,7 +54,7 @@ export default function buyOrderScreen(app, params = {}) {
   let alive = true;
 
   const copy = async (text, amount = false) => {
-    if (await copyText(text, amount ? 'Amount copied' : 'Address copied')) {
+    if (await copyText(text, amount ? t('Amount copied') : t('Address copied'))) {
       if (amount) amountCopied = true;
       else copied = true;
       render();
@@ -60,26 +63,26 @@ export default function buyOrderScreen(app, params = {}) {
 
   function payment(o) {
     return [
-      notice('warn', h('span', { 'data-testid': 'buy-network-warning', text: `Send only ${o.symbol} on the ${o.chainName} network to this address.` })),
+      notice('warn', h('span', { 'data-testid': 'buy-network-warning', text: t('Send only {symbol} on the {chain} network to this address.', { symbol: o.symbol, chain: o.chainName }) })),
       h('div', { class: 'qr qr-small', 'data-testid': 'buy-qr' }, qrElement(o.depositAddress)),
       h(
         'div',
         { class: 'card address-box' },
-        h('div', { class: 'banner' }, coinBadge(o.assetId, o.symbol, 'small'), h('span', { class: 'grow small', text: `${o.chainName} deposit address` }), h('button', { class: 'btn btn-text btn-small', 'data-testid': 'buy-copy-address', onclick: () => copy(o.depositAddress) }, icon('copy'), copied ? 'Copied' : 'Copy')),
+        h('div', { class: 'banner' }, coinBadge(o.assetId, o.symbol, 'small'), h('span', { class: 'grow small', text: t('{chain} deposit address', { chain: o.chainName }) }), h('button', { class: 'btn btn-text btn-small', 'data-testid': 'buy-copy-address', onclick: () => copy(o.depositAddress) }, icon('copy'), copied ? t('Copied') : t('Copy'))),
         h('p', { class: 'mono', 'data-testid': 'buy-deposit-address', text: o.depositAddress }),
       ),
       h(
         'div',
         { class: 'card banner exact-amount' },
-        h('div', { class: 'grow' }, h('div', { class: 'small', text: 'Send exactly' }), h('div', { class: 'big', 'data-testid': 'buy-exact-amount', text: `${o.sendAmount} ${o.symbol}` })),
-        h('button', { class: 'btn btn-text btn-small', 'data-testid': 'buy-copy-amount', onclick: () => copy(o.sendAmount, true) }, icon('copy'), amountCopied ? 'Copied' : 'Copy'),
+        h('div', { class: 'grow' }, h('div', { class: 'small', text: t('Send exactly') }), h('div', { class: 'big', 'data-testid': 'buy-exact-amount', text: `${o.sendAmount} ${o.symbol}` })),
+        h('button', { class: 'btn btn-text btn-small', 'data-testid': 'buy-copy-amount', onclick: () => copy(o.sendAmount, true) }, icon('copy'), amountCopied ? t('Copied') : t('Copy')),
       ),
-      o.deadline ? h('p', { class: 'small', 'data-testid': 'buy-deadline', text: `This address works until ${untilText(o.deadline)}.` }) : null,
+      o.deadline ? h('p', { class: 'small', 'data-testid': 'buy-deadline', text: t('This address works until {time}.', { time: untilText(o.deadline) }) }) : null,
     ];
   }
 
   function stateNotice(o, s, arrived) {
-    const got = o.beamEstimate == null ? 'Your BEAM' : `≈\u00a0${beamText(groth(o.beamEstimate))}`;
+    const got = o.beamEstimate == null ? null : `≈\u00a0${beamText(groth(o.beamEstimate))}`;
     const n = (kind, key, title, detail) => {
       const el = notice(kind, h('strong', { text: `${title} ` }), detail || '');
       el.dataset.testid = key;
@@ -87,15 +90,16 @@ export default function buyOrderScreen(app, params = {}) {
     };
     switch (s) {
       case 'delivered':
-        return arrived ? n('success', 'buy-arrived', 'Your BEAM has arrived.', `${got} is in your BEAM wallet.`) : n('info', 'buy-delivered', 'buybeam.my sent your BEAM.', `${got} shows in your BEAM wallet as soon as BEAM Campfire accepts it: keep it open.`);
+        if (arrived) return n('success', 'buy-arrived', t('Your BEAM has arrived.'), got ? t('{amount} is in your BEAM wallet.', { amount: got }) : t('Your BEAM is in your BEAM wallet.'));
+        return n('info', 'buy-delivered', t('buybeam.my sent your BEAM.'), got ? t('{amount} shows in your BEAM wallet as soon as BEAM Campfire accepts it: keep it open.', { amount: got }) : t('Your BEAM shows in your BEAM wallet as soon as BEAM Campfire accepts it: keep it open.'));
       case 'refunded':
-        return n('warn', 'buy-refunded', `Your payment was sent back to ${shorten(o.refundAddress, 6, 4)}.`, `buybeam.my couldn't buy the BEAM, so your ${o.symbol} went back to your ${o.chainName} address. There is nothing else to do.`);
+        return n('warn', 'buy-refunded', t('Your payment was sent back to {address}.', { address: shorten(o.refundAddress, 6, 4) }), t("buybeam.my couldn't buy the BEAM, so your {symbol} went back to your {chain} address. There is nothing else to do.", { symbol: o.symbol, chain: o.chainName }));
       case 'expired':
-        return n('warn', 'buy-expired', 'No payment arrived in time. Nothing was taken.', 'This address no longer takes payments. Start a new buy to get a new one.');
+        return n('warn', 'buy-expired', t('No payment arrived in time. Nothing was taken.'), t('This address no longer takes payments. Start a new buy to get a new one.'));
       case 'failed':
-        return n('error', 'buy-failed', "The payment couldn't be processed.", 'Contact buybeam.my support with this order (copy it below). They can see where your coins are.');
+        return n('error', 'buy-failed', t("The payment couldn't be processed."), t('Contact buybeam.my support with this order (copy it below). They can see where your coins are.'));
       case 'attention':
-        return n('warn', 'buy-attention', 'buybeam.my is checking this order.', 'Contact their support with this order (copy it below). BEAM Campfire keeps checking meanwhile.');
+        return n('warn', 'buy-attention', t('buybeam.my is checking this order.'), t('Contact their support with this order (copy it below). BEAM Campfire keeps checking meanwhile.'));
       default:
         return null;
     }
@@ -117,12 +121,12 @@ export default function buyOrderScreen(app, params = {}) {
     return h(
       'div',
       { class: 'card flat swap-details' },
-      kv(paid ? 'You paid' : 'You pay', `${o.sendAmount} ${o.symbol}`),
-      o.beamEstimate != null ? kv(arrived ? 'You got' : 'You get', `≈ ${beamText(groth(o.beamEstimate))}`, { 'data-testid': 'buy-order-estimate' }) : null,
-      kv('Arrives in', 'Your BEAM wallet'),
-      kv('Refunds go to', shorten(o.refundAddress, 6, 4), { class: 'v mono' }),
-      s !== 'awaiting_deposit' ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Order' }), h('button', { class: 'v mono btn-text', 'data-testid': 'buy-copy-order', onclick: () => copy(o.depositAddress), text: shorten(o.depositAddress, 6, 4) })) : null,
-      o.beamTxId ? kv('BEAM transaction', shorten(o.beamTxId, 6, 4), { class: 'v mono', 'data-testid': 'buy-beam-tx' }) : null,
+      kv(paid ? t('You paid') : t('You pay'), `${o.sendAmount} ${o.symbol}`),
+      o.beamEstimate != null ? kv(arrived ? t('You got') : t('You get'), `≈ ${beamText(groth(o.beamEstimate))}`, { 'data-testid': 'buy-order-estimate' }) : null,
+      kv(t('Arrives in'), t('Your BEAM wallet')),
+      kv(t('Refunds go to'), shorten(o.refundAddress, 6, 4), { class: 'v mono' }),
+      s !== 'awaiting_deposit' ? h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Order') }), h('button', { class: 'v mono btn-text', 'data-testid': 'buy-copy-order', onclick: () => copy(o.depositAddress), text: shorten(o.depositAddress, 6, 4) })) : null,
+      o.beamTxId ? kv(t('BEAM transaction'), shorten(o.beamTxId, 6, 4), { class: 'v mono', 'data-testid': 'buy-beam-tx' }) : null,
     );
   }
 
@@ -130,37 +134,37 @@ export default function buyOrderScreen(app, params = {}) {
     if (!alive) return;
     const o = c.order(deposit);
     if (!o) {
-      put(body, c.loadError ? notice('error', `Your buys could not be opened: ${c.loadError.message}`) : h('p', { class: 'small', text: 'Loading your buy…' }));
-      put(actions, primary('Back to your wallet', () => app.go('home'), { 'data-testid': 'buy-order-cta' }));
+      put(body, c.loadError ? notice('error', t('Your buys could not be opened: {reason}', { reason: c.loadError.message })) : h('p', { class: 'small', text: t('Loading your buy…') }));
+      put(actions, primary(t('Back to your wallet'), () => app.go('home'), { 'data-testid': 'buy-order-cta' }));
       return;
     }
     const s = o.lastState || 'awaiting_deposit';
     const arrived = s === 'delivered' && receivedInWallet(o.beamTxId);
-    titleEl.textContent = s === 'awaiting_deposit' ? `Send ${o.sendAmount} ${o.symbol}` : 'Buy BEAM';
+    titleEl.textContent = s === 'awaiting_deposit' ? t('Send {amount}', { amount: `${o.sendAmount} ${o.symbol}` }) : t('Buy BEAM');
     const pollError = c.pollError(deposit);
     put(
       body,
-      o.sandbox ? notice('info', "buybeam.my's test mode: nothing to pay.") : null,
+      o.sandbox ? notice('info', t("buybeam.my's test mode: nothing to pay.")) : null,
       stateNotice(o, s, arrived),
       ...(s === 'awaiting_deposit' ? payment(o) : []),
       steps(s, arrived),
       details(o, s, arrived),
-      o.isOpen ? h('p', { class: 'small', 'data-testid': 'buy-keep-open', text: 'Keep BEAM Campfire open until your BEAM arrives. If you close it, open it again within 12 hours.' }) : null,
-      o.isOpen ? h('p', { class: 'small', 'data-testid': 'buy-can-leave', text: 'You can leave this screen: your buy keeps going.' }) : null,
-      pollError && o.isOpen ? h('p', { class: 'small', 'data-testid': 'buy-poll-error', text: pollError.unreachable ? "Couldn't reach buybeam.my just now. BEAM Campfire keeps checking." : "buybeam.my's last answer didn't make sense. BEAM Campfire keeps checking." }) : null,
+      o.isOpen ? h('p', { class: 'small', 'data-testid': 'buy-keep-open', text: t('Keep BEAM Campfire open until your BEAM arrives. If you close it, open it again within 12 hours.') }) : null,
+      o.isOpen ? h('p', { class: 'small', 'data-testid': 'buy-can-leave', text: t('You can leave this screen: your buy keeps going.') }) : null,
+      pollError && o.isOpen ? h('p', { class: 'small', 'data-testid': 'buy-poll-error', text: pollError.unreachable ? t("Couldn't reach buybeam.my just now. BEAM Campfire keeps checking.") : t("buybeam.my's last answer didn't make sense. BEAM Campfire keeps checking.") }) : null,
     );
     let cta;
-    if (s === 'awaiting_deposit') cta = primary(h('span', { text: copied ? 'Address copied' : 'Copy address' }), () => copy(o.depositAddress), { 'data-testid': 'buy-order-cta' });
-    else if (s === 'delivered' && arrived) cta = primary('See it in your wallet', () => app.go('activity', { txId: o.beamTxId }), { 'data-testid': 'buy-order-cta' });
-    else if (s === 'expired') cta = primary('Start a new buy', () => app.go('buyBeam', {}, { replace: true }), { 'data-testid': 'buy-order-cta' });
-    else if (s === 'failed' || s === 'attention') cta = h('a', { class: 'btn btn-primary', href: buySiteUrl(), target: '_blank', rel: 'noopener noreferrer', 'data-testid': 'buy-order-cta' }, 'Contact buybeam.my support');
-    else cta = primary('Back to your wallet', () => app.go('home'), { 'data-testid': 'buy-order-cta' });
+    if (s === 'awaiting_deposit') cta = primary(h('span', { text: copied ? t('Address copied') : t('Copy address') }), () => copy(o.depositAddress), { 'data-testid': 'buy-order-cta' });
+    else if (s === 'delivered' && arrived) cta = primary(t('See it in your wallet'), () => app.go('activity', { txId: o.beamTxId }), { 'data-testid': 'buy-order-cta' });
+    else if (s === 'expired') cta = primary(t('Start a new buy'), () => app.go('buyBeam', {}, { replace: true }), { 'data-testid': 'buy-order-cta' });
+    else if (s === 'failed' || s === 'attention') cta = h('a', { class: 'btn btn-primary', href: buySiteUrl(), target: '_blank', rel: 'noopener noreferrer', 'data-testid': 'buy-order-cta' }, t('Contact buybeam.my support'));
+    else cta = primary(t('Back to your wallet'), () => app.go('home'), { 'data-testid': 'buy-order-cta' });
     if (s === 'awaiting_deposit') cta.prepend(icon('copy'));
     put(actions, cta);
     root.dataset.state = s;
   }
 
-  const el = screen({ title: 'Buy BEAM', back: () => app.back(params.from === 'list' ? 'buyOrders' : 'home'), actions: [actions], cls: 'buy-order sticky-actions' }, body);
+  const el = screen({ title: t('Buy BEAM'), back: () => app.back(params.from === 'list' ? 'buyOrders' : 'home'), actions: [actions], cls: 'buy-order sticky-actions' }, body);
   const titleEl = el.querySelector('.topbar h1');
   const root = el;
   const off = c.onChange(() => render());

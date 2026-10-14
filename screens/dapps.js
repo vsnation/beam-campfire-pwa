@@ -35,15 +35,17 @@ import { installed, iconDataUrl } from '../lib/dapps/installed.js';
 import { remoteOriginFor } from '../lib/dapps/frame_policy.js';
 import { openApp, readsAsWallet } from '../lib/contracts.js';
 import { syncReason } from '../lib/sync.js';
+import { t } from '../lib/i18n.js';
 
 export { runnerStats };
 
 const FILE_INPUT_ID = 'dapp-file-input';
-const NOT_CHECKED = 'installed from a file, not checked by BEAM Campfire';
-/** Where an installed dApp came from, in a few words. */
-const originText = (rec) => (rec.store ? `from BEAM's DApp Store, published by ${rec.store.publisherName || 'a publisher'} · matches its on-chain hash` : NOT_CHECKED);
 
-const remoteHosts = (e) => e.remoteOrigins.map(hostOf).join(' and ');
+/** "api.coingecko.com and explorer-api.beam.mw": the hosts a catalogue dApp may reach. */
+const remoteHosts = (e) => {
+  const hosts = e.remoteOrigins.map(hostOf);
+  return hosts.length ? hosts.reduce((first, second) => t('{first} and {second}', { first, second })) : '';
+};
 
 function dappPrefs(app) {
   return (app.prefs && app.prefs.dapps) || {};
@@ -60,8 +62,14 @@ function fileEntry(rec) {
   return { file: true, guid: rec.guid, name: rec.name, needsEval: true, remoteOrigins: [...rec.origins], rec };
 }
 
-const versionText = (v) => (v ? `Version ${v}` : 'No version');
-const publisherText = (p) => (p ? `by ${p}` : 'unknown publisher');
+const versionText = (v) => (v ? t('Version {version}', { version: v }) : t('No version'));
+const publisherText = (p) => (p ? t('by {publisher}', { publisher: p }) : t('unknown publisher'));
+/** Where an installed dApp came from, after its version on More: the parts of one line, joined by " · ". */
+function originText(rec) {
+  if (!rec.store) return `${publisherText(rec.publisher)} · ${t('installed from a file, not checked by BEAM Campfire.')}`;
+  const by = rec.store.publisherName ? t("from BEAM's DApp Store, published by {publisher}", { publisher: rec.store.publisherName }) : t("from BEAM's DApp Store, published by a publisher");
+  return `${by} · ${t('matches its on-chain hash.')}`;
+}
 
 function dappIcon(e, cls = 'dapp-icon') {
   if (!e.file) return h('span', { class: cls }, h('img', { src: iconPath(e), alt: '' }));
@@ -109,10 +117,10 @@ export default function dapps(app, params = {}) {
         'span',
         { class: 'main' },
         h('div', { class: 't', text: e.name }),
-        h('div', { class: 's', text: e.blurb }),
-        h('div', { class: 's meta', 'data-testid': 'dapp-size', text: down ? 'Downloaded · checked against its fingerprint' : `${sizeText(e.size)} download` }),
+        h('div', { class: 's', text: t(e.blurb) }),
+        h('div', { class: 's meta', 'data-testid': 'dapp-size', text: down ? t('Downloaded · checked against its fingerprint') : t('{size} download', { size: sizeText(e.size) }) }),
       ),
-      h('span', { class: 'pill', text: 'Open' }),
+      h('span', { class: 'pill', text: t('Open') }),
     );
   }
 
@@ -127,24 +135,24 @@ export default function dapps(app, params = {}) {
         { class: 'main' },
         h('div', { class: 't', text: rec.name }),
         h('div', { class: 's', text: rec.description }),
-        h('div', { class: 's meta wrap', 'data-testid': 'dapp-origin', text: `${versionText(rec.version)} · ${rec.store ? `from BEAM's DApp Store, by ${rec.store.publisherName || 'a publisher'}` : 'from a file, not checked by BEAM Campfire'}` }),
+        h('div', { class: 's meta wrap', 'data-testid': 'dapp-origin', text: `${versionText(rec.version)} · ${rec.store ? (rec.store.publisherName ? t("from BEAM's DApp Store, by {publisher}", { publisher: rec.store.publisherName }) : t("from BEAM's DApp Store, by a publisher")) : t('from a file, not checked by BEAM Campfire')}` }),
       ),
-      h('span', { class: 'pill', text: 'Open' }),
+      h('span', { class: 'pill', text: t('Open') }),
     );
   }
 
   /** An installed row with its Remove button beside it (a button cannot hold another). */
   const withRemove = (row, name, onRemove, guid) =>
-    h('div', { class: 'dapp-item' }, row, h('button', { class: 'icon-btn dapp-remove', 'aria-label': `Remove ${name}`, 'data-testid': `dapp-remove-${guid}`, onclick: onRemove }, icon('trash')));
+    h('div', { class: 'dapp-item' }, row, h('button', { class: 'icon-btn dapp-remove', 'aria-label': t('Remove {name}', { name }), 'data-testid': `dapp-remove-${guid}`, onclick: onRemove }, icon('trash')));
 
   function renderList() {
     if (destroyed) return;
-    if (!ready) return put(listBox, h('div', { class: 'card dapp-loading' }, h('div', { class: 'spinner small' }), h('span', { class: 'small', text: 'Loading your dApps…' })));
+    if (!ready) return put(listBox, h('div', { class: 'card dapp-loading' }, h('div', { class: 'spinner small' }), h('span', { class: 'small', text: t('Loading your dApps…') })));
     if (loadFailed) {
       return put(
         listBox,
-        h('div', { 'data-testid': 'dapp-load-failed' }, notice('error', "BEAM Campfire couldn't read your installed dApps. Nothing was changed. Try again; if it keeps happening, reload BEAM Campfire.")),
-        h('button', { class: 'btn btn-primary', onclick: () => ((ready = false), renderList(), refresh()) }, 'Try again'),
+        h('div', { 'data-testid': 'dapp-load-failed' }, notice('error', t("BEAM Campfire couldn't read your installed dApps. Nothing was changed. Try again; if it keeps happening, reload BEAM Campfire."))),
+        h('button', { class: 'btn btn-primary', onclick: () => ((ready = false), renderList(), refresh()) }, t('Try again')),
       );
     }
     const items = [
@@ -154,33 +162,33 @@ export default function dapps(app, params = {}) {
     const available = CATALOGUE.filter((e) => !cached.get(e.guid));
     put(
       listBox,
-      items.length ? h('p', { class: 'section-title', text: 'Installed' }) : null,
+      items.length ? h('p', { class: 'section-title', text: t('Installed') }) : null,
       items.length ? h('div', { class: 'card list dapp-list', 'data-testid': 'dapp-installed' }, ...items.map((i) => i.el)) : null,
-      h('p', { class: 'section-title', text: 'Available' }),
+      h('p', { class: 'section-title', text: t('Available') }),
       available.length
         ? h('div', { class: 'card list dapp-list', 'data-testid': 'dapp-available' }, ...available.map(catalogueRow))
-        : h('p', { class: 'small', 'data-testid': 'dapp-available-none', text: "Every one of BEAM's dApps is downloaded. You can still add another one from a .dapp file below." }),
-      h('p', { class: 'section-title', text: 'More dApps' }),
+        : h('p', { class: 'small', 'data-testid': 'dapp-available-none', text: t("Every one of BEAM's dApps is downloaded. You can still add another one from a .dapp file below.") }),
+      h('p', { class: 'section-title', text: t('More dApps') }),
       h(
         'button',
         { class: 'card row dapp-store-entry', type: 'button', onclick: () => app.go('dappStore'), 'data-testid': 'dapp-store-entry' },
         h('span', { class: 'ico' }, icon('apps')),
-        h('span', { class: 'main' }, h('div', { class: 't', text: "BEAM's DApp Store" }), h('div', { class: 's', text: 'dApps from publishers in the BEAM community' })),
+        h('span', { class: 'main' }, h('div', { class: 't', text: t("BEAM's DApp Store") }), h('div', { class: 's', text: t('dApps from publishers in the BEAM community') })),
         h('span', { class: 'chev' }, icon('chevron')),
       ),
       h(
         'div',
         { class: 'dapp-file-block' },
-        h('p', { class: 'small', text: "Have a .dapp file from a dApp's publisher?" }),
-        chooseFile('btn-secondary', 'Install from file', 'dapp-install-file'),
+        h('p', { class: 'small', text: t("Have a .dapp file from a dApp's publisher?") }),
+        chooseFile('btn-secondary', t('Install from file'), 'dapp-install-file'),
       ),
     );
   }
 
   function renderNote(s) {
     const parts = [];
-    if (!canRun) parts.push(notice('warn', 'dApps run only in the installed BEAM Campfire (the copy checked against its release signature). Open BEAM Campfire from its home screen icon or its web address and try again.'));
-    else if (s.sync.state !== 'synced') parts.push(notice('info', `The wallet is ${syncReason(s.sync.title)}. dApps can open now; what they read from the network waits until it has caught up.`));
+    if (!canRun) parts.push(notice('warn', t('dApps run only in the installed BEAM Campfire (the copy checked against its release signature). Open BEAM Campfire from its home screen icon or its web address and try again.')));
+    else if (s.sync.state !== 'synced') parts.push(notice('info', t('The wallet is {state}. dApps can open now; what they read from the network waits until it has caught up.', { state: syncReason(s.sync.title) })));
     put(topNote, ...parts);
   }
 
@@ -204,39 +212,39 @@ export default function dapps(app, params = {}) {
     // Most files are read at once; a large one shows that something is happening.
     let checking = null;
     const slow = setTimeout(() => {
-      checking = openSheet(() => [h('div', { class: 'dapp-progress', 'data-testid': 'dapp-checking' }, h('p', { class: 'lead', text: 'Checking the file…' }), progressBar(null))], { dismissable: false, label: 'Checking the file' });
+      checking = openSheet(() => [h('div', { class: 'dapp-progress', 'data-testid': 'dapp-checking' }, h('p', { class: 'lead', text: t('Checking the file…') }), progressBar(null))], { dismissable: false, label: t('Checking the file') });
     }, 400);
     const done = () => {
       clearTimeout(slow);
       if (checking) checking.close();
     };
     try {
-      if (file.size > DEFAULT_LIMITS.maxPackageBytes) throw new InstallError('tooLarge', `package is ${file.size} bytes`);
+      if (file.size > DEFAULT_LIMITS.maxPackageBytes) throw new InstallError('tooLarge', `package is ${file.size} bytes`); // i18n-ignore: for logs and tests (installErrorText shows the words)
       let bytes;
       try {
         bytes = new Uint8Array(await file.arrayBuffer());
       } catch {
-        throw new InstallError('cantOpenFile', 'the file could not be read');
+        throw new InstallError('cantOpenFile', 'the file could not be read'); // i18n-ignore: for logs and tests (installErrorText shows the words)
       }
       const pkg = await readFilePackage(bytes);
       // It could not be opened (lib/contracts.js): its name would pass for the wallet's on approvals.
-      if (readsAsWallet(pkg.manifest.name)) throw new InstallError('walletName', 'the name reads as the wallet');
+      if (readsAsWallet(pkg.manifest.name)) throw new InstallError('walletName', 'the name reads as the wallet'); // i18n-ignore: for logs and tests (installErrorText shows the words)
       const same = catalogueEntryFor(pkg);
       done();
       if (destroyed) return;
       if (same) {
         // BEAM's own package, byte for byte: the same as downloading it.
-        if (!(await keepPackage(same, bytes))) throw new InstallError('storage', 'the package cache refused it');
+        if (!(await keepPackage(same, bytes))) throw new InstallError('storage', 'the package cache refused it'); // i18n-ignore: for logs and tests (installErrorText shows the words)
         cached.set(same.guid, true);
         renderList();
-        toast(`${same.name} is installed: this file is BEAM's own package, checked against its fingerprint.`, 5000);
+        toast(t("{name} is installed: this file is BEAM's own package, checked against its fingerprint.", { name: same.name }), 5000);
         return;
       }
       const existing = await installed.get(pkg.manifest.guid);
       confirmInstall(pkg, bytes, existing, catalogueNameCopiedBy(pkg.manifest));
     } catch (err) {
       done();
-      if (!destroyed) installProblem(err, 'this dApp');
+      if (!destroyed) installProblem(err, null); // its name is not known yet: "this dApp"
     } finally {
       installing = false;
     }
@@ -247,29 +255,36 @@ export default function dapps(app, params = {}) {
     const preview = fileEntry({ guid: m.guid, name: m.name, origins: [], icon: iconDataUrl(pkg.files, m.iconPath) });
     openSheet(
       (close) => [
-        h('div', { class: 'dapp-sheet-head' }, dappIcon(preview, 'dapp-icon big'), h('h2', { 'data-testid': 'dapp-install-title', text: `Install ${m.name}?` })),
+        h('div', { class: 'dapp-sheet-head' }, dappIcon(preview, 'dapp-icon big'), h('h2', { 'data-testid': 'dapp-install-title', text: t('Install {name}?', { name: m.name }) })),
         h('p', { class: 'small', 'data-testid': 'dapp-install-meta', text: `${versionText(m.version)} · ${publisherText(m.publisher)}` }),
-        existing
-          ? h('p', { class: 'small', 'data-testid': 'dapp-install-replaces', text: `Replaces the installed version ${existing.version || '(no version)'}.${existing.origins.length ? ` It keeps the servers you let it reach: ${existing.origins.map(hostOf).join(', ')}.` : ''}` })
-          : null,
-        copies ? h('div', { 'data-testid': 'dapp-install-copies' }, notice('warn', `Its name matches ${copies}, one of the dApps BEAM Campfire checks, but it is a different app.`)) : null,
+        existing ? h('p', { class: 'small', 'data-testid': 'dapp-install-replaces', text: replacesText(existing) }) : null,
+        copies ? h('div', { 'data-testid': 'dapp-install-copies' }, notice('warn', t('Its name matches {name}, one of the dApps BEAM Campfire checks, but it is a different app.', { name: copies }))) : null,
         h(
           'div',
           { 'data-testid': 'dapp-install-unchecked' },
           notice(
             copies ? 'info' : 'warn',
-            "BEAM Campfire did not check this dApp: it is not one of BEAM's own dApps. Install it only if you trust where it came from. Payments, contract calls and signatures it asks for still come to BEAM Campfire for your approval, it asks before it sees your balance, and what you approve can't be undone.",
+            t("BEAM Campfire did not check this dApp: it is not one of BEAM's own dApps. Install it only if you trust where it came from. Payments, contract calls and signatures it asks for still come to BEAM Campfire for your approval, it asks before it sees your balance, and what you approve can't be undone."),
           ),
         ),
         h(
           'div',
           { class: 'sheet-actions' },
-          h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-install-go', onclick: () => (close(true), saveInstall(pkg, bytes, existing)) }, `${existing ? 'Replace' : 'Install'} ${m.name}`),
-          h('button', { class: 'btn btn-text', 'data-testid': 'dapp-install-cancel', onclick: () => close(false) }, 'Cancel'),
+          h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-install-go', onclick: () => (close(true), saveInstall(pkg, bytes, existing)) }, existing ? t('Replace {name}', { name: m.name }) : t('Install {name}', { name: m.name })),
+          h('button', { class: 'btn btn-text', 'data-testid': 'dapp-install-cancel', onclick: () => close(false) }, t('Cancel')),
         ),
       ],
-      { label: `Install ${m.name}` },
+      { label: t('Install {name}', { name: m.name }) },
     );
+  }
+
+  /** The line about the version a file install replaces, and the servers it keeps. */
+  function replacesText(existing) {
+    if (!existing.origins.length) return existing.version ? t('Replaces the installed version {version}.', { version: existing.version }) : t('Replaces the installed version (no version).');
+    const hosts = existing.origins.map(hostOf).join(', ');
+    return existing.version
+      ? t('Replaces the installed version {version}. It keeps the servers you let it reach: {hosts}.', { version: existing.version, hosts })
+      : t('Replaces the installed version (no version). It keeps the servers you let it reach: {hosts}.', { hosts });
   }
 
   async function saveInstall(pkg, bytes, existing) {
@@ -278,7 +293,7 @@ export default function dapps(app, params = {}) {
       await installed.install(pkg, bytes, { replace: Boolean(existing) });
       files = await installed.list();
       renderList();
-      toast(`${name} is installed. Tap it to open.`, 4000);
+      toast(t('{name} is installed. Tap it to open.', { name }), 4000);
     } catch (err) {
       if (!destroyed) installProblem(err, name, err instanceof InstallError && err.code === 'storage' ? () => saveInstall(pkg, bytes, existing) : null);
     }
@@ -287,22 +302,22 @@ export default function dapps(app, params = {}) {
   function installProblem(err, name, retry = null) {
     openSheet(
       (close) => [
-        h('h2', { text: 'Nothing was installed' }),
+        h('h2', { text: t('Nothing was installed') }),
         h('div', { 'data-testid': 'dapp-install-error', 'data-code': err && err.code ? err.code : null }, notice('error', installErrorText(err, name))),
         h(
           'div',
           { class: 'sheet-actions' },
           retry
-            ? h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-install-retry', onclick: () => (close(), retry()) }, 'Try again')
+            ? h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-install-retry', onclick: () => (close(), retry()) }, t('Try again'))
             : (() => {
-                const l = chooseFile('btn-primary', 'Choose another file', 'dapp-install-another');
+                const l = chooseFile('btn-primary', t('Choose another file'), 'dapp-install-another');
                 l.addEventListener('click', () => close());
                 return l;
               })(),
-          h('button', { class: 'btn btn-text', 'data-testid': 'dapp-install-close', onclick: () => close() }, 'Close'),
+          h('button', { class: 'btn btn-text', 'data-testid': 'dapp-install-close', onclick: () => close() }, t('Close')),
         ),
       ],
-      { label: 'Nothing was installed' },
+      { label: t('Nothing was installed') },
     );
   }
 
@@ -310,16 +325,16 @@ export default function dapps(app, params = {}) {
   function removeSheet(e) {
     openSheet(
       (close) => [
-        h('h2', { 'data-testid': 'dapp-remove-title', text: `Remove ${e.name}?` }),
-        h('p', { class: 'lead', text: 'Its files and the data it saved on this device are deleted. Your funds and transactions are not affected.' }),
+        h('h2', { 'data-testid': 'dapp-remove-title', text: t('Remove {name}?', { name: e.name }) }),
+        h('p', { class: 'lead', text: t('Its files and the data it saved on this device are deleted. Your funds and transactions are not affected.') }),
         h(
           'div',
           { class: 'sheet-actions' },
-          h('button', { class: 'btn btn-danger', 'data-testid': 'dapp-remove-confirm', onclick: () => (close(), remove(e)) }, `Remove ${e.name}`),
-          h('button', { class: 'btn btn-text', onclick: () => close() }, 'Cancel'),
+          h('button', { class: 'btn btn-danger', 'data-testid': 'dapp-remove-confirm', onclick: () => (close(), remove(e)) }, t('Remove {name}', { name: e.name })),
+          h('button', { class: 'btn btn-text', onclick: () => close() }, t('Cancel')),
         ),
       ],
-      { label: `Remove ${e.name}` },
+      { label: t('Remove {name}', { name: e.name }) },
     );
   }
 
@@ -329,13 +344,13 @@ export default function dapps(app, params = {}) {
       if (e.file) await installed.remove(e.guid);
       else await forgetPackage(e);
     } catch {
-      toast(`BEAM Campfire couldn't remove ${e.name}. Nothing was changed. Try again.`, 5000);
+      toast(t("BEAM Campfire couldn't remove {name}. Nothing was changed. Try again.", { name: e.name }), 5000);
       return;
     }
     if (!e.file) cached.set(e.guid, false);
     files = await installed.list().catch(() => files.filter((r) => r.guid !== e.guid));
     renderList();
-    toast(`${e.name} is removed.`);
+    toast(t('{name} is removed.', { name: e.name }));
   }
 
   // ---------------------------------------------------------------- opening
@@ -354,11 +369,11 @@ export default function dapps(app, params = {}) {
       (close) => [
         h('div', { class: 'dapp-sheet-head' }, dappIcon(e, 'dapp-icon big'), h('h2', { text: e.name })),
         needsDownload
-          ? h('p', { class: 'lead', 'data-testid': 'dapp-size-note', text: `Downloads ${sizeText(e.size)} from BEAM's GitHub (raw.githubusercontent.com), once. GitHub sees your IP address. BEAM Campfire checks the file against the fingerprint built into this app before anything runs.` })
+          ? h('p', { class: 'lead', 'data-testid': 'dapp-size-note', text: t("Downloads {size} from BEAM's GitHub (raw.githubusercontent.com), once. GitHub sees your IP address. BEAM Campfire checks the file against the fingerprint built into this app before anything runs.", { size: sizeText(e.size) }) })
           : null,
-        h('p', { class: 'small', 'data-testid': 'dapp-open-sees', text: 'It runs walled off from your wallet. It can see your balance, but nothing leaves without your OK.' }),
+        h('p', { class: 'small', 'data-testid': 'dapp-open-sees', text: t('It runs walled off from your wallet. It can see your balance, but nothing leaves without your OK.') }),
         e.remoteOrigins.length
-          ? h('label', { class: 'check-row' }, allow, h('span', {}, h('strong', { text: 'Also allow price lookups. ' }), `It fetches prices from ${remoteHosts(e)}, which see your IP address. Off: the dApp still works, without prices.`))
+          ? h('label', { class: 'check-row' }, allow, h('span', {}, h('strong', { text: `${t('Also allow price lookups.')} ` }), t('It fetches prices from {hosts}, which see your IP address. Off: the dApp still works, without prices.', { hosts: remoteHosts(e) })))
           : null,
         h('button', {
           class: 'btn btn-primary',
@@ -368,10 +383,10 @@ export default function dapps(app, params = {}) {
             close(true);
             start(e);
           },
-        }, needsDownload ? 'Download and open' : 'Open'),
-        h('button', { class: 'btn btn-text', onclick: () => close(false) }, 'Not now'),
+        }, needsDownload ? t('Download and open') : t('Open')),
+        h('button', { class: 'btn btn-text', onclick: () => close(false) }, t('Not now')),
       ],
-      { label: `Open ${e.name}` },
+      { label: t('Open {name}', { name: e.name }) },
     );
   }
 
@@ -395,17 +410,17 @@ export default function dapps(app, params = {}) {
           ? notice('error', status.error)
           : h('div', { class: 'dapp-progress', 'data-testid': 'dapp-progress' }, h('p', { class: 'lead', text: status.text }), progressBar(status.fraction)),
         // Trying again cannot help a dApp refused for its name: removing it is the way on.
-        status.error && status.removable ? h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-remove-refused', onclick: () => { close(); removeSheet(e); } }, `Remove ${e.name}`) : null,
-        status.error && !status.removable ? h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-retry', onclick: () => { close(); start(e); } }, 'Try again') : null,
-        h('button', { class: 'btn btn-text', 'data-testid': 'dapp-cancel', onclick: () => { if (downloadCtl) downloadCtl.abort(); close(); } }, status.error ? 'Back to dApps' : 'Cancel'),
+        status.error && status.removable ? h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-remove-refused', onclick: () => { close(); removeSheet(e); } }, t('Remove {name}', { name: e.name })) : null,
+        status.error && !status.removable ? h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-retry', onclick: () => { close(); start(e); } }, t('Try again')) : null,
+        h('button', { class: 'btn btn-text', 'data-testid': 'dapp-cancel', onclick: () => { if (downloadCtl) downloadCtl.abort(); close(); } }, status.error ? t('Back to dApps') : t('Cancel')),
       ],
-      { dismissable: false, label: `Opening ${e.name}` },
+      { dismissable: false, label: t('Opening {name}', { name: e.name }) },
     );
     try {
       let unpacked;
       let manifest;
       if (e.file) {
-        status.text = `Checking ${e.name}…`;
+        status.text = t('Checking {name}…', { name: e.name });
         show();
         const { rec, pkg } = await installed.open(e.guid);
         e = fileEntry(rec);
@@ -414,14 +429,14 @@ export default function dapps(app, params = {}) {
       } else {
         let bytes = await cachedPackage(e);
         if (!bytes) {
-          status.text = `Downloading ${sizeText(e.size)} from BEAM's GitHub…`;
+          status.text = t("Downloading {size} from BEAM's GitHub…", { size: sizeText(e.size) });
           status.fraction = 0;
           show();
           downloadCtl = new AbortController();
           bytes = await downloadPackage(e, {
             signal: downloadCtl.signal,
             onProgress: (done, total) => {
-              status.text = `Downloading: ${sizeText(done)} of ${sizeText(total)}`;
+              status.text = t('Downloading: {done} of {total}', { done: sizeText(done), total: sizeText(total) });
               status.fraction = done / total;
               show();
             },
@@ -431,13 +446,13 @@ export default function dapps(app, params = {}) {
           cached.set(e.guid, true);
           renderList();
         }
-        status.text = 'Checked against its fingerprint. Opening…';
+        status.text = t('Checked against its fingerprint. Opening…');
         status.fraction = null;
         show();
         ({ files: unpacked, manifest } = await openPackage(e, bytes));
       }
       if (destroyed || sheet.closed) return;
-      status.text = 'Connecting it to your wallet…';
+      status.text = t('Connecting it to your wallet…');
       show();
       const appApi = await connect(manifest, e);
       if (destroyed || sheet.closed) {
@@ -457,16 +472,16 @@ export default function dapps(app, params = {}) {
   }
 
   function plainError(e, err) {
-    if (err instanceof InstallError) return `${e.name} could not be opened: BEAM Campfire couldn't read the copy saved on this device. Remove ${e.name}, then install its file again.`;
+    if (err instanceof InstallError) return t("{name} could not be opened: BEAM Campfire couldn't read the copy saved on this device. Remove {name}, then install its file again.", { name: e.name });
     if (err instanceof PackageError) {
-      if (err.code === 'network') return `The download didn't finish: ${err.message} Check your connection and try again.`;
-      if (err.code === 'hash' || err.code === 'size') return `This file is not the ${e.name} BEAM published (its fingerprint doesn't match), so nothing was run. Try again later; if it keeps happening, the download is being changed on its way to you.`;
-      return `${e.name} could not be opened: ${err.message}`;
+      if (err.code === 'network') return t("The download didn't finish: {reason} Check your connection and try again.", { reason: err.message });
+      if (err.code === 'hash' || err.code === 'size') return t("This file is not the {name} BEAM published (its fingerprint doesn't match), so nothing was run. Try again later; if it keeps happening, the download is being changed on its way to you.", { name: e.name });
+      return t('{name} could not be opened: {reason}', { name: e.name, reason: err.message });
     }
-    if (err && err.code === 'timeout') return `Your wallet did not answer in time; it may still be finishing what the last dApp asked. Try again in a moment.`;
-    if (err && (err.code === 'locked' || err.code === 'no_wallet')) return 'The wallet was locked. Unlock it and open the dApp again.';
-    if (err && err.code === 'reserved_name') return `${e.name} was not opened. ${err.message}`;
-    return `${e.name} could not be opened: ${(err && err.message) || err}`;
+    if (err && err.code === 'timeout') return t('Your wallet did not answer in time; it may still be finishing what the last dApp asked. Try again in a moment.');
+    if (err && (err.code === 'locked' || err.code === 'no_wallet')) return t('The wallet was locked. Unlock it and open the dApp again.');
+    if (err && err.code === 'reserved_name') return t('{name} was not opened. {reason}', { name: e.name, reason: err.message });
+    return t('{name} could not be opened: {reason}', { name: e.name, reason: (err && err.message) || err });
   }
 
   /**
@@ -492,17 +507,17 @@ export default function dapps(app, params = {}) {
     const wideHint = h(
       'div',
       { class: 'dapp-hint hidden', 'data-testid': 'dapp-wide-hint' },
-      h('span', { text: `${manifest.name} is laid out for a wider screen: swipe sideways to see all of it, or turn your phone.` }),
-      h('button', { class: 'icon-btn', 'aria-label': 'Hide this note', onclick: () => wideHint.classList.add('hidden') }, icon('close')),
+      h('span', { text: t('{name} is laid out for a wider screen: swipe sideways to see all of it, or turn your phone.', { name: manifest.name }) }),
+      h('button', { class: 'icon-btn', 'aria-label': t('Hide this note'), onclick: () => wideHint.classList.add('hidden') }, icon('close')),
     );
-    const cover = h('div', { class: 'dapp-cover', 'data-testid': 'dapp-cover' }, h('div', { class: 'spinner' }), h('p', { text: `Starting ${manifest.name}…` }));
+    const cover = h('div', { class: 'dapp-cover', 'data-testid': 'dapp-cover' }, h('div', { class: 'spinner' }), h('p', { text: t('Starting {name}…', { name: manifest.name }) }));
     const bar = h(
       'header',
       { class: 'dapp-bar' },
-      h('button', { class: 'icon-btn', 'aria-label': `Close ${manifest.name}`, 'data-testid': 'dapp-close', 'data-back': '1', onclick: () => closeRunner() }, icon('close')),
+      h('button', { class: 'icon-btn', 'aria-label': t('Close {name}', { name: manifest.name }), 'data-testid': 'dapp-close', 'data-back': '1', onclick: () => closeRunner() }, icon('close')),
       dappIcon(e, 'dapp-bar-icon'),
       h('h1', { text: manifest.name }),
-      h('button', { class: 'icon-btn', 'aria-label': 'More', 'data-testid': 'dapp-more', onclick: () => moreSheet(e, manifest) }, icon('more')),
+      h('button', { class: 'icon-btn', 'aria-label': t('More'), 'data-testid': 'dapp-more', onclick: () => moreSheet(e, manifest) }, icon('more')),
     );
     put(layer, bar, busyBar, wideHint, stage, cover);
     layer.classList.remove('hidden');
@@ -544,9 +559,9 @@ export default function dapps(app, params = {}) {
     const layerCover = h(
       'div',
       { class: 'dapp-cover', 'data-testid': 'dapp-stopped' },
-      notice('warn', message || `${manifest.name} stopped.`),
-      h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-reopen', onclick: () => { closeRunner(); start(e); } }, `Open ${manifest.name} again`),
-      h('button', { class: 'btn btn-text', onclick: () => closeRunner() }, 'Back to dApps'),
+      notice('warn', message || t('{name} stopped.', { name: manifest.name })),
+      h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-reopen', onclick: () => { closeRunner(); start(e); } }, t('Open {name} again', { name: manifest.name })),
+      h('button', { class: 'btn btn-text', onclick: () => closeRunner() }, t('Back to dApps')),
     );
     layer.appendChild(layerCover);
   }
@@ -561,7 +576,7 @@ export default function dapps(app, params = {}) {
     const pref = dappPrefs(app)[e.guid] || {};
     openSheet((close) => [
       h('h2', { text: manifest.name }),
-      h('p', { class: 'small', text: `Version ${manifest.version || e.version} · from BEAM's beam-ui release, checked against its SHA-256 fingerprint.` }),
+      h('p', { class: 'small', text: t("Version {version} · from BEAM's beam-ui release, checked against its SHA-256 fingerprint.", { version: manifest.version || e.version }) }),
       e.remoteOrigins.length
         ? h('button', {
             class: 'btn btn-secondary',
@@ -571,9 +586,9 @@ export default function dapps(app, params = {}) {
               close();
               reopen(e);
             },
-          }, pref.remote === true ? `Turn off price lookups (${remoteHosts(e)})` : `Turn on price lookups (${remoteHosts(e)} see your IP address)`)
+          }, pref.remote === true ? t('Turn off price lookups ({hosts})', { hosts: remoteHosts(e) }) : t('Turn on price lookups ({hosts} see your IP address)', { hosts: remoteHosts(e) }))
         : null,
-      h('button', { class: 'btn btn-secondary', onclick: () => { close(); reopen(e); } }, 'Reload'),
+      h('button', { class: 'btn btn-secondary', onclick: () => { close(); reopen(e); } }, t('Reload')),
       h('button', {
         class: 'btn btn-text',
         onclick: async () => {
@@ -582,9 +597,9 @@ export default function dapps(app, params = {}) {
           await forgetPackage(e);
           cached.set(e.guid, false);
           renderList();
-          toast(`Removed the downloaded copy of ${manifest.name}.`);
+          toast(t('Removed the downloaded copy of {name}.', { name: manifest.name }));
         },
-      }, 'Remove the downloaded copy'),
+      }, t('Remove the downloaded copy')),
     ], { label: manifest.name });
   }
 
@@ -592,8 +607,8 @@ export default function dapps(app, params = {}) {
     const rec = e.rec;
     openSheet((close) => [
       h('div', { class: 'dapp-sheet-head' }, dappIcon(e, 'dapp-icon big'), h('h2', { text: manifest.name })),
-      h('p', { class: 'small', 'data-testid': 'dapp-more-meta', text: rec.store ? `${versionText(rec.version)} · ${originText(rec)}.` : `${versionText(rec.version)} · ${publisherText(rec.publisher)} · ${NOT_CHECKED}.` }),
-      h('p', { class: 'section-title', text: 'Servers it can reach' }),
+      h('p', { class: 'small', 'data-testid': 'dapp-more-meta', text: `${versionText(rec.version)} · ${originText(rec)}` }),
+      h('p', { class: 'section-title', text: t('Servers it can reach') }),
       e.remoteOrigins.length
         ? h(
             'div',
@@ -607,34 +622,34 @@ export default function dapps(app, params = {}) {
                   'span',
                   { class: 'main' },
                   h('div', { class: 't', text: hostOf(o) }),
-                  h('div', { class: 's', text: 'Sees your IP address and what it is asked' }),
-                  h('button', { class: 'btn btn-text btn-small', 'data-testid': 'dapp-host-revoke', 'data-host': hostOf(o), onclick: () => (close(), revoke(e, o)) }, 'Remove access'),
+                  h('div', { class: 's', text: t('Sees your IP address and what it is asked') }),
+                  h('button', { class: 'btn btn-text btn-small', 'data-testid': 'dapp-host-revoke', 'data-host': hostOf(o), onclick: () => (close(), revoke(e, o)) }, t('Remove access')),
                 ),
               ),
             ),
           )
-        : h('p', { class: 'small', 'data-testid': 'dapp-hosts-none', text: `None. When ${manifest.name} tries to reach a server, BEAM Campfire asks you first.` }),
-      rec.store ? null : h('p', { class: 'section-title', text: 'What it can see' }),
+        : h('p', { class: 'small', 'data-testid': 'dapp-hosts-none', text: t('None. When {name} tries to reach a server, BEAM Campfire asks you first.', { name: manifest.name }) }),
+      rec.store ? null : h('p', { class: 'section-title', text: t('What it can see') }),
       rec.store ? null : balanceRow(e, manifest, close),
-      h('button', { class: 'btn btn-secondary', 'data-testid': 'dapp-reload', onclick: () => (close(), reopen(e)) }, 'Reload'),
-      h('button', { class: 'btn btn-text danger', 'data-testid': 'dapp-remove-file', onclick: () => (close(), removeSheet(e)) }, `Remove ${manifest.name}`),
+      h('button', { class: 'btn btn-secondary', 'data-testid': 'dapp-reload', onclick: () => (close(), reopen(e)) }, t('Reload')),
+      h('button', { class: 'btn btn-text danger', 'data-testid': 'dapp-remove-file', onclick: () => (close(), removeSheet(e)) }, t('Remove {name}', { name: manifest.name })),
     ], { label: manifest.name });
   }
 
   /** Whether a dApp from a file may see the balance, and the way to change the answer. */
   function balanceRow(e, manifest, close) {
     const b = e.rec.balance;
-    const text = b === true ? 'Allowed. It can send it to any server.' : b === false ? 'Kept hidden: you said no.' : 'It asks you first.';
+    const text = b === true ? t('Allowed. It can send it to any server.') : b === false ? t('Kept hidden: you said no.') : t('It asks you first.');
     const again = async (said) => {
       close();
       let rec;
       try {
         rec = await installed.setBalance(e.guid, null);
       } catch {
-        toast(`BEAM Campfire couldn't change that. Nothing was changed. Try again.`, 5000);
+        toast(t("BEAM Campfire couldn't change that. Nothing was changed. Try again."), 5000);
         return;
       }
-      toast(said ? `${manifest.name} can no longer see your balance; it will ask again. Reloading it…` : `${manifest.name} will ask you again. Reloading it…`, 4000);
+      toast(said ? t('{name} can no longer see your balance; it will ask again. Reloading it…', { name: manifest.name }) : t('{name} will ask you again. Reloading it…', { name: manifest.name }), 4000);
       reopen(fileEntry(rec));
     };
     return h(
@@ -647,10 +662,10 @@ export default function dapps(app, params = {}) {
         h(
           'span',
           { class: 'main' },
-          h('div', { class: 't', text: 'Your balance' }),
+          h('div', { class: 't', text: t('Your balance') }),
           h('div', { class: 's', text }),
-          b === true ? h('button', { class: 'btn btn-text btn-small', 'data-testid': 'dapp-balance-revoke', onclick: () => again(true) }, 'Remove access') : null,
-          b === false ? h('button', { class: 'btn btn-text btn-small', 'data-testid': 'dapp-balance-reask', onclick: () => again(false) }, 'Ask me again') : null,
+          b === true ? h('button', { class: 'btn btn-text btn-small', 'data-testid': 'dapp-balance-revoke', onclick: () => again(true) }, t('Remove access')) : null,
+          b === false ? h('button', { class: 'btn btn-text btn-small', 'data-testid': 'dapp-balance-reask', onclick: () => again(false) }, t('Ask me again')) : null,
         ),
       ),
     );
@@ -661,10 +676,10 @@ export default function dapps(app, params = {}) {
     try {
       rec = await installed.revoke(e.guid, origin);
     } catch {
-      toast(`BEAM Campfire couldn't change what ${e.name} may reach. Nothing was changed. Try again.`, 5000);
+      toast(t("BEAM Campfire couldn't change what {name} may reach. Nothing was changed. Try again.", { name: e.name }), 5000);
       return;
     }
-    toast(`${e.name} can no longer reach ${hostOf(origin)}. Reloading it…`, 4000);
+    toast(t('{name} can no longer reach {host}. Reloading it…', { name: e.name, host: hostOf(origin) }), 4000);
     reopen(fileEntry(rec));
   }
 
@@ -690,20 +705,20 @@ export default function dapps(app, params = {}) {
     const name = run.e.name;
     const s = openSheet(
       (close) => [
-        h('div', { class: 'dapp-sheet-head' }, h('span', { class: 'dapp-icon big file none' }, icon('globe')), h('h2', { 'data-testid': 'dapp-host-title', text: `Let ${name} connect to ${host}?` })),
-        h('p', { class: 'lead', text: `${host} will see your IP address and everything ${name} asks it.` }),
-        h('p', { class: 'small', text: `Allow it only if you trust ${name} and that server: BEAM Campfire checked neither. ${name} could also tell the server what you let it see, such as your balance. You can take this back in More (⋯) at any time.` }),
+        h('div', { class: 'dapp-sheet-head' }, h('span', { class: 'dapp-icon big file none' }, icon('globe')), h('h2', { 'data-testid': 'dapp-host-title', text: t('Let {name} connect to {host}?', { name, host }) })),
+        h('p', { class: 'lead', text: t('{host} will see your IP address and everything {name} asks it.', { host, name }) }),
+        h('p', { class: 'small', text: t('Allow it only if you trust {name} and that server: BEAM Campfire checked neither. {name} could also tell the server what you let it see, such as your balance. You can take this back in More (⋯) at any time.', { name }) }),
         // The browser looks the name up, not BEAM Campfire: it refuses names that spell a local address
         // (lib/dapps/frame_policy.js), but any other name can still lead into the person's network.
-        h('p', { class: 'small', 'data-testid': 'dapp-host-local', text: `A server's name can also lead to a device on your own network, such as your router. If ${host} does, ${name} can reach that device.` }),
+        h('p', { class: 'small', 'data-testid': 'dapp-host-local', text: t("A server's name can also lead to a device on your own network, such as your router. If {host} does, {name} can reach that device.", { host, name }) }),
         h(
           'div',
           { class: 'sheet-actions' },
-          h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-host-allow', onclick: () => close('allow') }, 'Allow'),
-          h('button', { class: 'btn btn-text', 'data-testid': 'dapp-host-later', onclick: () => close('later') }, 'Not now'),
+          h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-host-allow', onclick: () => close('allow') }, t('Allow')),
+          h('button', { class: 'btn btn-text', 'data-testid': 'dapp-host-later', onclick: () => close('later') }, t('Not now')),
         ),
       ],
-      { label: `Let ${name} connect to ${host}` },
+      { label: t('Let {name} connect to {host}', { name, host }) },
     );
     s.then(async (answer) => {
       if (run !== cur) return;
@@ -716,11 +731,11 @@ export default function dapps(app, params = {}) {
       try {
         rec = await installed.allow(run.e.guid, origin);
       } catch {
-        toast(`BEAM Campfire couldn't save that. ${name} still can't reach ${host}; it will ask again next time.`, 5000);
+        toast(t("BEAM Campfire couldn't save that. {name} still can't reach {host}; it will ask again next time.", { name, host }), 5000);
         return askNext(run);
       }
       if (run !== cur) return;
-      toast(`${name} can now reach ${host}. Reloading it…`, 4000);
+      toast(t('{name} can now reach {host}. Reloading it…', { name, host }), 4000);
       reopen(fileEntry(rec), { declined: run.declined });
     });
   }
@@ -751,17 +766,17 @@ export default function dapps(app, params = {}) {
     const answer = await new Promise((resolve) => {
       const s = openSheet(
         (close) => [
-          h('div', { class: 'dapp-sheet-head' }, dappIcon(e, 'dapp-icon big'), h('h2', { 'data-testid': 'dapp-balance-title', text: `Let ${name} see your balance?` })),
-          h('p', { class: 'lead', text: 'It can send what it sees to any server.' }),
-          h('p', { class: 'small', text: `BEAM Campfire did not check ${name}. Seeing your balance moves nothing: payments still need your OK. You can change your answer in More (⋯).` }),
+          h('div', { class: 'dapp-sheet-head' }, dappIcon(e, 'dapp-icon big'), h('h2', { 'data-testid': 'dapp-balance-title', text: t('Let {name} see your balance?', { name }) })),
+          h('p', { class: 'lead', text: t('It can send what it sees to any server.') }),
+          h('p', { class: 'small', text: t('BEAM Campfire did not check {name}. Seeing your balance moves nothing: payments still need your OK. You can change your answer in More (⋯).', { name }) }),
           h(
             'div',
             { class: 'sheet-actions' },
-            h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-balance-allow', onclick: () => close(true) }, 'Let it see my balance'),
-            h('button', { class: 'btn btn-text', 'data-testid': 'dapp-balance-deny', onclick: () => close(false) }, 'Keep it hidden'),
+            h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-balance-allow', onclick: () => close(true) }, t('Let it see my balance')),
+            h('button', { class: 'btn btn-text', 'data-testid': 'dapp-balance-deny', onclick: () => close(false) }, t('Keep it hidden')),
           ),
         ],
-        { dismissable: false, label: `Let ${name} see your balance` },
+        { dismissable: false, label: t('Let {name} see your balance', { name }) },
       );
       s.then((v) => resolve(v === true));
     });
@@ -769,7 +784,7 @@ export default function dapps(app, params = {}) {
     try {
       e.rec = await installed.setBalance(e.guid, answer);
     } catch {
-      toast(`BEAM Campfire couldn't save that. ${name} will ask again next time.`, 5000);
+      toast(t("BEAM Campfire couldn't save that. {name} will ask again next time.", { name }), 5000);
     }
     return answer;
   }
@@ -778,14 +793,14 @@ export default function dapps(app, params = {}) {
     return new Promise((resolve) => {
       const s = openSheet(
         (close) => [
-          h('h2', { 'data-testid': 'dapp-sign', text: `${req.appName} asks you to sign a message` }),
-          unchecked ? h('p', { class: 'tag unchecked', text: 'Installed from a file · not checked by BEAM Campfire' }) : null,
+          h('h2', { 'data-testid': 'dapp-sign', text: t('{name} asks you to sign a message', { name: req.appName }) }),
+          unchecked ? h('p', { class: 'tag unchecked', text: t('Installed from a file · not checked by BEAM Campfire') }) : null,
           h('div', { class: 'card mono dapp-message', text: req.message }),
-          h('p', { class: 'small', text: 'Signing shows that this wallet wrote the message. It moves no funds.' }),
-          h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-sign-approve', onclick: async () => close(await confirmIdentity(app, { title: 'Confirm it is you', detail: `${req.appName}: sign this message`, cta: 'Sign' })) }, 'Sign'),
-          h('button', { class: 'btn btn-text', 'data-testid': 'dapp-sign-reject', onclick: () => close(false) }, 'Reject'),
+          h('p', { class: 'small', text: t('Signing shows that this wallet wrote the message. It moves no funds.') }),
+          h('button', { class: 'btn btn-primary', 'data-testid': 'dapp-sign-approve', onclick: async () => close(await confirmIdentity(app, { title: t('Confirm it is you'), detail: t('{name}: sign this message', { name: req.appName }), cta: t('Sign') })) }, t('Sign')),
+          h('button', { class: 'btn btn-text', 'data-testid': 'dapp-sign-reject', onclick: () => close(false) }, t('Reject')),
         ],
-        { dismissable: false, label: `${req.appName} asks` },
+        { dismissable: false, label: t('{name} asks', { name: req.appName }) },
       );
       s.then((v) => resolve(v === true));
     });
@@ -794,18 +809,18 @@ export default function dapps(app, params = {}) {
   function presentLink(appName, url) {
     const u = new URL(url);
     openSheet((close) => [
-      h('h2', { text: `${appName} wants to open a link` }),
+      h('h2', { text: t('{name} wants to open a link', { name: appName }) }),
       h('p', { class: 'lead' }, h('strong', { text: u.host }), h('br'), h('span', { class: 'small mono', text: url.length > 120 ? `${url.slice(0, 117)}…` : url })),
-      h('p', { class: 'small', text: 'It opens in your browser, outside BEAM Campfire. That site sees your IP address.' }),
+      h('p', { class: 'small', text: t('It opens in your browser, outside BEAM Campfire. That site sees your IP address.') }),
       h('button', {
         class: 'btn btn-primary',
         onclick: () => {
           close();
           window.open(url, '_blank', 'noopener,noreferrer');
         },
-      }, icon('external'), 'Open in browser'),
-      h('button', { class: 'btn btn-text', onclick: () => close() }, 'Stay here'),
-    ], { label: 'Open link' });
+      }, icon('external'), t('Open in browser')),
+      h('button', { class: 'btn btn-text', onclick: () => close() }, t('Stay here')),
+    ], { label: t('Open link') });
   }
 
   // ---------------------------------------------------------------- page
@@ -815,8 +830,8 @@ export default function dapps(app, params = {}) {
   refresh();
 
   const el = screen(
-    { title: 'dApps', back: () => app.back('home') },
-    h('p', { class: 'lead', text: "BEAM's own dApps, dApps from BEAM's DApp Store, and any you install from a file. Each runs walled off from your wallet: nothing leaves it without your OK." }),
+    { title: t('dApps'), back: () => app.back('home') },
+    h('p', { class: 'lead', text: t("BEAM's own dApps, dApps from BEAM's DApp Store, and any you install from a file. Each runs walled off from your wallet: nothing leaves it without your OK.") }),
     topNote,
     listBox,
     layer,

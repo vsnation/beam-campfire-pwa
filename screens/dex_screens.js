@@ -3,11 +3,12 @@
 // loads only when one is opened: Home and Swap stay as light as they were.
 import { h } from '../lib/dom.js';
 import { screen, notice } from '../lib/ui.js';
+import { t, tk } from '../lib/i18n.js';
 
-/** A screen whose module is imported on first use; a spinner until then. */
+/** A screen whose module is imported on first use; a spinner until then. `title` is a tk() text. */
 function lazyScreen(load, title) {
   return (app, params) => {
-    const holder = h('main', { class: 'screen splash', 'aria-busy': 'true' }, h('div', { class: 'spinner', role: 'progressbar', 'aria-label': 'Opening' }));
+    const holder = h('main', { class: 'screen splash', 'aria-busy': 'true' }, h('div', { class: 'spinner', role: 'progressbar', 'aria-label': t('Opening') }));
     let inner = null;
     let dead = false;
     load()
@@ -19,7 +20,7 @@ function lazyScreen(load, title) {
       .catch((e) => {
         if (dead) return;
         console.error(e);
-        holder.replaceWith(screen({ title, back: () => app.back('home') }, notice('error', `This screen could not be opened: ${e.message}. Go back and try again.`)));
+        holder.replaceWith(screen({ title: t(title), back: () => app.back('home') }, notice('error', t('This screen could not be opened: {reason}. Go back and try again.', { reason: String(e.message) }))));
       });
     return {
       el: holder,
@@ -32,8 +33,8 @@ function lazyScreen(load, title) {
 }
 
 export const DEX_SCREENS = {
-  pools: lazyScreen(() => import('./pools.js'), 'Pools'),
-  pool: lazyScreen(() => import('./pool.js'), 'Pool'),
-  poolCreate: lazyScreen(() => import('./pool_create.js'), 'Create a pool'),
-  poolTx: lazyScreen(() => import('./pool_status.js'), 'Pool'),
+  pools: lazyScreen(() => import('./pools.js'), tk('Pools')),
+  pool: lazyScreen(() => import('./pool.js'), tk('Pool')),
+  poolCreate: lazyScreen(() => import('./pool_create.js'), tk('Create a pool')),
+  poolTx: lazyScreen(() => import('./pool_status.js'), tk('Pool')),
 };

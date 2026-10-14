@@ -24,6 +24,7 @@ import { hiddenIds } from '../lib/hidden_tokens.js';
 import { loadCoins, emptySummary, splitAdvice, countsFor, chosenCount, planEqual, SPLIT_TEXT as T } from '../lib/coins.js';
 import { coinList } from './coins_ui.js';
 import { syncReason } from '../lib/sync.js';
+import { t } from '../lib/i18n.js';
 
 export default function coins(app, params = {}) {
   let assetId = Number(params.assetId) > 0 ? Number(params.assetId) : 0;
@@ -34,7 +35,7 @@ export default function coins(app, params = {}) {
   let loading = false;
   let sig = null;
 
-  const intro = h('div', { class: 'stack tight' }, h('h2', { class: 'title', 'data-testid': 'split-headline', text: T.headline }), h('p', { class: 'lead', text: T.intro }));
+  const intro = h('div', { class: 'stack tight' }, h('h2', { class: 'title', 'data-testid': 'split-headline', text: t(T.headline) }), h('p', { class: 'lead', text: t(T.intro) }));
   const form = h('div', { class: 'stack' });
   const listBox = h('div', { class: 'stack' });
 
@@ -77,15 +78,15 @@ export default function coins(app, params = {}) {
     if (!all) return null;
     const symbol = unitOf(assetId);
     if (summary().availableTotal === 0n) return T.noCoins(symbol);
-    if (wallet.label(assetId).pool) return T.poolShare;
-    if (!p) return T.tooLittle;
+    if (wallet.label(assetId).pool) return t(T.poolShare);
+    if (!p) return t(T.tooLittle);
     if (assetId !== 0 && beamAvailable() < p.fee) return T.needBeam(p.fee, beamAvailable());
     return null;
   }
 
   function stateIssue(s) {
-    if (s.importing) return 'Splitting turns on once the wallet has finished getting ready.';
-    if (!s.sync.canSend) return `Splitting is paused: ${syncReason(s.sync.title)}.`;
+    if (s.importing) return t('Splitting turns on once the wallet has finished getting ready.');
+    if (!s.sync.canSend) return t('Splitting is paused: {reason}.', { reason: syncReason(s.sync.title) });
     return null;
   }
 
@@ -93,7 +94,7 @@ export default function coins(app, params = {}) {
     const ids = choices();
     openSheet(
       (close) => [
-        h('h2', { text: 'Which coins to split' }),
+        h('h2', { text: t('Which coins to split') }),
         h(
           'div',
           { class: 'card list picker-list', 'data-testid': 'split-asset-list' },
@@ -104,14 +105,14 @@ export default function coins(app, params = {}) {
               'button',
               { class: `row${id === assetId ? ' on' : ''}`, 'data-asset-id': String(id), onclick: () => close(id) },
               assetBadge(l),
-              h('span', { class: 'main' }, h('div', { class: 't', text: l.unit }), h('div', { class: 's', text: l.verified ? l.name : `Not verified · ${l.name}` })),
+              h('span', { class: 'main' }, h('div', { class: 't', text: l.unit }), h('div', { class: 's', text: l.verified ? l.name : t('Not verified · {name}', { name: l.name }) })),
               h('span', { class: 'end small', text: formatAmount(s.availableTotal) }),
             );
           }),
         ),
-        h('button', { class: 'btn btn-text', onclick: () => close() }, 'Close'),
+        h('button', { class: 'btn btn-text', onclick: () => close() }, t('Close')),
       ],
-      { label: 'Which coins to split' },
+      { label: t('Which coins to split') },
     ).then((id) => {
       if (id == null || !alive) return;
       assetId = id;
@@ -123,7 +124,7 @@ export default function coins(app, params = {}) {
   function render(s) {
     if (!alive) return;
     // Coins change with the balances: read them again when those move.
-    const now = [...s.totals].map(([id, t]) => `${id}:${t.available}:${t.receiving}:${t.sending}:${t.maturing}`).join('|');
+    const now = [...s.totals].map(([id, tot]) => `${id}:${tot.available}:${tot.receiving}:${tot.sending}:${tot.maturing}`).join('|');
     if (wallet.session && now !== sig && !loading) {
       sig = now;
       load();
@@ -133,12 +134,12 @@ export default function coins(app, params = {}) {
     const height = s.status ? Number(s.status.current_height) : null;
 
     if (loadProblem && !all) {
-      put(form, notice('error', `Your coins couldn't be read: ${loadProblem.message}. Try again in a moment.`), secondary('Try again', () => ((sig = null), load()), { 'data-testid': 'coins-retry' }));
+      put(form, notice('error', t("Your coins couldn't be read: {reason}. Try again in a moment.", { reason: loadProblem.message })), secondary(t('Try again'), () => ((sig = null), load()), { 'data-testid': 'coins-retry' }));
       put(listBox);
       return;
     }
     if (!all) {
-      put(form, h('div', { class: 'card empty', 'data-testid': 'coins-loading' }, h('div', { class: 'spinner' }), h('p', { text: s.importing ? 'Your coins appear once the wallet has finished getting ready.' : 'Reading your coins…' })));
+      put(form, h('div', { class: 'card empty', 'data-testid': 'coins-loading' }, h('div', { class: 'spinner' }), h('p', { text: s.importing ? t('Your coins appear once the wallet has finished getting ready.') : t('Reading your coins…') })));
       put(listBox);
       return;
     }
@@ -160,40 +161,40 @@ export default function coins(app, params = {}) {
       many ? h('span', { class: 'chev' }, icon('down')) : null,
     );
 
-    const cta = primary(p ? T.cta(p.count) : T.title, () => app.go('splitReview', { assetId, count: p.count, size: String(p.size) }), {
+    const cta = primary(p ? T.cta(p.count) : t(T.title), () => app.go('splitReview', { assetId, count: p.count, size: String(p.size) }), {
       disabled: !(p && !issue && !blocked && wallet.session),
       'data-testid': 'split-cta',
     });
 
     put(
       form,
-      h('p', { class: 'section-title', text: 'Now' }),
+      h('p', { class: 'section-title', text: t('Now') }),
       assetCard,
       advice.urgency === 'none' && sum.usable.length > 1 && p ? notice('info', h('span', { 'data-testid': 'split-advice', text: T.spreadWell(sum.usable.length) })) : null,
       issue
         ? h(
             'div',
             { 'data-testid': 'split-funds' },
-            notice('info', issue, h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'split-receive', onclick: () => app.go('receive') }, 'Receive BEAM'))),
+            notice('info', issue, h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'split-receive', onclick: () => app.go('receive') }, t('Receive BEAM')))),
           )
         : null,
       p
         ? [
-            h('p', { class: 'section-title', text: T.countLabel }),
+            h('p', { class: 'section-title', text: t(T.countLabel) }),
             h(
               'div',
-              { class: 'split-counts', role: 'radiogroup', 'aria-label': T.countLabel },
+              { class: 'split-counts', role: 'radiogroup', 'aria-label': t(T.countLabel) },
               ...counts.map((n) =>
                 h('button', { class: `choice${n === chosen ? ' on' : ''}`, type: 'button', role: 'radio', 'aria-checked': String(n === chosen), 'data-testid': `split-count-${n}`, onclick: () => ((picked = n), render(wallet.state)) }, String(n)),
               ),
             ),
-            h('p', { class: 'section-title', text: 'After' }),
+            h('p', { class: 'section-title', text: t('After') }),
             h(
               'div',
               { class: 'card flat split-after' },
-              kv('You will have', T.newCoins(p, symbol), 'split-new-coins'),
-              kv('Network fee', T.fee(p), 'split-fee'),
-              p.change > 0n ? kv('Stays as change', `${formatAmount(p.change)} ${symbol}`, 'split-change') : null,
+              kv(t('You will have'), T.newCoins(p, symbol), 'split-new-coins'),
+              kv(t('Network fee'), T.fee(p), 'split-fee'),
+              p.change > 0n ? kv(t('Stays as change'), `${formatAmount(p.change)} ${symbol}`, 'split-change') : null,
             ),
           ]
         : null,
@@ -207,7 +208,7 @@ export default function coins(app, params = {}) {
 
   const off = wallet.onChange(render);
   render(wallet.state);
-  const el = screen({ title: T.title, back: () => app.back('home'), cls: 'coins' }, intro, form, listBox);
+  const el = screen({ title: t(T.title), back: () => app.back('home'), cls: 'coins' }, intro, form, listBox);
   return {
     el,
     destroy() {

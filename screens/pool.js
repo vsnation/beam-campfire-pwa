@@ -29,16 +29,17 @@ import { bpsText, PROTECTION_BPS } from '../lib/dex.js';
 import { shortAmount } from './consent.js';
 import { isVerified, unit, pairName, feeText, pairBadge, sideWarnings, flipButton, poolParams, liquidity, problemText, readProblemText } from './pool_parts.js';
 import { syncReason } from '../lib/sync.js';
+import { t } from '../lib/i18n.js';
 
 /** An amount on the button: as the swap writes it, but a tiny one in four significant digits. */
 const btn = (g) => (BigInt(g) >= 1000000n ? shortAmount(g) : compact(g));
 
 function parsed(text) {
-  const t = String(text || '').trim();
-  if (!t) return { value: null, error: null };
+  const s = String(text || '').trim();
+  if (!s) return { value: null, error: null };
   try {
-    const v = parseAmount(t);
-    return v > 0n ? { value: v, error: null } : { value: null, error: 'The amount must be more than zero.' };
+    const v = parseAmount(s);
+    return v > 0n ? { value: v, error: null } : { value: null, error: t('The amount must be more than zero.') };
   } catch (e) {
     return { value: null, error: e.message };
   }
@@ -70,7 +71,7 @@ export default function pool(app, params = {}) {
   const in2 = h('input', { class: 'swap-input', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: '0', 'data-testid': 'pool-add-2' });
   in1.value = draft.a1;
   in2.value = draft.a2;
-  const exact = h('input', { class: 'input', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: '0', 'aria-label': 'Exact amount of LP to return', 'data-testid': 'pool-withdraw-exact' });
+  const exact = h('input', { class: 'input', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: '0', 'aria-label': t('Exact amount of LP to return'), 'data-testid': 'pool-withdraw-exact' });
   exact.value = draft.exact;
 
   const headBox = h('div');
@@ -80,7 +81,7 @@ export default function pool(app, params = {}) {
   const detailsBox = h('div');
   const notes = h('div', { class: 'swap-notes' });
   const reason = h('p', { class: 'hint center', 'data-testid': 'pool-reason', 'aria-live': 'polite' });
-  const cta = primary('Add liquidity', act, { disabled: true, class: 'btn btn-primary wrap', 'data-testid': 'pool-cta' });
+  const cta = primary(t('Add liquidity'), act, { disabled: true, class: 'btn btn-primary wrap', 'data-testid': 'pool-cta' });
 
   const held = () => (pl && pl.lpToken != null ? wallet.available(pl.lpToken) : 0n);
   const spendable = (aid) => {
@@ -124,7 +125,7 @@ export default function pool(app, params = {}) {
     const v = maxDeposit(pl, side, spendable(pl.aid1), spendable(pl.aid2));
     (side === 1 ? in1 : in2).value = v > 0n ? toInputString(v) : '';
     if (v <= 0n) {
-      result = { kind: 'info', code: 'nothing', text: `There is no ${unit(aid)} to add${aid === 0 ? ' after the 0.011 BEAM network fee' : ''}.` };
+      result = { kind: 'info', code: 'nothing', text: aid === 0 ? t('There is no {unit} to add after the 0.011 BEAM network fee.', { unit: unit(aid) }) : t('There is no {unit} to add.', { unit: unit(aid) }) };
     }
     onAddInput(side);
   }
@@ -209,40 +210,40 @@ export default function pool(app, params = {}) {
 
   // ------------------------------------------------------------ the button and its reason
   function ctaState() {
-    if (preparing) return { off: mode() === 'add' ? 'Building your deposit…' : 'Building your withdrawal…' };
-    if (!wallet.state.sync.canSend) return { off: `Pool moves are paused: ${syncReason(wallet.state.sync.title)}.` };
-    if (loadError && !pl) return { off: 'The pool could not be loaded. Try again above.' };
-    if (!pools) return { off: 'Loading the pool…' };
-    if (!pl) return { off: 'This pool is not on the DEX yet.' };
+    if (preparing) return { off: mode() === 'add' ? t('Building your deposit…') : t('Building your withdrawal…') };
+    if (!wallet.state.sync.canSend) return { off: t('Pool moves are paused: {state}.', { state: syncReason(wallet.state.sync.title) }) };
+    if (loadError && !pl) return { off: t('The pool could not be loaded. Try again above.') };
+    if (!pools) return { off: t('Loading the pool…') };
+    if (!pl) return { off: t('This pool is not on the DEX yet.') };
     const beam = wallet.available(0);
     if (mode() === 'withdraw') {
       const lp = lpToBurn();
       if (lp.error) return { off: lp.error };
-      if (lp.value == null) return { off: 'Choose how much of your share to take out.' };
-      if (lp.value > held()) return { off: `You hold ${formatAmount(held())} LP of this pool. Enter that much or less.` };
+      if (lp.value == null) return { off: t('Choose how much of your share to take out.') };
+      if (lp.value > held()) return { off: t('You hold {amount} LP of this pool. Enter that much or less.', { amount: formatAmount(held()) }) };
       if (problem) return { off: problemText(problem, { action: 'withdraw' }) };
-      if (quoting || !wdQ) return { off: 'Working out what you get back…' };
+      if (quoting || !wdQ) return { off: t('Working out what you get back…') };
       const back = pl.aid1 === 0 ? wdQ.amount1 : 0n;
-      if (LIQUIDITY_FEE > beam + back) return { off: `You need ${formatAmount(LIQUIDITY_FEE)} BEAM for the network fee. You have ${formatAmount(beam)} BEAM.` };
+      if (LIQUIDITY_FEE > beam + back) return { off: t('You need {fee} BEAM for the network fee. You have {balance} BEAM.', { fee: formatAmount(LIQUIDITY_FEE), balance: formatAmount(beam) }) };
       return { off: null };
     }
     const p1 = parsed(in1.value);
     const p2 = parsed(in2.value);
     const err = (draft.edited === 2 && !empty() ? p2.error : p1.error) || (empty() ? p2.error : null);
     if (err) return { off: err };
-    if (!wantsAddQuote()) return { off: empty() ? "Enter both amounts. They set the pool's starting price." : `Enter how much ${unit(pl.aid1)} or ${unit(pl.aid2)} to add.` };
+    if (!wantsAddQuote()) return { off: empty() ? t("Enter both amounts. They set the pool's starting price.") : t('Enter how much {unit1} or {unit2} to add.', { unit1: unit(pl.aid1), unit2: unit(pl.aid2) }) };
     if (problem) return { off: problemText(problem, { action: 'add' }) };
-    if (quoting || !addQ) return { off: empty() ? 'Checking the amounts…' : 'Working out the matching amount…' };
+    if (quoting || !addQ) return { off: empty() ? t('Checking the amounts…') : t('Working out the matching amount…') };
     for (const [aid, need] of [[pl.aid1, addQ.amount1], [pl.aid2, addQ.amount2]]) {
-      const t = wallet.state.totals.get(aid) || { available: 0n, receiving: 0n };
-      if (need > t.available) {
-        if (t.receiving > 0n && need <= t.available + t.receiving) return { off: `${formatAmount(t.receiving)} ${unit(aid)} is in a payment that hasn't finished yet; it's yours in about a minute.` };
-        return { off: `Not enough ${unit(aid)}. You need ${formatAmount(need)}, you have ${formatAmount(t.available)}.` };
+      const tot = wallet.state.totals.get(aid) || { available: 0n, receiving: 0n };
+      if (need > tot.available) {
+        if (tot.receiving > 0n && need <= tot.available + tot.receiving) return { off: t("{amount} {unit} is in a payment that hasn't finished yet; it's yours in about a minute.", { amount: formatAmount(tot.receiving), unit: unit(aid) }) };
+        return { off: t('Not enough {unit}. You need {need}, you have {balance}.', { unit: unit(aid), need: formatAmount(need), balance: formatAmount(tot.available) }) };
       }
     }
     const beamOut = (pl.aid1 === 0 ? addQ.amount1 : 0n) + LIQUIDITY_FEE;
     if (beamOut > beam) {
-      return { off: pl.aid1 === 0 ? `Not enough BEAM. You need ${formatAmount(beamOut)} BEAM, including the ${formatAmount(LIQUIDITY_FEE)} BEAM network fee.` : `You need ${formatAmount(LIQUIDITY_FEE)} BEAM for the network fee. You have ${formatAmount(beam)} BEAM.` };
+      return { off: pl.aid1 === 0 ? t('Not enough BEAM. You need {amount} BEAM, including the {fee} BEAM network fee.', { amount: formatAmount(beamOut), fee: formatAmount(LIQUIDITY_FEE) }) : t('You need {fee} BEAM for the network fee. You have {balance} BEAM.', { fee: formatAmount(LIQUIDITY_FEE), balance: formatAmount(beam) }) };
     }
     return { off: null };
   }
@@ -257,8 +258,8 @@ export default function pool(app, params = {}) {
       h(
         'span',
         { class: 'v' },
-        Array.isArray(v) ? h('span', { 'data-testid': testid }, ...v.map((t) => h('span', { class: 'line', text: t }))) : h('span', { 'data-testid': testid, text: v }),
-        note ? h('div', { class: 'small', 'data-testid': testid ? `${testid}-note` : null }, ...[].concat(note).map((t) => h('span', { class: 'line', text: t }))) : null,
+        Array.isArray(v) ? h('span', { 'data-testid': testid }, ...v.map((line) => h('span', { class: 'line', text: line }))) : h('span', { 'data-testid': testid, text: v }),
+        note ? h('div', { class: 'small', 'data-testid': testid ? `${testid}-note` : null }, ...[].concat(note).map((line) => h('span', { class: 'line', text: line }))) : null,
       ),
     );
 
@@ -267,10 +268,10 @@ export default function pool(app, params = {}) {
       put(
         headBox,
         loadError
-          ? h('div', { 'data-testid': 'pool-load-error' }, notice('error', readProblemText(loadError, 'load the pool'), ' ', h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: () => load(true) }, 'Try again')))
+          ? h('div', { 'data-testid': 'pool-load-error' }, notice('error', readProblemText(loadError, 'pool'), ' ', h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: () => load(true) }, t('Try again'))))
           : pools
-            ? h('div', { 'data-testid': 'pool-missing' }, notice('info', h('strong', { text: 'This pool is not on the DEX yet. ' }), 'A pool just created shows up once the network confirms it, usually within a minute or two. ', h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: () => load(true) }, 'Check again')))
-            : h('div', { class: 'loading-line', 'data-testid': 'pool-loading' }, h('span', { class: 'spinner small' }), h('span', { text: 'Loading the pool from the BEAM network…' })),
+            ? h('div', { 'data-testid': 'pool-missing' }, notice('info', h('strong', { text: `${t('This pool is not on the DEX yet.')} ` }), `${t('A pool just created shows up once the network confirms it, usually within a minute or two.')} `, h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: () => load(true) }, t('Check again'))))
+            : h('div', { class: 'loading-line', 'data-testid': 'pool-loading' }, h('span', { class: 'spinner small' }), h('span', { text: t('Loading the pool from the BEAM network…') })),
       );
       return;
     }
@@ -283,21 +284,21 @@ export default function pool(app, params = {}) {
         h('div', { class: 'pool-title big' }, pairBadge(pl), h('span', { class: 'name', 'data-testid': 'pool-name', text: pairName(pl) }), h('span', { class: 'fee-chip', 'data-testid': 'pool-fee', text: feeText(pl.kind) })),
         ...sideWarnings(pl),
         empty()
-          ? h('div', { 'data-testid': 'pool-is-empty' }, notice('warn', h('strong', { text: 'This pool is empty. ' }), 'The first coins added set its price. Enter both amounts at the price you believe is fair.'))
+          ? h('div', { 'data-testid': 'pool-is-empty' }, notice('warn', h('strong', { text: `${t('This pool is empty.')} ` }), t('The first coins added set its price. Enter both amounts at the price you believe is fair.')))
           : h(
               'div',
               { class: 'kvs' },
-              h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Price' }), flipButton(pl, { testid: 'pool-price', cls: 'v rate-btn', start: priceFlipped, onFlip: (on) => (priceFlipped = on) })),
+              h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Price') }), flipButton(pl, { testid: 'pool-price', cls: 'v rate-btn', start: priceFlipped, onFlip: (on) => (priceFlipped = on) })),
               h(
                 'div',
                 { class: 'kv' },
-                h('span', { class: 'k', text: 'In the pool' }),
+                h('span', { class: 'k', text: t('In the pool') }),
                 h(
                   'span',
                   { class: 'v', 'data-testid': 'pool-reserves' },
                   h('span', { class: 'line', text: `${compact(pl.tok1)} ${unit(pl.aid1)}` }),
                   h('span', { class: 'line', text: `${compact(pl.tok2)} ${unit(pl.aid2)}` }),
-                  h('span', { class: 'small line', 'data-testid': 'pool-size', text: size == null ? 'No price' : `Pool size ${beamWorth(size)}` }),
+                  h('span', { class: 'small line', 'data-testid': 'pool-size', text: size == null ? t('No price') : t('Pool size {worth}', { worth: beamWorth(size) }) }),
                 ),
               ),
             ),
@@ -323,14 +324,14 @@ export default function pool(app, params = {}) {
         h(
           'div',
           { class: 'kv' },
-          h('span', { class: 'k', text: 'Your share of the pool' }),
-          h('span', { class: 'v' }, h('span', { class: 'mine', 'data-testid': 'pool-my-share', text: percentText(share.num, share.den) }), h('div', { class: 'small', 'data-testid': 'pool-my-lp', text: `${formatAmount(lp)} LP` })),
+          h('span', { class: 'k', text: t('Your share of the pool') }),
+          h('span', { class: 'v' }, h('span', { class: 'mine', 'data-testid': 'pool-my-share', text: percentText(share.num, share.den) }), h('div', { class: 'small', 'data-testid': 'pool-my-lp', text: t('{amount} LP', { amount: formatAmount(lp) }) })),
         ),
-        kv('Worth about', value == null ? 'No price yet' : beamWorth(value).replace(/^≈ /, ''), 'pool-my-value', [`${compact(est.amount1)} ${unit(pl.aid1)} +`, `${compact(est.amount2)} ${unit(pl.aid2)}`]),
+        kv(t('Worth about'), value == null ? t('No price yet') : beamWorth(value).replace(/^≈ /, ''), 'pool-my-value', [`${compact(est.amount1)} ${unit(pl.aid1)} +`, `${compact(est.amount2)} ${unit(pl.aid2)}`]),
       ),
     );
     const tab = (m, label) => h('button', { class: `choice${mode() === m ? ' on' : ''}`, type: 'button', 'aria-pressed': String(mode() === m), 'data-testid': `pool-mode-${m}`, onclick: () => setMode(m) }, label);
-    put(modeBox, h('div', { class: 'choices', role: 'group', 'aria-label': 'Add or withdraw' }, tab('add', 'Add'), tab('withdraw', 'Withdraw')));
+    put(modeBox, h('div', { class: 'choices', role: 'group', 'aria-label': t('Add or withdraw') }, tab('add', t('Add')), tab('withdraw', t('Withdraw'))));
   }
 
   // The two amount boxes and the withdraw form are built once: re-drawing them
@@ -345,7 +346,7 @@ export default function pool(app, params = {}) {
       { class: 'card swap-box', 'data-testid': `pool-side-${side}` },
       label,
       h('div', { class: 'swap-line' }, input, chip),
-      h('div', { class: 'swap-sub' }, bal, h('button', { class: 'btn btn-text btn-small', type: 'button', 'data-testid': `pool-max-${side}`, onclick: () => useMax(side) }, 'Max')),
+      h('div', { class: 'swap-sub' }, bal, h('button', { class: 'btn btn-text btn-small', type: 'button', 'data-testid': `pool-max-${side}`, onclick: () => useMax(side) }, t('Max'))),
     );
     return {
       el,
@@ -354,8 +355,8 @@ export default function pool(app, params = {}) {
         const l = wallet.label(aid);
         const computed = !empty() && draft.edited != null && draft.edited !== side;
         el.classList.toggle('computed', computed);
-        label.textContent = computed ? 'Matching amount' : 'You add';
-        input.setAttribute('aria-label', `Amount of ${l.unit} to add`);
+        label.textContent = computed ? t('Matching amount') : t('You add');
+        input.setAttribute('aria-label', t('Amount of {unit} to add', { unit: l.unit }));
         input.placeholder = computed && quoting ? '…' : '0';
         const shown = chip.dataset.asset === String(aid) && chip.dataset.unit === l.unit;
         if (!shown) {
@@ -363,21 +364,21 @@ export default function pool(app, params = {}) {
           chip.dataset.asset = String(aid);
           chip.dataset.unit = l.unit;
         }
-        bal.textContent = `Balance: ${formatAmount(wallet.available(aid))} ${l.unit}`;
+        bal.textContent = t('Balance: {amount} {unit}', { amount: formatAmount(wallet.available(aid)), unit: l.unit });
       },
     };
   }
   const side1 = makeSide(1);
   const side2 = makeSide(2);
   const addForm = h('div', { class: 'stack hidden', 'data-testid': 'pool-add-form' }, side1.el, side2.el);
-  const pctBox = h('div', { class: 'choices four', role: 'group', 'aria-label': 'Part of your share' });
+  const pctBox = h('div', { class: 'choices four', role: 'group', 'aria-label': t('Part of your share') });
   const heldHint = h('span', { class: 'hint', 'data-testid': 'pool-held-hint' });
   const wdForm = h(
     'div',
     { class: 'stack hidden', 'data-testid': 'pool-withdraw-form' },
-    h('p', { class: 'section-title', text: 'How much of your share to take out' }),
+    h('p', { class: 'section-title', text: t('How much of your share to take out') }),
     pctBox,
-    h('label', { class: 'field' }, 'Or exactly', h('div', { class: 'input-wrap suffix' }, exact, h('span', { class: 'suffix-text', text: 'LP' })), heldHint),
+    h('label', { class: 'field' }, t('Or exactly'), h('div', { class: 'input-wrap suffix' }, exact, h('span', { class: 'suffix-text', text: t('LP') })), heldHint),
   );
   put(formBox, addForm, wdForm);
 
@@ -392,7 +393,7 @@ export default function pool(app, params = {}) {
     }
     const on = (p) => !draft.exact.trim() && draft.pct === p;
     put(pctBox, ...WITHDRAW_STEPS.map((p) => h('button', { class: `choice${on(p) ? ' on' : ''}`, type: 'button', 'aria-pressed': String(on(p)), 'data-testid': `pool-pct-${p}`, onclick: () => setPct(p) }, `${p}%`)));
-    heldHint.textContent = `You hold ${formatAmount(held())} LP`;
+    heldHint.textContent = t('You hold {amount} LP', { amount: formatAmount(held()) });
   }
 
   function renderDetails() {
@@ -404,20 +405,20 @@ export default function pool(app, params = {}) {
     if (mode() === 'add') {
       if (addQ && !quoting) {
         const after = shareAfterAdd(pl, addQ.lpMinted, held());
-        rows.push(kv('You get', `≈ ${compact(addQ.lpMinted)} ${unit(pl.lpToken)}`, 'pool-get-lp'));
-        rows.push(kv('Your share of the pool after', percentText(after.num, after.den), 'pool-share-after'));
-        if (empty()) rows.push(kv('Starting price', `1 ${unit(pl.aid1)} ≈ ${ratioText(addQ.amount2, addQ.amount1)} ${unit(pl.aid2)}`, 'pool-start-price'));
+        rows.push(kv(t('You get'), `≈ ${compact(addQ.lpMinted)} ${unit(pl.lpToken)}`, 'pool-get-lp'));
+        rows.push(kv(t('Your share of the pool after'), percentText(after.num, after.den), 'pool-share-after'));
+        if (empty()) rows.push(kv(t('Starting price'), `1 ${unit(pl.aid1)} ≈ ${ratioText(addQ.amount2, addQ.amount1)} ${unit(pl.aid2)}`, 'pool-start-price'));
       }
-      rows.push(kv('Network fee', `${formatAmount(LIQUIDITY_FEE)} BEAM`, 'pool-fee-network'));
-      if (addQ && !quoting && pl.aid1 === 0) rows.push(kv('Total BEAM out', `${formatAmount(addQ.amount1 + LIQUIDITY_FEE)} BEAM`, 'pool-total-beam'));
+      rows.push(kv(t('Network fee'), `${formatAmount(LIQUIDITY_FEE)} BEAM`, 'pool-fee-network'));
+      if (addQ && !quoting && pl.aid1 === 0) rows.push(kv(t('Total BEAM out'), `${formatAmount(addQ.amount1 + LIQUIDITY_FEE)} BEAM`, 'pool-total-beam'));
     } else {
       if (wdQ && !quoting) {
         const v1 = valueOf(pools, pl.aid1, wdQ.amount1, isVerified);
         const v2 = valueOf(pools, pl.aid2, wdQ.amount2, isVerified);
-        rows.push(kv('You get back', [`${formatAmount(wdQ.amount1)} ${unit(pl.aid1)} +`, `${formatAmount(wdQ.amount2)} ${unit(pl.aid2)}`], 'pool-get-back', v1 == null || v2 == null ? 'No price' : beamWorth(v1 + v2)));
-        rows.push(kv('You return', `${formatAmount(wdQ.lpBurned)} LP`, 'pool-return-lp'));
+        rows.push(kv(t('You get back'), [`${formatAmount(wdQ.amount1)} ${unit(pl.aid1)} +`, `${formatAmount(wdQ.amount2)} ${unit(pl.aid2)}`], 'pool-get-back', v1 == null || v2 == null ? t('No price') : beamWorth(v1 + v2)));
+        rows.push(kv(t('You return'), t('{amount} LP', { amount: formatAmount(wdQ.lpBurned) }), 'pool-return-lp'));
       }
-      rows.push(kv('Network fee', `${formatAmount(LIQUIDITY_FEE)} BEAM`, 'pool-fee-network'));
+      rows.push(kv(t('Network fee'), `${formatAmount(LIQUIDITY_FEE)} BEAM`, 'pool-fee-network'));
     }
     put(detailsBox, h('div', { class: 'card flat swap-details', 'data-testid': 'pool-details' }, ...rows));
   }
@@ -432,8 +433,8 @@ export default function pool(app, params = {}) {
       n.push(el);
     }
     if (pl && !result) {
-      if (mode() === 'add' && !empty()) n.push(h('p', { class: 'small', text: `Your coins earn a share of the fee on every swap. What you take out later follows the pool's price then, so it can be more of one coin and less of the other. If the price moves more than ${bpsText(PROTECTION_BPS)} before you approve, nothing is sent.` }));
-      if (mode() === 'withdraw') n.push(h('p', { class: 'small', text: `If the pool changes by more than ${bpsText(PROTECTION_BPS)} before you approve, nothing is sent and you see the new amounts.` }));
+      if (mode() === 'add' && !empty()) n.push(h('p', { class: 'small', text: t("Your coins earn a share of the fee on every swap. What you take out later follows the pool's price then, so it can be more of one coin and less of the other. If the price moves more than {percent} before you approve, nothing is sent.", { percent: bpsText(PROTECTION_BPS) }) }));
+      if (mode() === 'withdraw') n.push(h('p', { class: 'small', text: t('If the pool changes by more than {percent} before you approve, nothing is sent and you see the new amounts.', { percent: bpsText(PROTECTION_BPS) }) }));
     }
     put(notes, ...n);
   }
@@ -449,12 +450,17 @@ export default function pool(app, params = {}) {
     cta.disabled = Boolean(st.off);
     if (mode() === 'add') {
       const g = { a1: parsed(in1.value).value, a2: parsed(in2.value).value };
-      cta.textContent = pl && addQ && !quoting ? `Add ${btn(addQ.amount1)} ${unit(pl.aid1)} + ${btn(addQ.amount2)} ${unit(pl.aid2)}` : pl && g.a1 && g.a2 && empty() ? `Add ${btn(g.a1)} ${unit(pl.aid1)} + ${btn(g.a2)} ${unit(pl.aid2)}` : 'Add liquidity';
+      cta.textContent =
+        pl && addQ && !quoting
+          ? t('Add {amount1} {unit1} + {amount2} {unit2}', { amount1: btn(addQ.amount1), unit1: unit(pl.aid1), amount2: btn(addQ.amount2), unit2: unit(pl.aid2) })
+          : pl && g.a1 && g.a2 && empty()
+            ? t('Add {amount1} {unit1} + {amount2} {unit2}', { amount1: btn(g.a1), unit1: unit(pl.aid1), amount2: btn(g.a2), unit2: unit(pl.aid2) })
+            : t('Add liquidity');
     } else {
-      cta.textContent = pl && wdQ && !quoting ? `Withdraw ${btn(wdQ.amount1)} ${unit(pl.aid1)} + ${btn(wdQ.amount2)} ${unit(pl.aid2)}` : 'Withdraw';
+      cta.textContent = pl && wdQ && !quoting ? t('Withdraw {amount1} {unit1} + {amount2} {unit2}', { amount1: btn(wdQ.amount1), unit1: unit(pl.aid1), amount2: btn(wdQ.amount2), unit2: unit(pl.aid2) }) : t('Withdraw');
     }
     // The pair in the title once the pool is known: "BEAM/FOMO pool".
-    if (titleEl && pl) titleEl.textContent = `${pairName(pl, '/')} pool`;
+    if (titleEl && pl) titleEl.textContent = t('{pair} pool', { pair: pairName(pl, '/') });
     reason.textContent = st.off || '';
     reason.classList.toggle('hidden', !st.off);
   }
@@ -488,10 +494,10 @@ export default function pool(app, params = {}) {
       if (m === 'add') {
         const q = addQ;
         const after = shareAfterAdd(pl, q.lpMinted, held());
-        sent = await liquidity().add(pl, { ...given(), quote: q, intent: { rows: [['Pool', pair], ['Your share after', percentText(after.num, after.den)]] } });
+        sent = await liquidity().add(pl, { ...given(), quote: q, intent: { rows: [[t('Pool'), pair], [t('Your share after'), percentText(after.num, after.den)]] } });
       } else {
         const q = wdQ;
-        sent = await liquidity().withdraw(pl, { lp: q.lpBurned, quote: q, intent: { rows: [['Pool', pair]] } });
+        sent = await liquidity().withdraw(pl, { lp: q.lpBurned, quote: q, intent: { rows: [[t('Pool'), pair]] } });
       }
       if (!alive) return;
       app.poolDraft = null;
@@ -535,7 +541,7 @@ export default function pool(app, params = {}) {
 
   const el = screen(
     {
-      title: 'Pool',
+      title: t('Pool'),
       back: () => app.back('pools'),
       actions: [reason, cta],
       cls: 'swap pool sticky-actions',

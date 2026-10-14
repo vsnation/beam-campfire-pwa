@@ -27,9 +27,10 @@ import {
 } from '../lib/bans.js';
 import { isEmpty, VISIBILITY, amountsText, balanceChange } from '../lib/bans_inbox.js';
 import { nameInbox, runClaim, setNamesHint } from './names_claim.js';
-import { statusWords, pendingWords, pendingDone, priceText, needsRenewal, daysBetween, inDays } from './name_parts.js';
+import { statusWords, pendingWords, pendingDone, priceText, needsRenewal, daysBetween } from './name_parts.js';
 import { rememberNames } from '../lib/notify.js';
 import { syncReason } from '../lib/sync.js';
+import { t, tn, dateLocale } from '../lib/i18n.js';
 
 const PENDING_FORGET_MS = 30 * 60000;
 
@@ -41,26 +42,53 @@ export function bans() {
 }
 
 export const usd = (n) => `$${Number(n).toLocaleString('en-US')}`;
-export const years = (n) => (n === 1 ? '1 year' : `${n} years`);
-export const day = (ms) => new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+export const years = (n) => tn({ one: '{n} year', other: '{n} years' }, n);
+export const day = (ms) => new Date(ms).toLocaleDateString(dateLocale('en-GB'), { day: 'numeric', month: 'short', year: 'numeric' });
 const beamAbout = (g) => formatAmount(g, { maxDecimals: g >= 100000000n ? 0 : 4 });
 const midpoint = (e) => (e.minGroth + e.maxGroth) / 2n;
 
-/** Plain words for whatever stopped a name transaction. */
+/** "The registration was not sent: {reason} Nothing left your wallet.", one whole sentence per kind. */
+function notSentText(what, reason) {
+  switch (what) {
+    case 'registration':
+      return t('The registration was not sent: {reason} Nothing left your wallet.', { reason });
+    case 'renewal':
+      return t('The renewal was not sent: {reason} Nothing left your wallet.', { reason });
+    case 'purchase':
+      return t('The purchase was not sent: {reason} Nothing left your wallet.', { reason });
+    case 'transfer':
+      return t('The transfer was not sent: {reason} Nothing left your wallet.', { reason });
+    case 'listing':
+      return t('The listing was not sent: {reason} Nothing left your wallet.', { reason });
+    case 'change':
+      return t('The change was not sent: {reason} Nothing left your wallet.', { reason });
+    case 'claim':
+      return t('The claim was not sent: {reason} Nothing left your wallet.', { reason });
+    case 'payment':
+      return t('The payment was not sent: {reason} Nothing left your wallet.', { reason });
+    default:
+      return t('The transaction was not sent: {reason} Nothing left your wallet.', { reason });
+  }
+}
+
+/**
+ * Plain words for whatever stopped a name transaction. what: 'registration', 'renewal', 'purchase',
+ * 'transfer', 'listing', 'change', 'claim' or 'payment' (screens/review.js).
+ */
 export function nameProblemText(e, what) {
   const code = e && e.code;
-  if (code === 'rejected') return 'Cancelled. Nothing was sent.';
-  if (code === 'timeout') return 'The wallet did not answer in time. Check Activity before trying again.';
+  if (code === 'rejected') return t('Cancelled. Nothing was sent.');
+  if (code === 'timeout') return t('The wallet did not answer in time. Check Activity before trying again.');
   if (code === 'load' || code === 'mismatch') return e.message;
   if (code === 'refused' || code === 'unexpected' || code === 'priceMoved' || code === 'ownerChanged' || code === 'nameChanged' || code === 'wrongVault' || code === 'invalidName' || code === 'notMine' || code === 'invalidKey' || code === 'claimUnsupported') return e.message;
-  const m = String((e && e.message) || e || 'unknown error');
-  return `The ${what} was not sent: ${m}${/\.$/.test(m) ? '' : '.'} Nothing left your wallet.`;
+  const m = String((e && e.message) || e || t('unknown error'));
+  return notSentText(what, `${m}${/\.$/.test(m) ? '' : '.'}`);
 }
 
 /** − 1 year + */
 export function yearsStepper(value, max, onChange, testid = 'names-years') {
-  const minus = h('button', { class: 'icon-btn stepper-btn', type: 'button', 'aria-label': 'One year less', 'data-testid': `${testid}-minus`, disabled: value <= 1, onclick: () => onChange(value - 1) }, h('span', { text: '−' }));
-  const plus = h('button', { class: 'icon-btn stepper-btn', type: 'button', 'aria-label': 'One year more', 'data-testid': `${testid}-plus`, disabled: value >= max, onclick: () => onChange(value + 1) }, h('span', { text: '+' }));
+  const minus = h('button', { class: 'icon-btn stepper-btn', type: 'button', 'aria-label': t('One year less'), 'data-testid': `${testid}-minus`, disabled: value <= 1, onclick: () => onChange(value - 1) }, h('span', { text: '−' }));
+  const plus = h('button', { class: 'icon-btn stepper-btn', type: 'button', 'aria-label': t('One year more'), 'data-testid': `${testid}-plus`, disabled: value >= max, onclick: () => onChange(value + 1) }, h('span', { text: '+' }));
   return h('div', { class: 'stepper' }, minus, h('span', { class: 'stepper-value', 'data-testid': testid, text: years(value) }), plus);
 }
 
@@ -93,16 +121,16 @@ export default function names(app) {
   let claimMsg = null; // { ok, code, text }
   const moneyBox = h('div', { 'aria-live': 'polite' });
 
-  const input = h('input', { class: 'input name-input', type: 'text', autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', maxlength: String(NAME_MAX + 5), placeholder: 'alice', 'aria-label': 'Name', 'data-testid': 'names-input' });
+  const input = h('input', { class: 'input name-input', type: 'text', autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', maxlength: String(NAME_MAX + 5), placeholder: 'alice', 'aria-label': t('Name'), 'data-testid': 'names-input' });
   input.value = draft.text;
   const hint = h('p', { class: 'hint', 'data-testid': 'names-hint' });
   const resultBox = h('div', { 'aria-live': 'polite' });
   const quoteBox = h('div');
   const notes = h('div', { class: 'swap-notes' });
   const reason = h('p', { class: 'hint center', 'data-testid': 'names-reason', 'aria-live': 'polite' });
-  const cta = primary('Register a name', () => primaryAction(), { disabled: true, 'data-testid': 'names-cta' });
+  const cta = primary(t('Register a name'), () => primaryAction(), { disabled: true, 'data-testid': 'names-cta' });
   const mineBox = h('div', { class: 'names-mine-box' });
-  const lead = h('p', { class: 'lead', text: 'A name lets people pay you as alice.beam instead of a long address.' });
+  const lead = h('p', { class: 'lead', text: t('A name lets people pay you as alice.beam instead of a long address.') });
 
   const name = () => tryName(input.value);
   const estimateFor = (n, y) => (params && params.usdPerBeamText ? priceEstimate({ usdPerPeriod: usdPerPeriod(n.length), periods: y, medianText: params.usdPerBeamText }) : null);
@@ -114,34 +142,54 @@ export default function names(app) {
   // ------------------------------------------------------------ what the button says
   function ctaState() {
     const n = name();
-    if (preparing) return { off: 'Building the registration…' };
-    if (!n) return { off: input.value.trim() ? describeNameProblem(nameProblem(normaliseName(input.value))) : 'Type the name you want above.' };
-    if (lookup.state === 'checking' || lookup.name !== n) return { off: `Checking ${display(n)}…` };
-    if (lookup.state === 'error') return { off: `${display(n)} could not be checked. Try again above.` };
+    if (preparing) return { off: t('Building the registration…') };
+    if (!n) return { off: input.value.trim() ? describeNameProblem(nameProblem(normaliseName(input.value))) : t('Type the name you want above.') };
+    if (lookup.state === 'checking' || lookup.name !== n) return { off: t('Checking {name}…', { name: display(n) }) };
+    if (lookup.state === 'error') return { off: t('{name} could not be checked. Try again above.', { name: display(n) }) };
     const res = lookup.res;
     if (!canRegister(res.status)) {
-      if (res.ownerKey && mine.key && res.ownerKey === mine.key) return { off: `${display(n)} is already yours. Renew it under My names.` };
+      if (res.ownerKey && mine.key && res.ownerKey === mine.key) return { off: t('{name} is already yours. Renew it under My names.', { name: display(n) }) };
       const price = forSale(res);
       if (price) {
-        const label = `Buy ${n} for ${priceText(price)}`;
-        if (preparing) return { off: 'Building the purchase…', label };
-        if (!wallet.state.sync.canSend) return { off: `Buying is paused: ${syncReason(wallet.state.sync.title)}.`, label };
+        const label = t('Buy {name} for {price}', { name: n, price: priceText(price) });
+        if (preparing) return { off: t('Building the purchase…'), label };
+        if (!wallet.state.sync.canSend) return { off: t('Buying is paused: {reason}.', { reason: pausedWhy() }), label };
         const need = price.assetId === 0 ? price.amount + NAME_CALL_FEE : price.amount;
         const have = wallet.available(price.assetId);
-        if (have < need) return { off: `Not enough ${wallet.label(price.assetId).unit}. ${display(n)} costs ${priceText(price)}${price.assetId === 0 ? ', plus the 0.011 BEAM network fee' : ''}. You have ${formatAmount(have)} ${wallet.label(price.assetId).unit}.`, receive: true, label };
-        if (price.assetId !== 0 && wallet.available(0) < NAME_CALL_FEE) return { off: `You need ${formatAmount(NAME_CALL_FEE)} BEAM for the network fee. You have ${formatAmount(wallet.available(0))} BEAM.`, receive: true, label };
+        if (have < need) {
+          const unitName = wallet.label(price.assetId).unit;
+          const why = price.assetId === 0
+            ? t('Not enough {unit}. {name} costs {price}, plus the 0.011 BEAM network fee. You have {have} {unit}.', { unit: unitName, name: display(n), price: priceText(price), have: formatAmount(have) })
+            : t('Not enough {unit}. {name} costs {price}. You have {have} {unit}.', { unit: unitName, name: display(n), price: priceText(price), have: formatAmount(have) });
+          return { off: why, receive: true, label };
+        }
+        if (price.assetId !== 0 && wallet.available(0) < NAME_CALL_FEE) return { off: t('You need {fee} BEAM for the network fee. You have {have} BEAM.', { fee: formatAmount(NAME_CALL_FEE), have: formatAmount(wallet.available(0)) }), receive: true, label };
         return { off: null, buy: price, label };
       }
-      return { off: `${display(n)} is taken. Try another name.` };
+      return { off: t('{name} is taken. Try another name.', { name: display(n) }) };
     }
-    if (!wallet.state.sync.canSend) return { off: `Registering is paused: ${syncReason(wallet.state.sync.title)}.` };
-    if (paramsError || !params) return { off: paramsError ? 'The BEAM price could not be read. Try again in a minute.' : 'Getting the BEAM price…' };
-    if (!params.usdPerBeamText) return { off: 'The BEAM price feed is not updating right now, so names cannot be priced. Try again in a few minutes.' };
+    if (!wallet.state.sync.canSend) return { off: t('Registering is paused: {reason}.', { reason: pausedWhy() }) };
+    if (paramsError || !params) return { off: paramsError ? t('The BEAM price could not be read. Try again in a minute.') : t('Getting the BEAM price…') };
+    if (!params.usdPerBeamText) return { off: t('The BEAM price feed is not updating right now, so names cannot be priced. Try again in a few minutes.') };
     const e = estimateFor(n, draft.years);
     const need = e.minGroth + NAME_CALL_FEE;
     const have = wallet.available(0);
-    if (have < need) return { off: `Not enough BEAM. ${display(n)} costs about ${beamAbout(midpoint(e) + NAME_CALL_FEE)} BEAM for ${years(draft.years)}, network fee included. You have ${formatAmount(have)} BEAM.`, receive: true };
+    if (have < need) {
+      return {
+        off: tn(
+          { one: 'Not enough BEAM. {name} costs about {amount} BEAM for {n} year, network fee included. You have {have} BEAM.', other: 'Not enough BEAM. {name} costs about {amount} BEAM for {n} years, network fee included. You have {have} BEAM.' },
+          draft.years,
+          { name: display(n), amount: beamAbout(midpoint(e) + NAME_CALL_FEE), have: formatAmount(have) },
+        ),
+        receive: true,
+      };
+    }
     return { off: null };
+  }
+
+  /** Why sending is paused, as the sync line says it, for "… is paused: {reason}." */
+  function pausedWhy() {
+    return syncReason(wallet.state.sync.title);
   }
 
   /** The price of a name someone else sells (still theirs, not long expired), or null. */
@@ -158,13 +206,13 @@ export default function names(app) {
     if (!typed) return null;
     if (!n) return null;
     if (lookup.name !== n || lookup.state === 'checking') {
-      return h('div', { class: 'card name-result', 'data-testid': 'names-result', 'data-state': 'checking' }, h('div', { class: 'name-line' }, h('span', { class: 'spinner small' }), h('span', { text: `Checking ${display(n)}…` })));
+      return h('div', { class: 'card name-result', 'data-testid': 'names-result', 'data-state': 'checking' }, h('div', { class: 'name-line' }, h('span', { class: 'spinner small' }), h('span', { text: t('Checking {name}…', { name: display(n) }) })));
     }
     if (lookup.state === 'error') {
       return h(
         'div',
         { 'data-testid': 'names-result', 'data-state': 'error' },
-        notice('error', `${display(n)} could not be checked: ${lookup.error.message} `, h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: () => lookupNow() }, 'Try again')),
+        notice('error', t('{name} could not be checked: {reason}', { name: display(n), reason: lookup.error.message }), ' ', h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: () => lookupNow() }, t('Try again'))),
       );
     }
     const res = lookup.res;
@@ -175,7 +223,7 @@ export default function names(app) {
         { class: `card name-result ${good ? 'good' : 'taken'}`, 'data-testid': 'names-result', 'data-state': state },
         h('div', { class: 'name-line' }, icon(good ? 'check' : 'close', 'name-ico'), h('strong', { 'data-testid': 'names-result-title', text: title })),
         detail ? h('p', { class: 'small', text: detail }) : null,
-        res.inSync ? null : h('p', { class: 'small', text: 'Your wallet was still catching up when this was checked, so it may be out of date.' }),
+        res.inSync ? null : h('p', { class: 'small', text: t('Your wallet was still catching up when this was checked, so it may be out of date.') }),
       );
     const isMine = res.ownerKey && mine.key && res.ownerKey === mine.key;
     const price = forSale(res);
@@ -183,33 +231,33 @@ export default function names(app) {
       return h(
         'div',
         { class: 'card name-result good', 'data-testid': 'names-result', 'data-state': 'forSale' },
-        h('div', { class: 'name-line' }, icon('swap', 'name-ico'), h('strong', { 'data-testid': 'names-result-title', text: `${display(n)} is for sale: ${priceText(price)}` })),
+        h('div', { class: 'name-line' }, icon('swap', 'name-ico'), h('strong', { 'data-testid': 'names-result-title', text: t('{name} is for sale: {price}', { name: display(n), price: priceText(price) }) })),
         h(
           'p',
-          { class: 'small', 'data-testid': 'names-sale-detail', text: res.status === STATUS.onHold ? `Its registration lapsed. Buying does not renew it: renew it by ${day(dateOf(holdEndHeight(res.domain.expireHeight), clock))} or anyone can take it.` : `Buying it gives you the time left on it, until ${day(dateOf(res.domain.expireHeight, clock))}. It does not renew it.` },
+          { class: 'small', 'data-testid': 'names-sale-detail', text: res.status === STATUS.onHold ? t('Its registration lapsed. Buying does not renew it: renew it by {date} or anyone can take it.', { date: day(dateOf(holdEndHeight(res.domain.expireHeight), clock)) }) : t('Buying it gives you the time left on it, until {date}. It does not renew it.', { date: day(dateOf(res.domain.expireHeight, clock)) }) },
         ),
-        res.inSync ? null : h('p', { class: 'small', text: 'Your wallet was still catching up when this was checked, so it may be out of date.' }),
+        res.inSync ? null : h('p', { class: 'small', text: t('Your wallet was still catching up when this was checked, so it may be out of date.') }),
       );
     }
     switch (res.status) {
       case STATUS.available:
-        return card('available', `${display(n)} is available`, null, true);
+        return card('available', t('{name} is available', { name: display(n) }), null, true);
       case STATUS.availableAgain:
-        return card('available', `${display(n)} is available`, 'Its last owner let it expire, so anyone can register it now.', true);
+        return card('available', t('{name} is available', { name: display(n) }), t('Its last owner let it expire, so anyone can register it now.'), true);
       case STATUS.onHold:
         return isMine
-          ? card('mine', `${display(n)} is yours, but it expired`, `Renew it by ${day(dateOf(holdEndHeight(res.domain.expireHeight), clock))} under My names, or anyone can take it.`, false)
-          : card('taken', `${display(n)} is taken`, `Its registration lapsed, but its owner can still renew it until ${day(dateOf(holdEndHeight(res.domain.expireHeight), clock))}. After that anyone can register it.`, false);
+          ? card('mine', t('{name} is yours, but it expired', { name: display(n) }), t('Renew it by {date} under My names, or anyone can take it.', { date: day(dateOf(holdEndHeight(res.domain.expireHeight), clock)) }), false)
+          : card('taken', t('{name} is taken', { name: display(n) }), t('Its registration lapsed, but its owner can still renew it until {date}. After that anyone can register it.', { date: day(dateOf(holdEndHeight(res.domain.expireHeight), clock)) }), false);
       default:
         if (isMine) {
-          const c = card('mine', `${display(n)} is already yours`, `Registered until ${day(dateOf(res.domain.expireHeight, clock))}.`, false);
-          c.appendChild(h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'names-manage', onclick: () => app.go('nameDetail', { name: n }) }, `Manage ${n}`));
+          const c = card('mine', t('{name} is already yours', { name: display(n) }), t('Registered until {date}.', { date: day(dateOf(res.domain.expireHeight, clock)) }), false);
+          c.appendChild(h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'names-manage', onclick: () => app.go('nameDetail', { name: n }) }, t('Manage {name}', { name: n })));
           return c;
         }
         return card(
           'taken',
-          `${display(n)} is taken`,
-          `Registered until ${day(dateOf(res.domain.expireHeight, clock))}. If it is not renewed, anyone can register it after ${day(dateOf(holdEndHeight(res.domain.expireHeight), clock))}.`,
+          t('{name} is taken', { name: display(n) }),
+          t('Registered until {date}. If it is not renewed, anyone can register it after {after}.', { date: day(dateOf(res.domain.expireHeight, clock)), after: day(dateOf(holdEndHeight(res.domain.expireHeight), clock)) }),
           false,
         );
     }
@@ -220,16 +268,21 @@ export default function names(app) {
     if (!n || lookup.name !== n || lookup.state !== 'done' || !canRegister(lookup.res.status)) return null;
     const e = estimateFor(n, draft.years);
     const rows = [
-      h('div', { class: 'kv' }, h('span', { class: 'k', text: 'How long' }), yearsStepper(draft.years, MAX_PERIODS, (v) => {
+      h('div', { class: 'kv' }, h('span', { class: 'k', text: t('How long') }), yearsStepper(draft.years, MAX_PERIODS, (v) => {
         draft.years = v;
         result = null;
         render();
       })),
-      h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Price' }), h('span', { class: 'v', 'data-testid': 'names-usd', text: `${usd(usdPerPeriod(n.length) * draft.years)}` })),
-      h('div', { class: 'kv' }, h('span', { class: 'k', text: 'In BEAM today' }), h('span', { class: 'v', 'data-testid': 'names-beam', text: e ? `≈ ${beamAbout(midpoint(e))} BEAM` : paramsError ? 'Unavailable right now' : '…' })),
-      h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Network fee' }), h('span', { class: 'v', 'data-testid': 'names-fee', text: `${formatAmount(NAME_CALL_FEE)} BEAM` })),
+      h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Price') }), h('span', { class: 'v', 'data-testid': 'names-usd', text: `${usd(usdPerPeriod(n.length) * draft.years)}` })),
+      h('div', { class: 'kv' }, h('span', { class: 'k', text: t('In BEAM today') }), h('span', { class: 'v', 'data-testid': 'names-beam', text: e ? `≈ ${beamAbout(midpoint(e))} BEAM` : paramsError ? t('Unavailable right now') : '…' })), // i18n-ignore: an amount and its ticker
+      h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Network fee') }), h('span', { class: 'v', 'data-testid': 'names-fee', text: `${formatAmount(NAME_CALL_FEE)} BEAM` })), // i18n-ignore: an amount and its ticker
     ];
     const tip = tipOf();
+    const perYear = usd(usdPerPeriod(n.length));
+    // Two or three whole sentences: the price (with today's rate when known), the approve sheet, the end date.
+    const priceNote = params && params.usdPerBeamText
+      ? tn({ one: "{price} a year for {n} character, paid in BEAM at today's rate (1 BEAM ≈ {rate}).", other: "{price} a year for {n} characters, paid in BEAM at today's rate (1 BEAM ≈ {rate})." }, n.length, { price: perYear, rate: `$${params.usdPerBeamText}` })
+      : tn({ one: "{price} a year for {n} character, paid in BEAM at today's rate.", other: "{price} a year for {n} characters, paid in BEAM at today's rate." }, n.length, { price: perYear });
     return h(
       'div',
       { class: 'name-quote' },
@@ -237,7 +290,7 @@ export default function names(app) {
       h(
         'p',
         { class: 'small', 'data-testid': 'names-price-note' },
-        `${usd(usdPerPeriod(n.length))} a year for ${n.length} characters, paid in BEAM at today's rate${params && params.usdPerBeamText ? ` (1 BEAM ≈ $${params.usdPerBeamText})` : ''}. The approve sheet shows the exact amount.${tip ? ` Until about ${day(dateOf(expiryAfterRegister({ tipHeight: tip.tipHeight, periods: draft.years }), tip))}.` : ''}`,
+        [priceNote, t('The approve sheet shows the exact amount.'), tip ? t('Until about {date}.', { date: day(dateOf(expiryAfterRegister({ tipHeight: tip.tipHeight, periods: draft.years }), tip)) }) : null].filter(Boolean).join(' '),
       ),
     );
   }
@@ -247,13 +300,13 @@ export default function names(app) {
     const n = name();
     const typed = input.value.trim();
     if (!typed) {
-      hint.textContent = 'Names cost $10 a year for 5 or more characters, $120 for 4 and $320 for 3, paid in BEAM. Use a-z, 0-9, - _ ~.';
+      hint.textContent = t('Names cost $10 a year for 5 or more characters, $120 for 4 and $320 for 3, paid in BEAM. Use a-z, 0-9, - _ ~.');
       hint.className = 'hint';
     } else if (!n) {
       hint.textContent = describeNameProblem(nameProblem(normaliseName(typed)));
       hint.className = 'hint bad';
     } else {
-      hint.textContent = `${n.length} characters: ${usd(usdPerPeriod(n.length))} a year.`;
+      hint.textContent = tn({ one: '{n} character: {price} a year.', other: '{n} characters: {price} a year.' }, n.length, { price: usd(usdPerPeriod(n.length)) });
       hint.className = 'hint';
     }
     input.classList.toggle('bad', Boolean(typed && !n));
@@ -271,8 +324,8 @@ export default function names(app) {
     }
     put(notes, ...sheetNotes);
     cta.disabled = Boolean(st.off);
-    cta.textContent = st.label || (n && lookup.name === n && lookup.state === 'done' && canRegister(lookup.res.status) ? `Register ${n} for ${years(draft.years)}` : 'Register a name');
-    put(reason, st.off || '', st.receive ? ' ' : null, st.receive ? h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'names-receive', onclick: () => app.go('receive') }, 'Receive BEAM') : null);
+    cta.textContent = st.label || (n && lookup.name === n && lookup.state === 'done' && canRegister(lookup.res.status) ? tn({ one: 'Register {name} for {n} year', other: 'Register {name} for {n} years' }, draft.years, { name: n }) : t('Register a name'));
+    put(reason, st.off || '', st.receive ? ' ' : null, st.receive ? h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'names-receive', onclick: () => app.go('receive') }, t('Receive BEAM')) : null);
     reason.classList.toggle('hidden', !st.off);
     renderMine();
     renderMoney();
@@ -287,7 +340,7 @@ export default function names(app) {
     const msg = claimMsg ? h('div', { 'data-testid': 'names-claim-msg', 'data-code': claimMsg.code }, notice(claimMsg.ok ? 'success' : claimMsg.calm || claimMsg.code === 'nothing' ? 'info' : 'error', claimMsg.text)) : null;
     if (inbox.claiming) {
       const r = inbox.claiming.receives;
-      return put(moneyBox, msg || notice('info', `Claim on its way: ${[...r.keys()].map((id) => `+${fmt(r.get(id))} ${unit(id)}`).join(', ')}. It shows in your balance once confirmed.`));
+      return put(moneyBox, msg || notice('info', t('Claim on its way: {amounts}. It shows in your balance once confirmed.', { amounts: [...r.keys()].map((id) => `+${fmt(r.get(id))} ${unit(id)}`).join(', ') })));
     }
     if (s && s.visibility === VISIBILITY.unsupported) {
       return put(
@@ -297,9 +350,9 @@ export default function names(app) {
           { 'data-testid': 'names-claim-unsupported' },
           notice(
             'info',
-            h('strong', { text: "This version can't see payments to your names yet. " }),
-            'They are safe in the BEAM vault. Money from a name you sold can be claimed now. ',
-            h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'names-check-sale', disabled: claiming, onclick: checkSale }, claiming ? 'Checking…' : 'Check for money from a sale'),
+            h('strong', { text: `${t("This version can't see payments to your names yet.")} ` }),
+            `${t('They are safe in the BEAM vault. Money from a name you sold can be claimed now.')} `,
+            h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'names-check-sale', disabled: claiming, onclick: checkSale }, claiming ? t('Checking…') : t('Check for money from a sale')),
           ),
         ),
         msg,
@@ -307,9 +360,9 @@ export default function names(app) {
     }
     if (!s || isEmpty(s)) return put(moneyBox, msg);
     const amounts = amountsText(s.totals, fmt, unit);
-    const title = s.paymentCount && s.saleCount ? `${amounts} is waiting for your names` : s.paymentCount ? `People paid your names: ${amounts} is waiting` : `You sold a name: ${amounts} is waiting for you`;
-    const detail = s.names.length ? `Sent to ${s.names.map(display).join(', ')}. Claim it to move it into your balance.` : 'Claim it to move it into your balance.';
-    const one = s.totals.size === 1 ? `Claim ${amounts}` : 'Claim all';
+    const title = s.paymentCount && s.saleCount ? t('{amounts} is waiting for your names', { amounts }) : s.paymentCount ? t('People paid your names: {amounts} is waiting', { amounts }) : t('You sold a name: {amounts} is waiting for you', { amounts });
+    const detail = s.names.length ? t('Sent to {names}. Claim it to move it into your balance.', { names: s.names.map(display).join(', ') }) : t('Claim it to move it into your balance.');
+    const one = s.totals.size === 1 ? t('Claim {amount}', { amount: amounts }) : t('Claim all');
     put(
       moneyBox,
       h(
@@ -317,7 +370,7 @@ export default function names(app) {
         { class: 'card names-money', 'data-testid': 'names-money' },
         h('div', { class: 'name-line' }, icon('gift', 'name-ico'), h('strong', { 'data-testid': 'names-money-title', text: title })),
         h('p', { class: 'small', text: detail }),
-        h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'names-claim', disabled: claiming, onclick: claim }, claiming ? 'Preparing…' : one),
+        h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'names-claim', disabled: claiming, onclick: claim }, claiming ? t('Preparing…') : one),
       ),
       msg,
     );
@@ -342,21 +395,21 @@ export default function names(app) {
     claimMsg = null;
     renderMoney();
     const assets = [...new Set([0, ...mine.list.filter((d) => d.salePrice).map((d) => d.salePrice.assetId)])];
-    let done = { ok: false, code: 'nothing', text: 'Nothing from a name sale is waiting for this wallet.' };
+    let done = { ok: false, code: 'nothing', text: t('Nothing from a name sale is waiting for this wallet.') };
     for (const aid of assets) {
       try {
         await bans().claimSaleProceeds(aid, {
           words: (b) => ({
-            rows: [['From', 'A name you sold'], ['Your balance changes by', balanceChange(b.receives, b.fee, (g) => formatAmount(g), (id) => wallet.label(id).unit)]],
-            notes: [aid === 0 ? 'Pays its own fee: it comes out of the BEAM you are claiming.' : "The fee is paid from this wallet's BEAM."],
+            rows: [[t('From'), t('A name you sold')], [t('Your balance changes by'), balanceChange(b.receives, b.fee, (g) => formatAmount(g), (id) => wallet.label(id).unit)]],
+            notes: [aid === 0 ? t('Pays its own fee: it comes out of the BEAM you are claiming.') : t("The fee is paid from this wallet's BEAM.")],
           }),
         });
-        done = { ok: true, code: 'sent', text: 'Claim sent. It shows in your balance once the network confirms it, usually within a few minutes.' };
+        done = { ok: true, code: 'sent', text: t('Claim sent. It shows in your balance once the network confirms it, usually within a few minutes.') };
         wallet.refreshTxs();
         break;
       } catch (e) {
         if (e && (e.refusal === 'noFunds' || e.refusal === 'nothingToClaim')) continue;
-        done = { ok: false, code: (e && e.code) || 'error', text: e && e.code === 'rejected' ? 'Cancelled. Nothing was claimed; it is still waiting for you.' : nameProblemText(e, 'claim') };
+        done = { ok: false, code: (e && e.code) || 'error', text: e && e.code === 'rejected' ? t('Cancelled. Nothing was claimed; it is still waiting for you.') : nameProblemText(e, 'claim') };
         break;
       }
     }
@@ -389,7 +442,7 @@ export default function names(app) {
       const gone = d.status === STATUS.availableAgain;
       const p = pending.get(d.name);
       const w = tip ? statusWords(d, tip) : null;
-      const sub = p && Date.now() - p.at <= PENDING_FORGET_MS ? pendingWords(p) : !tip ? '' : gone ? `Expired on ${day(dateOf(d.expireHeight, tip))}; anyone can register it now` : lapsed ? `Expired. Renew by ${day(dateOf(holdEndHeight(d.expireHeight), tip))} to keep it` : w.text;
+      const sub = p && Date.now() - p.at <= PENDING_FORGET_MS ? pendingWords(p) : !tip ? '' : gone ? t('Expired on {date}; anyone can register it now', { date: day(dateOf(d.expireHeight, tip)) }) : lapsed ? t('Expired. Renew by {date} to keep it', { date: day(dateOf(holdEndHeight(d.expireHeight), tip)) }) : w.text;
       const open = () => app.go('nameDetail', { name: d.name });
       rows.push(
         h(
@@ -398,7 +451,7 @@ export default function names(app) {
             class: 'row asset-row name-row',
             role: 'button',
             tabindex: '0',
-            'aria-label': `${display(d.name)}: details, renew, transfer or sell`,
+            'aria-label': t('{name}: details, renew, transfer or sell', { name: display(d.name) }),
             'data-testid': 'names-mine-row',
             'data-name': d.name,
             onclick: open,
@@ -407,7 +460,7 @@ export default function names(app) {
             },
           },
           h('span', { class: `ico ${lapsed || gone ? 'fail' : 'in'}` }, icon(lapsed || gone ? 'alert' : 'check')),
-          h('span', { class: 'main' }, h('div', { class: 't', text: display(d.name) }), h('div', { class: 's', 'data-testid': 'names-mine-status', text: sub }), d.salePrice && !p ? h('div', { class: 's sale', 'data-testid': 'names-mine-sale', text: `For sale at ${priceText(d.salePrice)}` }) : null),
+          h('span', { class: 'main' }, h('div', { class: 't', text: display(d.name) }), h('div', { class: 's', 'data-testid': 'names-mine-status', text: sub }), d.salePrice && !p ? h('div', { class: 's sale', 'data-testid': 'names-mine-sale', text: t('For sale at {price}', { price: priceText(d.salePrice) }) }) : null),
           gone
             ? h('span', { class: 'chev' }, icon('chevron'))
             : h(
@@ -421,24 +474,37 @@ export default function names(app) {
                     renew(d);
                   },
                 },
-                'Renew',
+                t('Renew'),
               ),
         ),
       );
     }
     let body;
-    if (mine.state === 'loading' && !rows.length) body = h('div', { class: 'card empty' }, h('div', { class: 'spinner' }), h('p', { class: 'small', text: 'Reading your names from the BEAM network…' }));
-    else if (mine.state === 'error' && !rows.length) body = notice('error', `Your names could not be read: ${mine.error.message} `, h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: loadMine }, 'Try again'));
-    else if (!rows.length) body = h('p', { class: 'small', 'data-testid': 'names-mine-empty', text: 'Names you register, buy or receive show here, with when to renew them.' });
+    if (mine.state === 'loading' && !rows.length) body = h('div', { class: 'card empty' }, h('div', { class: 'spinner' }), h('p', { class: 'small', text: t('Reading your names from the BEAM network…') }));
+    else if (mine.state === 'error' && !rows.length) body = notice('error', t('Your names could not be read: {reason}', { reason: mine.error.message }), ' ', h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: loadMine }, t('Try again')));
+    else if (!rows.length) body = h('p', { class: 'small', 'data-testid': 'names-mine-empty', text: t('Names you register, buy or receive show here, with when to renew them.') });
     else body = h('div', { class: 'card list', 'data-testid': 'names-mine' }, ...rows);
     put(
       mineBox,
       renewWarning(),
-      h('p', { class: 'section-title', text: 'My names' }),
+      h('p', { class: 'section-title', text: t('My names') }),
       body,
-      mine.list.length > 1 ? h('p', { class: 'small', text: 'Every name in this wallet shares one key, so anyone can see they belong together.' }) : null,
-      h('button', { class: 'btn btn-text btn-small names-receive-link', type: 'button', 'data-testid': 'names-receive-name', onclick: () => app.go('nameKey') }, 'Receive a name from another wallet'),
+      mine.list.length > 1 ? h('p', { class: 'small', text: t('Every name in this wallet shares one key, so anyone can see they belong together.') }) : null,
+      h('button', { class: 'btn btn-text btn-small names-receive-link', type: 'button', 'data-testid': 'names-receive-name', onclick: () => app.go('nameKey') }, t('Receive a name from another wallet')),
     );
+  }
+
+  /**
+   * "alice has expired.", "alice expires in 12 days (and 2 more).": the soonest name to renew, when, and
+   * how many others are due (more: 0 for none). One whole sentence for each case.
+   */
+  function dueText(name, lapsed, days, more) {
+    if (lapsed) return more ? t('{name} has expired (and {more} more).', { name, more }) : t('{name} has expired.', { name });
+    if (days <= 0) return more ? t('{name} expires today (and {more} more).', { name, more }) : t('{name} expires today.', { name });
+    if (days === 1) return more ? t('{name} expires tomorrow (and {more} more).', { name, more }) : t('{name} expires tomorrow.', { name });
+    return more
+      ? tn({ one: '{name} expires in {n} day (and {more} more).', other: '{name} expires in {n} days (and {more} more).' }, days, { name, more })
+      : tn({ one: '{name} expires in {n} day.', other: '{name} expires in {n} days.' }, days, { name });
   }
 
   /** The soonest name to renew (expired, or within 30 days), with Renew one tap away. */
@@ -448,16 +514,15 @@ export default function names(app) {
     const due = mine.list.filter((d) => needsRenewal(d, tip.tipHeight) && !pending.has(d.name)).sort((a, b) => a.expireHeight - b.expireHeight);
     if (!due.length) return null;
     const d = due[0];
-    const more = due.length > 1 ? ` (and ${due.length - 1} more)` : '';
     const lapsed = d.status === STATUS.onHold;
     return h(
       'div',
       { 'data-testid': 'names-renew-warning' },
       notice(
         'warn',
-        h('strong', { text: lapsed ? `${d.name} has expired${more}. ` : `${d.name} expires ${inDays(daysBetween(tip.tipHeight, d.expireHeight))}${more}. ` }),
-        lapsed ? `Renew it by ${day(dateOf(holdEndHeight(d.expireHeight), tip))} to keep it. After that anyone can take it. ` : 'Renew it to keep it. After it expires you still have 90 days. ',
-        h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'names-renew-warning-action', onclick: () => renew(d) }, `Renew ${d.name}`),
+        h('strong', { text: `${dueText(d.name, lapsed, daysBetween(tip.tipHeight, d.expireHeight), due.length - 1)} ` }),
+        `${lapsed ? t('Renew it by {date} to keep it. After that anyone can take it.', { date: day(dateOf(holdEndHeight(d.expireHeight), tip)) }) : t('Renew it to keep it. After it expires you still have 90 days.')} `,
+        h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'names-renew-warning-action', onclick: () => renew(d) }, t('Renew {name}', { name: d.name })),
       ),
     );
   }
@@ -543,12 +608,12 @@ export default function names(app) {
     try {
       await bans().buy(n, {
         expectedPrice: price,
-        words: { rows: [['Name', display(n)], ['Yours until', `about ${until}`]], notes: ['Buying does not renew the name: you get the time left on it. Renew it under BEAM names to keep it longer.'] },
+        words: { rows: [[t('Name'), display(n)], [t('Yours until'), t('about {date}', { date: until })]], notes: [t('Buying does not renew the name: you get the time left on it. Renew it under BEAM names to keep it longer.')] },
       });
       if (!alive) return;
       pending.set(n, { kind: 'buy', at: Date.now() });
       setNamesHint(app, true);
-      result = { kind: 'success', code: 'sent', text: `${display(n)} is on its way to you. It shows under My names once the network confirms it, usually within 2 minutes.` };
+      result = { kind: 'success', code: 'sent', text: t('{name} is on its way to you. It shows under My names once the network confirms it, usually within 2 minutes.', { name: display(n) }) };
       input.value = '';
       draft.text = '';
       lookup = { state: 'idle' };
@@ -576,7 +641,7 @@ export default function names(app) {
       if (!alive) return;
       pending.set(n, { kind: 'register', at: Date.now() });
       setNamesHint(app, true);
-      result = { kind: 'success', code: 'sent', text: `${display(n)} is on its way to you. It shows under My names once the network confirms it, usually within 2 minutes.` };
+      result = { kind: 'success', code: 'sent', text: t('{name} is on its way to you. It shows under My names once the network confirms it, usually within 2 minutes.', { name: display(n) }) };
       input.value = '';
       draft.text = '';
       lookup = { state: 'idle' };
@@ -604,7 +669,15 @@ export default function names(app) {
         const need = e ? e.minGroth + NAME_CALL_FEE : null;
         const short = need != null && wallet.available(0) < need;
         const paused = !wallet.state.sync.canSend;
-        const off = busy ? 'Building the renewal…' : paused ? `Renewing is paused: ${syncReason(wallet.state.sync.title)}.` : !e ? 'Getting the BEAM price…' : short ? `Not enough BEAM. This costs about ${beamAbout(midpoint(e) + NAME_CALL_FEE)} BEAM, network fee included. You have ${formatAmount(wallet.available(0))} BEAM.` : null;
+        const off = busy
+          ? t('Building the renewal…')
+          : paused
+            ? t('Renewing is paused: {reason}.', { reason: pausedWhy() })
+            : !e
+              ? t('Getting the BEAM price…')
+              : short
+                ? t('Not enough BEAM. This costs about {amount} BEAM, network fee included. You have {have} BEAM.', { amount: beamAbout(midpoint(e) + NAME_CALL_FEE), have: formatAmount(wallet.available(0)) })
+                : null;
         const go = async () => {
           if (off) return;
           busy = true;
@@ -614,7 +687,7 @@ export default function names(app) {
             await bans().extend(d.name, y, { estimate: e });
             pending.set(d.name, { kind: 'renew', at: Date.now(), expireBefore: d.expireHeight });
             close(true);
-            toast(`Renewal of ${display(d.name)} sent. The new date shows once confirmed.`);
+            toast(t('Renewal of {name} sent. The new date shows once confirmed.', { name: display(d.name) }));
             wallet.refreshTxs();
             render();
             return;
@@ -626,31 +699,31 @@ export default function names(app) {
           rerender();
         };
         return [
-          h('h2', { text: `Renew ${display(d.name)}` }),
-          h('p', { class: 'small', text: d.status === STATUS.onHold ? `It expired; renewing now keeps it.` : `Registered until ${day(dateOf(d.expireHeight, tip))}. Years are added to that date.` }),
+          h('h2', { text: t('Renew {name}', { name: display(d.name) }) }),
+          h('p', { class: 'small', text: d.status === STATUS.onHold ? t('It expired; renewing now keeps it.') : t('Registered until {date}. Years are added to that date.', { date: day(dateOf(d.expireHeight, tip)) }) }),
           h(
             'div',
             { class: 'card flat swap-details' },
-            h('div', { class: 'kv' }, h('span', { class: 'k', text: 'How long' }), yearsStepper(y, max, (v) => {
+            h('div', { class: 'kv' }, h('span', { class: 'k', text: t('How long') }), yearsStepper(y, max, (v) => {
               y = v;
               rerender();
             }, 'renew-years')),
-            h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Price' }), h('span', { class: 'v', text: usd(usdPerPeriod(d.name.length) * y) })),
-            h('div', { class: 'kv' }, h('span', { class: 'k', text: 'In BEAM today' }), h('span', { class: 'v', 'data-testid': 'renew-beam', text: e ? `≈ ${beamAbout(midpoint(e))} BEAM` : '…' })),
-            h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Network fee' }), h('span', { class: 'v', text: `${formatAmount(NAME_CALL_FEE)} BEAM` })),
-            h('div', { class: 'kv' }, h('span', { class: 'k', text: 'New end date' }), h('span', { class: 'v', text: `about ${day(dateOf(expiryAfterExtend({ expireHeight: d.expireHeight, tipHeight: tip.tipHeight, periods: y }), tip))}` })),
+            h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Price') }), h('span', { class: 'v', text: usd(usdPerPeriod(d.name.length) * y) })),
+            h('div', { class: 'kv' }, h('span', { class: 'k', text: t('In BEAM today') }), h('span', { class: 'v', 'data-testid': 'renew-beam', text: e ? `≈ ${beamAbout(midpoint(e))} BEAM` : '…' })), // i18n-ignore: an amount and its ticker
+            h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Network fee') }), h('span', { class: 'v', text: `${formatAmount(NAME_CALL_FEE)} BEAM` })), // i18n-ignore: an amount and its ticker
+            h('div', { class: 'kv' }, h('span', { class: 'k', text: t('New end date') }), h('span', { class: 'v', text: t('about {date}', { date: day(dateOf(expiryAfterExtend({ expireHeight: d.expireHeight, tipHeight: tip.tipHeight, periods: y }), tip)) }) })),
           ),
           msg ? notice('error', msg) : null,
           off ? h('p', { class: 'hint center', 'data-testid': 'renew-reason', text: off }) : null,
           h(
             'div',
             { class: 'actions' },
-            h('button', { class: 'btn btn-primary', 'data-testid': 'renew-cta', disabled: Boolean(off), onclick: go }, `Renew ${d.name} for ${years(y)}`),
-            h('button', { class: 'btn btn-text', onclick: () => close(false) }, 'Close'),
+            h('button', { class: 'btn btn-primary', 'data-testid': 'renew-cta', disabled: Boolean(off), onclick: go }, tn({ one: 'Renew {name} for {n} year', other: 'Renew {name} for {n} years' }, y, { name: d.name })),
+            h('button', { class: 'btn btn-text', onclick: () => close(false) }, t('Close')),
           ),
         ];
       },
-      { label: `Renew ${display(d.name)}` },
+      { label: t('Renew {name}', { name: display(d.name) }) },
     );
   }
 
@@ -668,7 +741,7 @@ export default function names(app) {
 
   const el = screen(
     {
-      title: 'BEAM names',
+      title: t('BEAM names'),
       back: () => {
         app.namesDraft = null;
         app.back('home');
@@ -677,7 +750,7 @@ export default function names(app) {
     },
     moneyBox,
     lead,
-    h('label', { class: 'field' }, 'Find a name', h('div', { class: 'input-wrap suffix' }, input, h('span', { class: 'suffix-text', 'aria-hidden': 'true', text: '.beam' }))),
+    h('label', { class: 'field' }, t('Find a name'), h('div', { class: 'input-wrap suffix' }, input, h('span', { class: 'suffix-text', 'aria-hidden': 'true', text: '.beam' }))), // i18n-ignore: '.beam', the end of every BEAM name
     hint,
     resultBox,
     quoteBox,

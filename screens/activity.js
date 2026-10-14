@@ -25,6 +25,7 @@ import { buildCsv, csvFileName, readAllTxs, readProofs, isCsvPayment } from '../
 import { exportProof } from '../lib/payments.js';
 import { deliverExport } from '../lib/export.js';
 import { listWallets, nameOf } from '../lib/wallets.js';
+import { t, tn } from '../lib/i18n.js';
 
 export default function activity(app, params = {}) {
   const listBox = h('div');
@@ -34,10 +35,10 @@ export default function activity(app, params = {}) {
     const txs = s.txs;
     put(listBox, 
       txs.length
-        ? h('div', { class: 'card list', 'data-testid': 'activity-list' }, ...txs.map((t) => txRow(app, t, () => detail(t.txId))))
-        : h('div', { class: 'card empty' }, icon('activity'), h('p', { text: s.status ? 'No payments yet.' : 'Payments show up here once the wallet is up to date.' }), primary('Receive BEAM', () => app.go('receive'))),
+        ? h('div', { class: 'card list', 'data-testid': 'activity-list' }, ...txs.map((tx) => txRow(app, tx, () => detail(tx.txId))))
+        : h('div', { class: 'card empty' }, icon('activity'), h('p', { text: s.status ? t('No payments yet.') : t('Payments show up here once the wallet is up to date.') }), primary(t('Receive BEAM'), () => app.go('receive'))),
     );
-    if (params.txId && !opened && txs.some((t) => t.txId === params.txId)) {
+    if (params.txId && !opened && txs.some((tx) => tx.txId === params.txId)) {
       opened = true;
       detail(params.txId);
     }
@@ -45,53 +46,53 @@ export default function activity(app, params = {}) {
 
   function detail(txId) {
     openSheet((close, rerender) => {
-      const t = wallet.state.txs.find((x) => x.txId === txId);
-      if (!t) return [h('h2', { text: 'Payment' }), h('p', { text: 'This payment is no longer in the list.' })];
-      if (isContractTx(t)) return contractDetail(app, t, close, rerender);
-      if (isSplitTx(t)) return splitDetail(app, t, close, (k, v, opts = {}) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, `${k} copied`), text: v }) : h('span', { class: 'v', text: v })));
-      const unit = wallet.label(t.asset_id || 0).unit;
-      const s = Number(t.status);
-      const canCancel = !t.income && (s === 0 || s === 1);
-      const kv = (k, v, opts = {}) => h('div', { class: 'kv', 'data-testid': opts.testid }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, `${k} copied`), text: v }) : h('span', { class: `v${opts.mono ? ' mono' : ''}`, text: v }));
-      const other = t.income ? t.sender : t.receiver;
+      const tx = wallet.state.txs.find((x) => x.txId === txId);
+      if (!tx) return [h('h2', { text: t('Payment') }), h('p', { text: t('This payment is no longer in the list.') })];
+      if (isContractTx(tx)) return contractDetail(app, tx, close, rerender);
+      if (isSplitTx(tx)) return splitDetail(app, tx, close, (k, v, opts = {}) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, t('{label} copied', { label: k })), text: v }) : h('span', { class: 'v', text: v })));
+      const unit = wallet.label(tx.asset_id || 0).unit;
+      const s = Number(tx.status);
+      const canCancel = !tx.income && (s === 0 || s === 1);
+      const kv = (k, v, opts = {}) => h('div', { class: 'kv', 'data-testid': opts.testid }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, t('{label} copied', { label: k })), text: v }) : h('span', { class: `v${opts.mono ? ' mono' : ''}`, text: v }));
+      const other = tx.income ? tx.sender : tx.receiver;
       const msg = h('div');
       // An arriving payment: the sender's wallet finishes it (it puts it on the blockchain).
-      const arriving = t.income && (s === 0 || s === 1 || s === 5);
+      const arriving = tx.income && (s === 0 || s === 1 || s === 5);
       if (arriving)
         put(msg, h('div', { 'data-testid': 'tx-arriving-help' }, notice('info', s === 5
-          ? "BEAM Campfire has accepted it. The sender's wallet now puts it on the blockchain, so it must be online. Paid from another app on this phone? Open that app again."
-          : 'It finishes while both wallets are online: keep BEAM Campfire open.')));
+          ? t("BEAM Campfire has accepted it. The sender's wallet now puts it on the blockchain, so it must be online. Paid from another app on this phone? Open that app again.")
+          : t('It finishes while both wallets are online: keep BEAM Campfire open.'))));
       return [
-        h('h2', { 'data-testid': 'tx-detail-title', text: txStatusText(t) }),
-        h('div', { class: 'big-amount', text: `${t.income ? '+' : '−'}${formatAmount(BigInt(t.value || 0))} ${unit}` }),
+        h('h2', { 'data-testid': 'tx-detail-title', text: txStatusText(tx) }),
+        h('div', { class: 'big-amount', text: `${tx.income ? '+' : '−'}${formatAmount(BigInt(tx.value || 0))} ${unit}` }),
         h(
           'div',
           { class: 'card' },
-          kv('Status', t.status_string ? `${txStatusText(t)}` : txStatusText(t)),
-          kv('Date', fmtDate(t.create_time)),
-          t.income ? null : kv('Network fee', `${formatAmount(BigInt(t.fee || 0))} BEAM`),
-          other ? kv(t.income ? 'From' : 'To', shorten(other, 10, 8), { copy: other }) : null,
-          t.kernel && /[1-9a-f]/.test(t.kernel) ? kv('Kernel ID', shorten(t.kernel, 10, 8), { copy: t.kernel }) : null,
-          t.confirmations != null ? kv('Confirmations', String(t.confirmations)) : null,
-          spentElsewhere(t) ? kv('Reason', 'Its coins were already spent elsewhere') : t.failure_reason ? kv('Reason', t.failure_reason) : null,
-          noteRow(t, kv),
+          kv(t('Status'), tx.status_string ? `${txStatusText(tx)}` : txStatusText(tx)),
+          kv(t('Date'), fmtDate(tx.create_time)),
+          tx.income ? null : kv(t('Network fee'), `${formatAmount(BigInt(tx.fee || 0))} BEAM`),
+          other ? kv(tx.income ? t('From') : t('To'), shorten(other, 10, 8), { copy: other }) : null,
+          tx.kernel && /[1-9a-f]/.test(tx.kernel) ? kv(t('Kernel ID'), shorten(tx.kernel, 10, 8), { copy: tx.kernel }) : null,
+          tx.confirmations != null ? kv(t('Confirmations'), String(tx.confirmations)) : null,
+          spentElsewhere(tx) ? kv(t('Reason'), t('Its coins were already spent elsewhere')) : tx.failure_reason ? kv(t('Reason'), tx.failure_reason) : null,
+          noteRow(tx, kv),
         ),
-        spentElsewhere(t) ? spentElsewhereNotice(app, { onRescan: close }) : null,
+        spentElsewhere(tx) ? spentElsewhereNotice(app, { onRescan: close }) : null,
         msg,
-        ...paymentExtras(app, t, { close, rerender, msg }),
+        ...paymentExtras(app, tx, { close, rerender, msg }),
         canCancel
-          ? secondary('Cancel payment', async () => {
+          ? secondary(t('Cancel payment'), async () => {
               try {
-                await wallet.cancelTx(t.txId);
+                await wallet.cancelTx(tx.txId);
                 rerender();
               } catch (e) {
-                put(msg, notice('error', `It could not be cancelled: ${e.message}. It may already be on its way.`));
+                put(msg, notice('error', t('It could not be cancelled: {reason}. It may already be on its way.', { reason: e.message })));
               }
             }, { 'data-testid': 'detail-cancel' })
           : null,
-        h('button', { class: 'btn btn-text', onclick: () => close() }, 'Close'),
+        h('button', { class: 'btn btn-text', onclick: () => close() }, t('Close')),
       ];
-    }, { label: 'Payment details' });
+    }, { label: t('Payment details') });
   }
 
   const off = wallet.onChange(render);
@@ -99,8 +100,8 @@ export default function activity(app, params = {}) {
   wallet.refreshTxs();
   // Contact names on the rows and in the details (sealed per wallet; read once per unlock).
   loadContacts(app).then(() => render(wallet.state), () => {});
-  const csvBtn = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Save payment history as a CSV file', 'data-testid': 'activity-csv', onclick: () => csvSheet(app) }, icon('download'));
-  const el = screen({ title: 'Activity', tabs: 'activity', app, right: csvBtn }, listBox);
+  const csvBtn = h('button', { class: 'icon-btn', type: 'button', 'aria-label': t('Save payment history as a CSV file'), 'data-testid': 'activity-csv', onclick: () => csvSheet(app) }, icon('download'));
+  const el = screen({ title: t('Activity'), tabs: 'activity', app, right: csvBtn }, listBox);
   return { el, destroy: () => off() };
 }
 
@@ -108,22 +109,22 @@ export default function activity(app, params = {}) {
 function csvSheet(app) {
   openSheet((close) => {
     const msg = h('div', { 'data-testid': 'csv-msg' });
-    const go = primary('Get my payment history', prepare, { 'data-testid': 'csv-prepare' });
+    const go = primary(t('Get my payment history'), prepare, { 'data-testid': 'csv-prepare' });
     let busy = false;
     async function prepare() {
       if (busy) return;
       busy = true;
       go.disabled = true;
       try {
-        if (!wallet.session) throw new Error('The wallet is still starting. Try again in a moment.');
-        put(msg, notice('info', 'Reading your payments…'));
+        if (!wallet.session) throw new Error(t('The wallet is still starting. Try again in a moment.'));
+        put(msg, notice('info', t('Reading your payments…')));
         const txs = await readAllTxs(wallet.session);
         const n = txs.filter(isCsvPayment).length;
         if (!n) {
-          put(msg, notice('info', 'No payments to save yet. They show up here once you send or receive BEAM.'));
+          put(msg, notice('info', t('No payments to save yet. They show up here once you send or receive BEAM.')));
           return;
         }
-        const proofs = await readProofs(wallet.session, txs, exportProof, (d, total) => put(msg, notice('info', `Adding payment proofs: ${d} of ${total}`)));
+        const proofs = await readProofs(wallet.session, txs, exportProof, (d, total) => put(msg, notice('info', t('Adding payment proofs: {done} of {total}', { done: d, total }))));
         let walletName = null;
         try {
           if ((await listWallets()).length > 1) walletName = nameOf(app.record);
@@ -135,11 +136,11 @@ function csvSheet(app) {
         const file = new File([text], csvFileName(new Date(), walletName), { type: 'text/csv' });
         put(
           msg,
-          h('p', { class: 'lead', 'data-testid': 'csv-ready', text: `${n === 1 ? '1 payment' : `${n} payments`} in ${file.name}.` }),
+          h('p', { class: 'lead', 'data-testid': 'csv-ready', text: tn({ one: '{n} payment in {file}.', other: '{n} payments in {file}.' }, n, { file: file.name }) }),
           primary(
-            'Save the file',
+            t('Save the file'),
             async () => {
-              const r = await deliverExport(file, { title: 'BEAM payment history' });
+              const r = await deliverExport(file, { title: t('BEAM payment history') });
               if (r !== 'cancelled') close();
             },
             { 'data-testid': 'csv-save' },
@@ -147,49 +148,49 @@ function csvSheet(app) {
         );
         go.remove();
       } catch (e) {
-        put(msg, notice('error', `The file could not be made: ${e.message}`));
+        put(msg, notice('error', t('The file could not be made: {reason}', { reason: e.message })));
       } finally {
         busy = false;
         go.disabled = false;
       }
     }
     return [
-      h('h2', { text: 'Save your payment history' }),
-      h('p', { class: 'lead', text: "Every payment as a CSV file, the way BEAM's wallets write it. It opens in Excel, Numbers or Google Sheets." }),
-      notice('warn', 'It lists amounts, addresses and comments: anyone who has the file can read them. It is made on this device and goes only where you save it.'),
+      h('h2', { text: t('Save your payment history') }),
+      h('p', { class: 'lead', text: t("Every payment as a CSV file, the way BEAM's wallets write it. It opens in Excel, Numbers or Google Sheets.") }),
+      notice('warn', t('It lists amounts, addresses and comments: anyone who has the file can read them. It is made on this device and goes only where you save it.')),
       msg,
       go,
-      h('button', { class: 'btn btn-text', type: 'button', onclick: () => close() }, 'Cancel'),
+      h('button', { class: 'btn btn-text', type: 'button', onclick: () => close() }, t('Cancel')),
     ];
-  }, { label: 'Save your payment history' });
+  }, { label: t('Save your payment history') });
 }
 
 /** A swap or other contract call: what left, what arrived, the fee, which app. */
-function contractDetail(app, t, close, rerender) {
+function contractDetail(app, tx, close, rerender) {
   const msg = h('div');
-  const m = contractMoves(t);
-  const kv = (k, v, opts = {}) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, `${k} copied`), text: v }) : h('span', { class: 'v', text: v }));
+  const m = contractMoves(tx);
+  const kv = (k, v, opts = {}) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, t('{label} copied', { label: k })), text: v }) : h('span', { class: 'v', text: v }));
   const amt = (a) => `${formatAmount(a.amount)} ${wallet.label(a.assetId).unit}`;
-  const head = m.receives[0] ? `+${amt(m.receives[0])}` : m.spends[0] ? `−${amt(m.spends[0])}` : `−${formatAmount(BigInt(t.fee || 0))} BEAM`;
+  const head = m.receives[0] ? `+${amt(m.receives[0])}` : m.spends[0] ? `−${amt(m.spends[0])}` : `−${formatAmount(BigInt(tx.fee || 0))} BEAM`;
   return [
-    h('h2', { 'data-testid': 'tx-detail-title', text: contractLabel(t) }),
+    h('h2', { 'data-testid': 'tx-detail-title', text: contractLabel(tx) }),
     h('div', { class: 'big-amount', text: head }),
     h(
       'div',
       { class: 'card' },
-      kv('Status', contractStatusText(t)),
-      kv('Date', fmtDate(t.create_time)),
-      ...m.spends.map((a) => kv('You paid', amt(a))),
-      ...m.receives.map((a) => kv('You got', amt(a))),
-      kv('Network fee', `${formatAmount(BigInt(t.fee || 0))} BEAM`),
-      t.appname ? kv('App', t.appname) : null,
-      t.kernel && /[1-9a-f]/.test(t.kernel) ? kv('Kernel ID', shorten(t.kernel, 10, 8), { copy: t.kernel }) : null,
-      t.confirmations != null ? kv('Confirmations', String(t.confirmations)) : null,
-      spentElsewhere(t) ? kv('Reason', 'Its coins were already spent elsewhere') : t.failure_reason ? kv('Reason', t.failure_reason) : null,
+      kv(t('Status'), contractStatusText(tx)),
+      kv(t('Date'), fmtDate(tx.create_time)),
+      ...m.spends.map((a) => kv(t('You paid'), amt(a))),
+      ...m.receives.map((a) => kv(t('You got'), amt(a))),
+      kv(t('Network fee'), `${formatAmount(BigInt(tx.fee || 0))} BEAM`),
+      tx.appname ? kv(t('App'), tx.appname) : null,
+      tx.kernel && /[1-9a-f]/.test(tx.kernel) ? kv(t('Kernel ID'), shorten(tx.kernel, 10, 8), { copy: tx.kernel }) : null,
+      tx.confirmations != null ? kv(t('Confirmations'), String(tx.confirmations)) : null,
+      spentElsewhere(tx) ? kv(t('Reason'), t('Its coins were already spent elsewhere')) : tx.failure_reason ? kv(t('Reason'), tx.failure_reason) : null,
     ),
-    spentElsewhere(t) ? spentElsewhereNotice(app, { onRescan: close }) : null,
+    spentElsewhere(tx) ? spentElsewhereNotice(app, { onRescan: close }) : null,
     msg,
-    ...paymentExtras(app, t, { close, rerender, msg }),
-    h('button', { class: 'btn btn-text', onclick: () => close() }, 'Close'),
+    ...paymentExtras(app, tx, { close, rerender, msg }),
+    h('button', { class: 'btn btn-text', onclick: () => close() }, t('Close')),
   ];
 }

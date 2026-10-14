@@ -14,9 +14,12 @@
  */
 import { h } from '../lib/dom.js';
 import { screen, primary, notice } from '../lib/ui.js';
+import { t, tk, tNodes } from '../lib/i18n.js';
+import { loaderText } from '../lib/loader_words.js';
 
+// The same words as src/loader-watch.js (lib/i18n.js EARLY_KEYS): one translation for both.
 export const TRIPWIRE_TEXT =
-  "This app's web address is serving code BEAM Campfire did not sign. Don't enter your password here.";
+  tk("This app's web address is serving code BEAM Campfire did not sign. Don't enter your password here.");
 
 export default function problem(app, p = {}) {
   if (p.kind === 'tripwire') return tripwire(app);
@@ -24,29 +27,31 @@ export default function problem(app, p = {}) {
   if (p.kind === 'engine') return engineStopped();
   const integrity = p.kind === 'integrity';
   const el = screen(
-    { title: integrity ? 'Security check failed' : "This browser can't run BEAM Campfire", actions: [primary('Try again', () => location.reload())] },
+    { title: integrity ? t('Security check failed') : t("This browser can't run BEAM Campfire"), actions: [primary(t('Try again'), () => location.reload())] },
     integrity
-      ? notice('error', p.detail || 'This copy of BEAM Campfire did not pass its signature check.', " Don't enter your 12 words here. Reload later, or open BEAM Campfire from its official address.")
-      : notice('warn', `Missing: ${(p.detail || []).join(', ')}.`),
+      ? // The detail is the loader's sentence (lib/release.js via sw.js): lib/loader_words.js gives it in the active language.
+        notice('error', t("{reason} Don't enter your 12 words here. Reload later, or open BEAM Campfire from its official address.", { reason: p.detail ? loaderText(p.detail) : t('This copy of BEAM Campfire did not pass its signature check.') }))
+      : notice('warn', t('Missing: {features}.', { features: (p.detail || []).join(', ') })),
     integrity
       ? null
-      : h('p', { class: 'lead', text: 'BEAM Campfire needs Safari on iOS 16.4 or newer (or a current Chrome, Edge or Firefox), opened over HTTPS from its own address. Private browsing can also block what the wallet needs.' }),
+      : h('p', { class: 'lead', text: t('BEAM Campfire needs Safari on iOS 16.4 or newer (or a current Chrome, Edge or Firefox), opened over HTTPS from its own address. Private browsing can also block what the wallet needs.') }),
   );
   return { el };
 }
 
 function tripwire(app) {
   const el = screen(
-    { title: 'Stop: unsigned code', cls: 'tripwire' },
-    h('div', { 'data-testid': 'tripwire' }, notice('error', h('strong', { text: TRIPWIRE_TEXT }), ' The wallet was locked the moment it was noticed.')),
+    { title: t('Stop: unsigned code'), cls: 'tripwire' },
+    h('div', { 'data-testid': 'tripwire' }, notice('error', ...tNodes('{warning} The wallet was locked the moment it was noticed.', { warning: h('strong', { text: t(TRIPWIRE_TEXT) }) }))),
     h(
       'div',
       { class: 'card' },
-      h('h3', { text: 'Your funds are safe' }),
-      h('p', { text: 'Your coins are on the BEAM blockchain, not in this app. Open them in BEAM Campfire desktop or another BEAM wallet:' }),
-      h('ul', { class: 'steps-list' }, h('li', { text: 'with your 12 words (Restore), or' }), h('li', { text: 'with your exported wallet.db file and its password (Import wallet.db).' })),
+      h('h3', { text: t('Your funds are safe') }),
+      h('p', { text: t('Your coins are on the BEAM blockchain, not in this app. Open them in BEAM Campfire desktop or another BEAM wallet:') }),
+      h('ul', { class: 'steps-list' }, h('li', { text: t('with your 12 words (Restore), or') }), h('li', { text: t('with your exported wallet.db file and its password (Import wallet.db).') })),
     ),
-    h('p', { class: 'small', text: 'Close this app now. Do not reopen it from the same address or enter any password or words in it. This check is a best effort: code that has already taken over can show anything.' }),
+    // Its first two sentences are loader-watch.js's own (EARLY_KEYS): the same translation on both screens.
+    h('p', { class: 'small', text: `${t('Close this app now. Do not reopen it from the same address or enter any password or words in it.')} ${t('This check is a best effort: code that has already taken over can show anything.')}` }),
   );
   return { el };
 }
@@ -56,9 +61,9 @@ function tripwire(app) {
  * a new engine; the wallet on this device is untouched. */
 function engineStopped() {
   const el = screen(
-    { title: 'The wallet stopped', actions: [primary('Start it again', () => location.reload(), { 'data-testid': 'engine-reload' })] },
-    h('div', { 'data-testid': 'engine-stopped' }, notice('warn', 'The wallet engine in this page stopped working. Your wallet and your coins are safe.')),
-    h('p', { class: 'lead', text: 'Start it again, then unlock with your password. A payment that was under way carries on.' }),
+    { title: t('The wallet stopped'), actions: [primary(t('Start it again'), () => location.reload(), { 'data-testid': 'engine-reload' })] },
+    h('div', { 'data-testid': 'engine-stopped' }, notice('warn', t('The wallet engine in this page stopped working. Your wallet and your coins are safe.'))),
+    h('p', { class: 'lead', text: t('Start it again, then unlock with your password. A payment that was under way carries on.') }),
   );
   return { el };
 }
@@ -67,9 +72,9 @@ function engineStopped() {
  * installed web apps): not "this browser can't run it". One tap opens it normally. */
 function bypassed() {
   const el = screen(
-    { title: 'BEAM Campfire is installed', actions: [primary('Open BEAM Campfire', () => location.reload(), { 'data-testid': 'bypassed-open' })] },
-    notice('info', 'This load skipped the installed copy (a hard reload does that). Open it again to continue.'),
-    h('p', { class: 'small', text: 'If this screen keeps coming back, your browser is set to skip installed web apps: in its developer tools, turn off "Bypass for network" (Application, Service workers).' }),
+    { title: t('BEAM Campfire is installed'), actions: [primary(t('Open BEAM Campfire'), () => location.reload(), { 'data-testid': 'bypassed-open' })] },
+    notice('info', t('This load skipped the installed copy (a hard reload does that). Open it again to continue.')),
+    h('p', { class: 'small', text: t('If this screen keeps coming back, your browser is set to skip installed web apps: in its developer tools, turn off "Bypass for network" (Application, Service workers).') }),
   );
   return { el };
 }

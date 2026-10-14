@@ -19,6 +19,7 @@ import { assetLabel, tokenSubtitle, copyWarning } from '../lib/meta.js';
 import { minterFor, minterProblem, unlimited } from '../lib/minter.js';
 import { burnFor } from '../lib/burn.js';
 import { syncReason } from '../lib/sync.js';
+import { t, tk } from '../lib/i18n.js';
 
 /** The Minter for the running wallet (one per session). */
 export const minter = () => minterFor(wallet.session);
@@ -29,7 +30,7 @@ export const burner = () => burnFor(wallet.session);
 export const tokenAmount = (assetId, amount) => `${formatAmount(amount)} ${wallet.label(assetId).unit}`;
 
 /** A ceiling as people read it: "1,000,000 MYT", or "No maximum". */
-export const limitText = (assetId, limit) => (unlimited(limit) ? 'No maximum' : tokenAmount(assetId, limit));
+export const limitText = (assetId, limit) => (unlimited(limit) ? t('No maximum') : tokenAmount(assetId, limit));
 
 /** Metadata the Minter printed for a token: every screen names it from now on. */
 export function rememberMetadata(assetId, metadata) {
@@ -42,7 +43,7 @@ export function rememberMetadata(assetId, metadata) {
 /** The words and the notice for whatever stopped an action; `testid` and the error code go on the notice. */
 export function problemNotice(e, testid, kind = null) {
   const p = minterProblem(e);
-  const el = notice(kind || (e && e.code === 'rejected' ? 'info' : 'error'), h('strong', { text: `${p.title}. ` }), p.message);
+  const el = notice(kind || (e && e.code === 'rejected' ? 'info' : 'error'), h('strong', { text: `${t('{title}.', { title: p.title })} ` }), p.message);
   el.dataset.testid = testid;
   el.dataset.code = (e && e.code) || 'error';
   return el;
@@ -66,10 +67,13 @@ export function tokenTitle(assetId, sub = null) {
   );
 }
 
-/** "Creating a token is paused: syncing." when the wallet cannot spend right now, else null. */
+// What is paused, as whole sentences ({state}: the wallet's state, e.g. "syncing"). Shown with t().
+const PAUSED = { create: tk('Creating a token is paused: {state}.'), mint: tk('Minting is paused: {state}.'), burn: tk('Burning is paused: {state}.') };
+
+/** "Creating a token is paused: syncing." when the wallet cannot spend right now, else null. what: 'create', 'mint' or 'burn'. */
 export function pausedReason(what) {
   const s = wallet.state.sync;
-  return s.canSend ? null : `${what} is paused: ${syncReason(s.title)}.`;
+  return s.canSend ? null : t(PAUSED[what], { state: syncReason(s.title) });
 }
 
 let hooked = false;
@@ -87,11 +91,11 @@ export function forgetOnLock(app) {
 /** Tokens created in this session whose transaction has not settled: shown on My tokens until they do. */
 export function pendingTokens(app) {
   const list = app.minterPending || [];
-  const byId = new Map(wallet.state.txs.map((t) => [t.txId, t]));
+  const byId = new Map(wallet.state.txs.map((tx) => [tx.txId, tx]));
   return list
     .map((p) => {
-      const t = byId.get(p.txId);
-      const status = t ? Number(t.status) : 0;
+      const tx = byId.get(p.txId);
+      const status = tx ? Number(tx.status) : 0;
       return { ...p, status: status === 3 ? 'done' : status === 4 || status === 2 ? 'failed' : 'pending' };
     })
     .filter((p) => p.status !== 'done' || Date.now() - p.at < 30 * 60000);
@@ -117,18 +121,18 @@ export function openTokensMenu(app) {
     );
   const sheet = openSheet(
     (close) => [
-      h('p', { class: 'overline', text: 'Tokens' }),
-      h('h2', { 'data-testid': 'tokens-menu-title', text: 'Your own token on BEAM' }),
+      h('p', { class: 'overline', text: t('Tokens') }),
+      h('h2', { 'data-testid': 'tokens-menu-title', text: t('Your own token on BEAM') }),
       h(
         'div',
         { class: 'card list', 'data-testid': 'tokens-menu' },
-        row('tokens-create', 'buy', 'Create a token', 'Your own asset on BEAM, named by you', 'minterCreate'),
-        row('tokens-mine', 'coins', 'My tokens', 'Tokens you created: see them, mint more', 'minterTokens'),
-        row('tokens-burn', 'flame', 'Burn tokens', 'Destroy tokens you hold, for good', 'burn'),
+        row('tokens-create', 'buy', t('Create a token'), t('Your own asset on BEAM, named by you'), 'minterCreate'),
+        row('tokens-mine', 'coins', t('My tokens'), t('Tokens you created: see them, mint more'), 'minterTokens'),
+        row('tokens-burn', 'flame', t('Burn tokens'), t('Destroy tokens you hold, for good'), 'burn'),
       ),
-      h('button', { class: 'btn btn-text', onclick: () => close(false), 'data-testid': 'tokens-menu-close' }, 'Not now'),
+      h('button', { class: 'btn btn-text', onclick: () => close(false), 'data-testid': 'tokens-menu-close' }, t('Not now')),
     ],
-    { label: 'Tokens' },
+    { label: t('Tokens') },
   );
   return sheet;
 }

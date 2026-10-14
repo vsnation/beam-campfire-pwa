@@ -24,7 +24,8 @@ import { confirmIdentity } from '../lib/auth_ui.js';
 import { CLAIM_FEE } from '../lib/bridge/routes.js';
 import { STEP_KINDS } from '../lib/bridge/eth_pipe.js';
 import { ethText, ethMaxText, groupedAddress, doubtNotice } from './eth_ui.js';
-import { coin, moveLabel, arrivesText, freezeNote, PUBLIC_NOTE, TO_BEAM } from './bridge_text.js';
+import { coin, moveLabel, arrivesText, freezeNote, sentence, PUBLIC_NOTE, TO_BEAM } from './bridge_text.js';
+import { t, tn } from '../lib/i18n.js';
 
 /** Priced again before signing when the review is older than this. */
 const FRESH_MS = 60000;
@@ -53,8 +54,8 @@ export function openBridgeReview(app, s, first, { onStarted }) {
       const reset = approvals.some((x) => x.kind === STEP_KINDS.approveReset);
       const n = plan.steps.length;
       const total = r.isNativeEth
-        ? [h('span', { 'data-testid': 'bridge-review-total', text: `about ${ethText(q.amount + q.fee + plan.expectedGasCost)}` }), h('div', { class: 'small', text: `at most ${ethMaxText(q.amount + q.fee + plan.maxGasCost)}` })]
-        : [h('span', { 'data-testid': 'bridge-review-total', text: `${coin(q.amount + q.fee, dec, sym)} + about ${ethText(plan.expectedGasCost)}` }), h('div', { class: 'small', text: `fee at most ${ethMaxText(plan.maxGasCost)}` })];
+        ? [h('span', { 'data-testid': 'bridge-review-total', text: t('about {amount}', { amount: ethText(q.amount + q.fee + plan.expectedGasCost) }) }), h('div', { class: 'small', text: t('at most {amount}', { amount: ethMaxText(q.amount + q.fee + plan.maxGasCost) }) })]
+        : [h('span', { 'data-testid': 'bridge-review-total', text: t('{amount} + about {fee}', { amount: coin(q.amount + q.fee, dec, sym), fee: ethText(plan.expectedGasCost) }) }), h('div', { class: 'small', text: t('fee at most {fee}', { fee: ethMaxText(plan.maxGasCost) }) })];
       const row = (k, v, tid = null) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), h('span', { class: 'v' }, ...[].concat(typeof v === 'string' ? h('span', { 'data-testid': tid, text: v }) : v)));
       const freeze = freezeNote(r);
 
@@ -76,17 +77,17 @@ export function openBridgeReview(app, s, first, { onStarted }) {
             if (fresh.plan.maxGasCost > p.plan.maxGasCost || fresh.plan.steps.length !== p.plan.steps.length) {
               p = fresh;
               busy = false;
-              message = notice('warn', 'The Ethereum network fee went up since you opened this. Check the new amounts, then move.');
+              message = notice('warn', t('The Ethereum network fee went up since you opened this. Check the new amounts, then move.'));
               return rerender();
             }
             p = fresh;
           }
-          const ok = await confirmIdentity(app, { title: 'Confirm your move', detail: `${coin(q.amount, dec, sym)} from your Ethereum wallet to your BEAM wallet`, cta: 'Confirm' });
+          const ok = await confirmIdentity(app, { title: t('Confirm your move'), detail: t('{amount} from your Ethereum wallet to your BEAM wallet', { amount: coin(q.amount, dec, sym) }), cta: t('Confirm') });
           if (!ok) {
             busy = false;
             return rerender();
           }
-          message = h('p', { class: 'small center', 'data-testid': 'bridge-review-sending', text: n > 1 ? 'Signing and sending, one transaction after the other…' : 'Signing and sending…' });
+          message = h('p', { class: 'small center', 'data-testid': 'bridge-review-sending', text: n > 1 ? t('Signing and sending, one transaction after the other…') : t('Signing and sending…') });
           rerender();
           // Each transaction is signed after a fresh freeze check, written down, then sent (controller.js).
           const c = await ctl.start(p);
@@ -94,47 +95,55 @@ export function openBridgeReview(app, s, first, { onStarted }) {
           onStarted(c);
         } catch (e) {
           busy = false;
-          message = notice('error', `Nothing was sent. ${e.message}${/\.$/.test(e.message || '') ? '' : '.'}`);
+          message = notice('error', t('Nothing was sent. {reason}', { reason: sentence(e.message) }));
           rerender();
         }
       };
 
       return [
-        h('h2', { text: 'Confirm your move' }),
-        h('div', { class: 'big-amount', 'data-testid': 'bridge-review-amount', text: `${coin(q.amount, dec, sym)} → BEAM` }),
+        h('h2', { text: t('Confirm your move') }),
+        h('div', { class: 'big-amount', 'data-testid': 'bridge-review-amount', text: `${coin(q.amount, dec, sym)} → BEAM` }), // i18n-ignore: an amount, an arrow and the chain's name; no words
         h(
           'div',
           { class: 'card bridge-card' },
-          row('Arrives in your BEAM wallet', [h('span', { 'data-testid': 'bridge-review-receive', text: coin(q.receives, 8, r.beamSymbol) }), h('div', { class: 'small', 'data-testid': 'bridge-review-time', text: arrivesText(r, TO_BEAM) })]),
-          row('Bridge fee', [h('span', { 'data-testid': 'bridge-review-fee', text: coin(q.fee, dec, sym) }), h('div', { class: 'small', text: 'paid to the bridge operator' })]),
-          row('Ethereum network fee', [
-            h('span', { 'data-testid': 'bridge-review-eth-fee', text: `likely ${ethText(plan.expectedGasCost)}` }),
-            h('div', { class: 'small', 'data-testid': 'bridge-review-eth-fee-max', text: `up to ${ethMaxText(plan.maxGasCost)}` }),
-            n > 1 ? h('div', { class: 'small', text: `for ${n} transactions` }) : null,
+          row(t('Arrives in your BEAM wallet'), [h('span', { 'data-testid': 'bridge-review-receive', text: coin(q.receives, 8, r.beamSymbol) }), h('div', { class: 'small', 'data-testid': 'bridge-review-time', text: arrivesText(r, TO_BEAM) })]),
+          row(t('Bridge fee'), [h('span', { 'data-testid': 'bridge-review-fee', text: coin(q.fee, dec, sym) }), h('div', { class: 'small', text: t('paid to the bridge operator') })]),
+          row(t('Ethereum network fee'), [
+            h('span', { 'data-testid': 'bridge-review-eth-fee', text: t('likely {amount}', { amount: ethText(plan.expectedGasCost) }) }),
+            h('div', { class: 'small', 'data-testid': 'bridge-review-eth-fee-max', text: t('up to {amount}', { amount: ethMaxText(plan.maxGasCost) }) }),
+            n > 1 ? h('div', { class: 'small', text: tn({ one: 'for {n} transaction', other: 'for {n} transactions' }, n) }) : null,
           ]),
-          row('Leaves your Ethereum wallet', total),
-          row('Collecting it', [h('span', { text: `${coin(CLAIM_FEE, 8, 'BEAM')} network fee` }), h('div', { class: 'small', text: 'from your BEAM wallet' })]),
-          h('div', { class: 'kv kv-stack' }, h('span', { class: 'k', text: 'From your Ethereum wallet' }), h('span', { class: 'v mono addr-groups', 'data-testid': 'bridge-review-from', text: groupedAddress(s.w.state.address) })),
-          row('Through', [h('span', { text: "BEAM's official bridge" }), h('div', { class: 'small mono', 'data-testid': 'bridge-review-through', text: `contract ${short(r.ethPipe)}` })]),
+          row(t('Leaves your Ethereum wallet'), total),
+          row(t('Collecting it'), [h('span', { text: t('{fee} network fee', { fee: coin(CLAIM_FEE, 8, 'BEAM') }) }), h('div', { class: 'small', text: t('from your BEAM wallet') })]),
+          h('div', { class: 'kv kv-stack' }, h('span', { class: 'k', text: t('From your Ethereum wallet') }), h('span', { class: 'v mono addr-groups', 'data-testid': 'bridge-review-from', text: groupedAddress(s.w.state.address) })),
+          row(t('Through'), [h('span', { text: t("BEAM's official bridge") }), h('div', { class: 'small mono', 'data-testid': 'bridge-review-through', text: t('contract {address}', { address: short(r.ethPipe) }) })]),
         ),
         approvals.length
           ? h(
               'div',
               { 'data-testid': 'bridge-review-approval' },
-              notice('info', h('strong', { text: `You sign ${n} Ethereum transactions, one after the other. ` }), `${reset ? `First the bridge's old permission for ${sym} is set to 0 (${sym} asks for that), then it is allowed` : 'First the bridge is allowed'} to take exactly ${coin(q.amount + q.fee, dec, sym)}, then it is sent. ${n === 2 ? 'Both are' : `All ${n} are`} signed with this one confirmation.`),
+              notice(
+                'info',
+                h('strong', { text: `${tn({ one: 'You sign {n} Ethereum transaction, one after the other.', other: 'You sign {n} Ethereum transactions, one after the other.' }, n)} ` }),
+                `${
+                  reset
+                    ? t("First the bridge's old permission for {coin} is set to 0 ({coin} asks for that), then it is allowed to take exactly {amount}, then it is sent.", { coin: sym, amount: coin(q.amount + q.fee, dec, sym) })
+                    : t('First the bridge is allowed to take exactly {amount}, then it is sent.', { amount: coin(q.amount + q.fee, dec, sym) })
+                } ${n === 2 ? t('Both are signed with this one confirmation.') : tn({ one: 'All {n} are signed with this one confirmation.', other: 'All {n} are signed with this one confirmation.' }, n)}`,
+              ),
             )
           : null,
-        h('div', { 'data-testid': 'bridge-review-public' }, notice('info', PUBLIC_NOTE)),
-        freeze ? h('p', { class: 'small', 'data-testid': 'bridge-review-freeze', text: `${freeze} BEAM Campfire asks Ethereum again right before signing.` }) : null,
+        h('div', { 'data-testid': 'bridge-review-public' }, notice('info', t(PUBLIC_NOTE))),
+        freeze ? h('p', { class: 'small', 'data-testid': 'bridge-review-freeze', text: `${freeze} ${t('BEAM Campfire asks Ethereum again right before signing.')}` }) : null,
         h(
           'div',
           { class: 'sheet-actions' },
           message,
-          h('button', { class: 'btn btn-primary wrap', onclick: confirm, disabled: busy, 'data-testid': 'bridge-review-move-btn' }, busy ? 'Moving…' : label),
-          h('button', { class: 'btn btn-text', onclick: () => close(false), disabled: busy, 'data-testid': 'bridge-review-change' }, 'Change'),
+          h('button', { class: 'btn btn-primary wrap', onclick: confirm, disabled: busy, 'data-testid': 'bridge-review-move-btn' }, busy ? t('Moving…') : label),
+          h('button', { class: 'btn btn-text', onclick: () => close(false), disabled: busy, 'data-testid': 'bridge-review-change' }, t('Change')),
         ),
       ];
     },
-    { label: 'Confirm your move', dismissable: false },
+    { label: t('Confirm your move'), dismissable: false },
   );
 }

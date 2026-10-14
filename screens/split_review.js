@@ -19,6 +19,7 @@ import { wallet } from '../lib/wallet.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
 import { loadCoins, emptySummary, planSized, splitCoins, SplitError, SPLIT_TEXT as T } from '../lib/coins.js';
 import { syncReason } from '../lib/sync.js';
+import { t, tn } from '../lib/i18n.js';
 
 export default function splitReview(app, p = {}) {
   const assetId = Number(p.assetId) || 0;
@@ -41,7 +42,7 @@ export default function splitReview(app, p = {}) {
   let before = null; // this asset's coins now
   let beam = 0n;
   let plan = null;
-  let problem = null; // { title, text }
+  let problem = null; // { code, title, text }: code for the checks, title (a whole sentence, with its stop) and text to show
   let spent = false; // handed to the engine (or may have been): never offered again here
   let busy = false;
   let authing = false; // the Face ID / password sheet is open
@@ -52,15 +53,15 @@ export default function splitReview(app, p = {}) {
   /** Checks the split against the coins the wallet holds now. Never signs or sends anything. */
   async function prepare() {
     try {
-      if (!wallet.session) throw new Error('The wallet is still starting.');
+      if (!wallet.session) throw new Error(t('The wallet is still starting.'));
       const all = await loadCoins(wallet.session);
       before = all.get(assetId) || emptySummary(assetId);
       beam = all.get(0) ? all.get(0).availableTotal : 0n;
       plan = planSized({ available: before.availableTotal, count, size, assetId });
-      if (!plan) problem = { title: 'Your coins changed', text: T.changed };
-      else if (assetId !== 0 && beam < plan.fee) problem = { title: 'Not enough BEAM for the fee', text: T.needBeam(plan.fee, beam) };
+      if (!plan) problem = { code: 'changed', title: t('Your coins changed.'), text: t(T.changed) };
+      else if (assetId !== 0 && beam < plan.fee) problem = { code: 'fee', title: t('Not enough BEAM for the fee.'), text: T.needBeam(plan.fee, beam) };
     } catch (e) {
-      problem = { title: "Your coins couldn't be read", text: `${e.message} Go back and try again.` };
+      problem = { code: 'read', title: t("Your coins couldn't be read."), text: t('{reason} Go back and try again.', { reason: e.message }) };
     }
     render();
   }
@@ -68,12 +69,12 @@ export default function splitReview(app, p = {}) {
   async function confirm() {
     if (busy || authing || !plan) return;
     if (!wallet.state.sync.canSend) {
-      problem = { title: 'Not up to date yet', text: `${wallet.state.sync.title}. Splitting is paused until the wallet is up to date.` };
+      problem = { code: 'sync', title: t('Not up to date yet.'), text: t('{status}. Splitting is paused until the wallet is up to date.', { status: wallet.state.sync.title }) };
       return render();
     }
     authing = true;
     render();
-    const ok = await confirmIdentity(app, { title: 'Confirm the split', detail: T.authReason(plan, symbol), cta: 'Split' });
+    const ok = await confirmIdentity(app, { title: t('Confirm the split'), detail: T.authReason(plan, symbol), cta: t('Split') });
     authing = false;
     if (!ok || !alive) return render();
     busy = true;
@@ -85,7 +86,7 @@ export default function splitReview(app, p = {}) {
       wallet.refreshStatus();
     } catch (e) {
       const unknown = e instanceof SplitError && e.code === 'unknown';
-      problem = { title: unknown ? 'Not sure the split started' : 'The coins were not split', text: e instanceof SplitError ? e.message : `The coins were not split: ${e.message}. Nothing left your wallet.` };
+      problem = { code: unknown ? 'unknown' : 'failed', title: unknown ? t('Not sure the split started.') : t('The coins were not split.'), text: e instanceof SplitError ? e.message : t('The coins were not split: {reason}. Nothing left your wallet.', { reason: e.message }) };
       // Once handed over (or maybe), it is never offered again here: Activity shows what happened.
       spent = Boolean(hand.txId) || unknown;
     }
@@ -101,51 +102,51 @@ export default function splitReview(app, p = {}) {
         body,
         h('div', { class: 'status-icon ok' }, icon('check')),
         h('h2', { class: 'title center', 'data-testid': 'split-done', text: T.doneTitle(plan.count) }),
-        h('p', { class: 'lead center', text: T.doneMessage }),
+        h('p', { class: 'lead center', text: t(T.doneMessage) }),
       );
-      put(actions, primary('Done', () => app.go('home'), { 'data-testid': 'split-done-cta' }), textButton('See it in Activity', () => app.go('activity', { txId: doneTx }), { 'data-testid': 'split-done-activity' }));
+      put(actions, primary(t('Done'), () => app.go('home'), { 'data-testid': 'split-done-cta' }), textButton(t('See it in Activity'), () => app.go('activity', { txId: doneTx }), { 'data-testid': 'split-done-activity' }));
       return;
     }
     if (!before) {
-      put(body, h('div', { class: 'card empty' }, h('div', { class: 'spinner' }), h('p', { text: 'Checking your coins…' })));
+      put(body, h('div', { class: 'card empty' }, h('div', { class: 'spinner' }), h('p', { text: t('Checking your coins…') })));
       put(actions);
       return;
     }
     const coinsNow = before.available.length;
     put(
       body,
-      h('div', { 'data-testid': 'split-review-note' }, notice('info', h('strong', { text: 'Nothing leaves your wallet. ' }), T.reviewNote(symbol, assetId !== 0))),
+      h('div', { 'data-testid': 'split-review-note' }, notice('info', h('strong', { text: `${t('Nothing leaves your wallet.')} ` }), T.reviewNote(symbol, assetId !== 0))),
       h('div', { class: 'card row split-asset' }, assetBadge(l), h('span', { class: 'main' }, h('div', { class: 't', text: l.pool ? l.name : l.unit }), assetId === 0 ? null : h('div', { class: 's', text: tokenSubtitle(l) }))),
       plan
         ? h(
             'div',
             { class: 'card flat split-after' },
-            kv('Now', `${formatAmount(before.availableTotal)} ${symbol} in ${coinsNow} ${coinsNow === 1 ? 'coin' : 'coins'}`, 'split-review-now'),
-            kv('New coins', T.newCoins(plan, symbol), 'split-review-new'),
-            plan.change > 0n ? kv('Stays as change', `${formatAmount(plan.change)} ${symbol}`, 'split-review-change') : null,
-            kv('Network fee', T.fee(plan), 'split-review-fee'),
-            h('div', { class: 'kv total' }, h('span', { class: 'k', text: 'Leaves your wallet' }), h('span', { class: 'v', 'data-testid': 'split-review-leaves', text: T.fee(plan) })),
+            kv(t('Now'), tn({ one: '{amount} in {n} coin', other: '{amount} in {n} coins' }, coinsNow, { amount: `${formatAmount(before.availableTotal)} ${symbol}` }), 'split-review-now'),
+            kv(t('New coins'), T.newCoins(plan, symbol), 'split-review-new'),
+            plan.change > 0n ? kv(t('Stays as change'), `${formatAmount(plan.change)} ${symbol}`, 'split-review-change') : null,
+            kv(t('Network fee'), T.fee(plan), 'split-review-fee'),
+            h('div', { class: 'kv total' }, h('span', { class: 'k', text: t('Leaves your wallet') }), h('span', { class: 'v', 'data-testid': 'split-review-leaves', text: T.fee(plan) })),
           )
         : null,
-      problem ? h('div', { 'data-testid': 'split-review-problem' }, notice('error', h('strong', { text: `${problem.title}. ` }), problem.text)) : null,
+      problem ? h('div', { 'data-testid': 'split-review-problem' }, notice('error', h('strong', { text: `${problem.title} ` }), problem.text)) : null,
     );
-    if (spent || !plan || (problem && problem.title === 'Not enough BEAM for the fee')) {
-      put(actions, primary('Back', () => app.back('coins'), { 'data-testid': 'split-review-back' }), spent ? textButton('Open Activity', () => app.go('activity'), { 'data-testid': 'split-review-activity' }) : null);
+    if (spent || !plan || (problem && problem.code === 'fee')) {
+      put(actions, primary(t('Back'), () => app.back('coins'), { 'data-testid': 'split-review-back' }), spent ? textButton(t('Open Activity'), () => app.go('activity'), { 'data-testid': 'split-review-activity' }) : null);
       return;
     }
     const sync = wallet.state.sync;
     put(
       actions,
-      !sync.canSend ? h('p', { class: 'hint center', 'data-testid': 'split-review-paused', text: `Splitting is paused: ${syncReason(sync.title)}.` }) : null,
-      primary(busy ? 'Splitting…' : T.cta(plan.count), confirm, { disabled: busy || authing || !sync.canSend, 'data-testid': 'split-confirm-cta' }),
-      textButton('Change', () => app.back('coins'), { 'data-testid': 'split-review-change-btn' }),
+      !sync.canSend ? h('p', { class: 'hint center', 'data-testid': 'split-review-paused', text: t('Splitting is paused: {reason}.', { reason: syncReason(sync.title) }) }) : null,
+      primary(busy ? t('Splitting…') : T.cta(plan.count), confirm, { disabled: busy || authing || !sync.canSend, 'data-testid': 'split-confirm-cta' }),
+      textButton(t('Change'), () => app.back('coins'), { 'data-testid': 'split-review-change-btn' }),
     );
   }
 
   const off = wallet.onChange(() => !doneTx && !busy && !authing && before && render());
   render();
   prepare();
-  const el = screen({ title: T.reviewTitle, back: () => (busy ? null : app.back('coins')), cls: 'coins' }, body, actions);
+  const el = screen({ title: t(T.reviewTitle), back: () => (busy ? null : app.back('coins')), cls: 'coins' }, body, actions);
   return {
     el,
     destroy() {

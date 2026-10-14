@@ -14,11 +14,12 @@ import { h } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { openSheet, notice, screen, assetBadge } from '../lib/ui.js';
 import { hasEthWallet } from '../lib/eth/record.js';
+import { t } from '../lib/i18n.js';
 
 /** A screen whose module is imported on first use; a spinner until then. */
 function lazyScreen(load) {
   return (app, params) => {
-    const holder = h('main', { class: 'screen splash', 'aria-busy': 'true' }, h('div', { class: 'spinner', role: 'progressbar', 'aria-label': 'Opening' }));
+    const holder = h('main', { class: 'screen splash', 'aria-busy': 'true' }, h('div', { class: 'spinner', role: 'progressbar', 'aria-label': t('Opening') }));
     let inner = null;
     let dead = false;
     load()
@@ -30,7 +31,7 @@ function lazyScreen(load) {
       .catch((e) => {
         if (dead) return;
         console.error(e);
-        holder.replaceWith(screen({ title: 'Buy BEAM', back: () => app.back('home') }, notice('error', `This screen could not be opened: ${e.message}. Go back and try again.`)));
+        holder.replaceWith(screen({ title: t('Buy BEAM'), back: () => app.back('home') }, notice('error', t('This screen could not be opened: {reason}. Go back and try again.', { reason: e.message }))));
       });
     return {
       el: holder,
@@ -92,16 +93,16 @@ export function openBuyChooser(app) {
   let hasEth = null;
   const sheet = openSheet(
     (close) => [
-      h('p', { class: 'overline', text: 'Buy' }),
-      h('h2', { 'data-testid': 'buy-chooser-title', text: 'Both are BEAM. They live in different wallets.' }),
+      h('p', { class: 'overline', text: t('Buy') }),
+      h('h2', { 'data-testid': 'buy-chooser-title', text: t('Both are BEAM. They live in different wallets.') }),
       choiceCard({
         testid: 'buy-choose-beam',
         badge: assetBadge({ id: 0 }),
-        title: 'BEAM',
-        tag: 'Private',
+        title: 'BEAM', // i18n-ignore: the coin's name
+        tag: t('Private'),
         tagCls: 'private',
-        text: 'The private coin, in your BEAM wallet. Pay with Bitcoin, Ether, USDT or another coin.',
-        action: 'Buy BEAM',
+        text: t('The private coin, in your BEAM wallet. Pay with Bitcoin, Ether, USDT or another coin.'),
+        action: t('Buy BEAM'),
         onclick: () => {
           close(true);
           app.go('buyBeam');
@@ -110,20 +111,20 @@ export function openBuyChooser(app) {
       choiceCard({
         testid: 'buy-choose-wbeam',
         badge: wbeamBadge(),
-        title: 'WBEAM on Ethereum',
-        tag: 'Public',
+        title: t('WBEAM on Ethereum'),
+        tag: t('Public'),
         tagCls: 'public',
-        text: 'BEAM as a token on Ethereum, in your Ethereum wallet. Pay with ETH, or with BTC, ZEC or LTC.',
-        action: hasEth === false ? 'Create an Ethereum wallet first' : 'Buy WBEAM',
+        text: t('BEAM as a token on Ethereum, in your Ethereum wallet. Pay with ETH, or with BTC, ZEC or LTC.'),
+        action: hasEth === false ? t('Create an Ethereum wallet first') : t('Buy WBEAM'),
         onclick: () => {
           close(true);
           if (hasEth === false) app.go('ethStart', { from: 'buy' });
           else app.go('ethSwap');
         },
       }),
-      h('button', { class: 'btn btn-text', onclick: () => close(false), 'data-testid': 'buy-chooser-close' }, 'Not now'),
+      h('button', { class: 'btn btn-text', onclick: () => close(false), 'data-testid': 'buy-chooser-close' }, t('Not now')),
     ],
-    { label: 'What do you want to buy?' },
+    { label: t('What do you want to buy?') },
   );
   hasEthWallet()
     .then((v) => {

@@ -20,8 +20,9 @@ import { DIRECTIONS, STATES, isOpen } from '../lib/bridge/store.js';
 import { txExplorerUrl } from '../lib/eth/hosts.js';
 import { bridgeOf, bridgeProblem, stepList } from './bridge_ui.js';
 import { headline, crossingWords, crossingSteps, arrivesCoin } from './bridge_words.js';
-import { coin, ago, collectLabel, sourceDecimals, sourceSymbol } from './bridge_text.js';
+import { coin, ago, collectLabel, sourceDecimals, sourceSymbol, sentence } from './bridge_text.js';
 import { ethMaxText } from './eth_ui.js';
+import { t } from '../lib/i18n.js';
 
 const MOOD = { progress: 'info', success: 'success', warning: 'warn', error: 'error' };
 const ICON = { progress: ['clock', 'wait'], success: ['check', 'ok'], warning: ['alert', 'wait'], error: ['close', 'bad'] };
@@ -41,19 +42,19 @@ export default function bridgeCrossing(app, params = {}) {
     if (!alive) return;
     if (openError) {
       put(body, bridgeProblem(openError, () => open()));
-      put(actions, primary('Done', back, { 'data-testid': 'bridge-crossing-done' }));
+      put(actions, primary(t('Done'), back, { 'data-testid': 'bridge-crossing-done' }));
       return;
     }
     if (!s) {
-      put(body, h('div', { class: 'center pad' }, h('div', { class: 'spinner', role: 'progressbar', 'aria-label': 'Opening' })));
+      put(body, h('div', { class: 'center pad' }, h('div', { class: 'spinner', role: 'progressbar', 'aria-label': t('Opening') })));
       put(actions);
       return;
     }
     const ctl = s.ctl;
     const c = ctl.crossing(params.id);
     if (!c) {
-      put(body, h('div', { 'data-testid': 'bridge-crossing-missing' }, notice('info', h('strong', { text: 'This move is not on this device. ' }), 'It may belong to another pair of wallets. Your moves are under History.')));
-      put(actions, primary('See your moves', () => app.go('bridgeList', { back: 'home' }, { replace: true }), { 'data-testid': 'bridge-crossing-done' }));
+      put(body, h('div', { 'data-testid': 'bridge-crossing-missing' }, notice('info', h('strong', { text: `${t('This move is not on this device.')} ` }), t('It may belong to another pair of wallets. Your moves are under History.'))));
+      put(actions, primary(t('See your moves'), () => app.go('bridgeList', { back: 'home' }, { replace: true }), { 'data-testid': 'bridge-crossing-done' }));
       return;
     }
     const r = routeById(c.route);
@@ -82,31 +83,31 @@ export default function bridgeCrossing(app, params = {}) {
       h(
         'div',
         { class: 'card' },
-        found ? null : kv('You moved', coin(c.amount, srcDec, srcSym), 'bridge-crossing-amount'),
-        kv(done ? 'Arrived' : found ? 'Waiting for you' : 'Arrives', arrivesCoin(c), 'bridge-crossing-receive'),
-        found ? null : kv('Bridge fee', coin(c.relayerFee, srcDec, srcSym)),
-        kv(toEth ? 'BEAM network fee' : 'BEAM network fee, to collect it', coin(c.beamNetworkFee, BEAM_DECIMALS, 'BEAM')),
-        !toEth && !found ? kv('Ethereum network fee', `up to ${ethMaxText(c.ethNetworkFee)}`) : null,
-        found ? null : kv('Your Ethereum wallet', `${c.ethAddress.slice(0, 6)}…${c.ethAddress.slice(-4)}`, 'bridge-crossing-eth'),
-        c.msgId !== null ? kv('Bridge transfer', `#${c.msgId}`, 'bridge-crossing-number') : null,
-        kv(found ? 'Found' : 'Started', ago(c.createdAt), 'bridge-crossing-started'),
+        found ? null : kv(t('You moved'), coin(c.amount, srcDec, srcSym), 'bridge-crossing-amount'),
+        kv(done ? t('Arrived') : found ? t('Waiting for you') : t('Arrives'), arrivesCoin(c), 'bridge-crossing-receive'),
+        found ? null : kv(t('Bridge fee'), coin(c.relayerFee, srcDec, srcSym)),
+        kv(toEth ? t('BEAM network fee') : t('BEAM network fee, to collect it'), coin(c.beamNetworkFee, BEAM_DECIMALS, 'BEAM')),
+        !toEth && !found ? kv(t('Ethereum network fee'), t('up to {amount}', { amount: ethMaxText(c.ethNetworkFee) })) : null,
+        found ? null : kv(t('Your Ethereum wallet'), `${c.ethAddress.slice(0, 6)}…${c.ethAddress.slice(-4)}`, 'bridge-crossing-eth'),
+        c.msgId !== null ? kv(t('Bridge transfer'), `#${c.msgId}`, 'bridge-crossing-number') : null,
+        kv(found ? t('Found') : t('Started'), ago(c.createdAt), 'bridge-crossing-started'),
         c.lockHash
-          ? kv('Ethereum transaction', h('button', { class: 'v mono btn-text', 'data-testid': 'bridge-crossing-lock', 'data-hash': c.lockHash, onclick: () => copyText(c.lockHash, 'Transaction hash copied'), text: `${c.lockHash.slice(0, 10)}…${c.lockHash.slice(-8)}` }))
+          ? kv(t('Ethereum transaction'), h('button', { class: 'v mono btn-text', 'data-testid': 'bridge-crossing-lock', 'data-hash': c.lockHash, onclick: () => copyText(c.lockHash, t('Transaction hash copied')), text: `${c.lockHash.slice(0, 10)}…${c.lockHash.slice(-8)}` }))
           : null,
       ),
-      c.lockHash ? h('a', { class: 'btn btn-text', href: txExplorerUrl(c.lockHash), target: '_blank', rel: 'noopener noreferrer', 'data-testid': 'bridge-crossing-explorer' }, icon('external'), 'See it on Etherscan') : null,
-      isOpen(c) && !ctl.active ? h('p', { class: 'small center', text: 'BEAM Campfire looks again when it is back on screen.' }) : null,
+      c.lockHash ? h('a', { class: 'btn btn-text', href: txExplorerUrl(c.lockHash), target: '_blank', rel: 'noopener noreferrer', 'data-testid': 'bridge-crossing-explorer' }, icon('external'), t('See it on Etherscan')) : null,
+      isOpen(c) && !ctl.active ? h('p', { class: 'small center', text: t('BEAM Campfire looks again when it is back on screen.') }) : null,
     );
     put(
       actions,
       collect
-        ? h('p', { class: 'hint center', 'data-testid': 'bridge-collect-fee', text: busy ? 'Collecting…' : `Network fee ${coin(c.beamNetworkFee, BEAM_DECIMALS, 'BEAM')}, from your BEAM wallet.` })
+        ? h('p', { class: 'hint center', 'data-testid': 'bridge-collect-fee', text: busy ? t('Collecting…') : t('Network fee {fee}, from your BEAM wallet.', { fee: coin(c.beamNetworkFee, BEAM_DECIMALS, 'BEAM') }) })
         : isOpen(c)
-          ? h('p', { class: 'hint center', text: 'It carries on if you close this.' })
+          ? h('p', { class: 'hint center', text: t('It carries on if you close this.') })
           : null,
       collect
         ? primary(collectLabel(r, c.receives), () => doCollect(c.id), { disabled: busy, 'data-testid': 'bridge-collect', class: 'btn btn-primary wrap' })
-        : primary('Done', back, { 'data-testid': 'bridge-crossing-done' }),
+        : primary(t('Done'), back, { 'data-testid': 'bridge-crossing-done' }),
     );
   }
 
@@ -119,7 +120,7 @@ export default function bridgeCrossing(app, params = {}) {
       // The claim is built, checked, and shown on the approve sheet; Face ID or the password follows there.
       await s.ctl.collect(id);
     } catch (e) {
-      if (alive) error = e && e.code === 'rejected' ? 'You did not approve it, so nothing was collected. It is still waiting for you.' : `${e.message}${/\.$/.test(e.message || '') ? '' : '.'}`;
+      if (alive) error = e && e.code === 'rejected' ? t('You did not approve it, so nothing was collected. It is still waiting for you.') : sentence(e.message);
     }
     busy = false;
     render();
@@ -145,7 +146,7 @@ export default function bridgeCrossing(app, params = {}) {
 
   render();
   open();
-  const el = screen({ title: 'Your move', back, cls: 'bridge' }, body);
+  const el = screen({ title: t('Your move'), back, cls: 'bridge' }, body);
   el.appendChild(actions);
   return {
     el,

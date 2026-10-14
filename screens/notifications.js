@@ -20,23 +20,24 @@ import { notificationPermission, isIos, isStandalone } from '../lib/payment_noti
 import { KINDS, KIND_WORDS, settingsOf } from '../lib/notify_rules.js';
 import { testNotification, forgetReminders, wakeUpsOn, wakeUpsSupported, applyWakeUps } from '../lib/notify.js';
 import { refreshPersistence } from '../lib/storage.js';
+import { t, tk } from '../lib/i18n.js';
 
 export const NOTIFY_TEXT = Object.freeze({
-  title: 'Notifications',
-  lead: 'BEAM Campfire tells you about your wallet from this device. No server watches it: none can read a BEAM wallet, and the app keeps working without ours.',
-  whereIos: 'On iPhone: while BEAM Campfire is open. iPhone runs no web app in the background, so when you come back, Home says what happened meanwhile.',
-  whereOther: 'While BEAM Campfire is open, and in the background until it locks itself (Auto-lock). Reminders (a payment still waiting, a name about to expire) come then too; when BEAM Campfire is closed, only if you turn that on below. When you come back, Home says what happened meanwhile.',
-  iosHomeScreen: 'On iPhone, notifications work in the app added to your Home Screen (Share → Add to Home Screen).',
-  unsupported: "This browser can't show notifications. The banner inside the app still tells you while it is open.",
-  denied: "Notifications are blocked for BEAM Campfire in this browser's settings. Allow them there, then turn this on again.",
-  notAsked: "Not turned on: the browser's question was closed. Tap the switch to be asked again.",
-  on: 'Notifications are on',
-  off: 'Notifications are off. The banner inside the app stays.',
-  amounts: 'Show amounts',
-  amountsSub: 'Off: "Payment received" on your lock screen. On: "Received 0.5 BEAM", for anyone who sees it',
-  test: 'Send a test notification',
-  wakeUps: 'Reminders when BEAM Campfire is closed',
-  wakeUpsSub: "To show them, this browser wakes BEAM Campfire now and then. A wake-up can also bring in changed code from BEAM Campfire's web address, with no BEAM Campfire screen open to warn you if it is not signed. Off unless you turn it on.",
+  title: tk('Notifications'),
+  lead: tk('BEAM Campfire tells you about your wallet from this device. No server watches it: none can read a BEAM wallet, and the app keeps working without ours.'),
+  whereIos: tk('On iPhone: while BEAM Campfire is open. iPhone runs no web app in the background, so when you come back, Home says what happened meanwhile.'),
+  whereOther: tk('While BEAM Campfire is open, and in the background until it locks itself (Auto-lock). Reminders (a payment still waiting, a name about to expire) come then too; when BEAM Campfire is closed, only if you turn that on below. When you come back, Home says what happened meanwhile.'),
+  iosHomeScreen: tk('On iPhone, notifications work in the app added to your Home Screen (Share → Add to Home Screen).'),
+  unsupported: tk("This browser can't show notifications. The banner inside the app still tells you while it is open."),
+  denied: tk("Notifications are blocked for BEAM Campfire in this browser's settings. Allow them there, then turn this on again."),
+  notAsked: tk("Not turned on: the browser's question was closed. Tap the switch to be asked again."),
+  on: tk('Notifications are on'),
+  off: tk('Notifications are off. The banner inside the app stays.'),
+  amounts: tk('Show amounts'),
+  amountsSub: tk('Off: "Payment received" on your lock screen. On: "Received 0.5 BEAM", for anyone who sees it'),
+  test: tk('Send a test notification'),
+  wakeUps: tk('Reminders when BEAM Campfire is closed'),
+  wakeUpsSub: tk("To show them, this browser wakes BEAM Campfire now and then. A wake-up can also bring in changed code from BEAM Campfire's web address, with no BEAM Campfire screen open to warn you if it is not signed. Off unless you turn it on."),
 });
 
 /** Asks the browser, from the person's tap (the first thing that tap does). Old Safari answers through a callback. */
@@ -55,12 +56,12 @@ export function askPermission() {
 export function notificationsRow(app) {
   const s = settingsOf(app.prefs);
   const permission = notificationPermission();
-  const sub = permission === 'unsupported' ? (isIos() && !isStandalone() ? 'On iPhone: add BEAM Campfire to your Home Screen first' : "This browser can't show them") : permission === 'denied' ? 'Blocked in this browser’s settings' : s.on && permission === 'granted' ? 'On' : 'Off';
+  const sub = permission === 'unsupported' ? (isIos() && !isStandalone() ? t('On iPhone: add BEAM Campfire to your Home Screen first') : t("This browser can't show them")) : permission === 'denied' ? t('Blocked in this browser’s settings') : s.on && permission === 'granted' ? t('On') : t('Off');
   return h(
     'button',
     { class: 'row', type: 'button', onclick: () => app.go('notifications'), 'data-testid': 'notify-row' },
     h('span', { class: 'ico' }, icon('bell')),
-    h('span', { class: 'main' }, h('div', { class: 't', text: NOTIFY_TEXT.title }), h('div', { class: 's', 'data-testid': 'notify-row-sub', text: sub })),
+    h('span', { class: 'main' }, h('div', { class: 't', text: t(NOTIFY_TEXT.title) }), h('div', { class: 's', 'data-testid': 'notify-row-sub', text: sub })),
     h('span', { class: 'chev' }, icon('chevron')),
   );
 }
@@ -74,31 +75,31 @@ export default function notifications(app) {
     return app.setPrefs({ notify: { ...cur, ...patch, kinds: { ...(cur.kinds || {}), ...(patch.kinds || {}) } } });
   };
   const explain = (text, testid) =>
-    openSheet((close) => [h('h2', { text: NOTIFY_TEXT.title }), h('div', { 'data-testid': testid }, notice('info', text)), h('button', { class: 'btn btn-primary', onclick: () => close() }, 'OK')], { label: NOTIFY_TEXT.title });
+    openSheet((close) => [h('h2', { text: t(NOTIFY_TEXT.title) }), h('div', { 'data-testid': testid }, notice('info', text)), h('button', { class: 'btn btn-primary', onclick: () => close() }, t('OK'))], { label: t(NOTIFY_TEXT.title) });
 
   function render() {
     const s = settingsOf(app.prefs);
     const permission = notificationPermission();
     const on = s.on && permission === 'granted';
-    const master = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': NOTIFY_TEXT.title, 'data-testid': 'notify-switch', checked: on });
+    const master = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': t(NOTIFY_TEXT.title), 'data-testid': 'notify-switch', checked: on });
     master.addEventListener('change', () => {
       if (!master.checked) {
         forgetReminders(app);
         setNotify({ on: false }).then(() => {
           applyWakeUps(app); // off: no more wake-ups either
-          toast(NOTIFY_TEXT.off);
+          toast(t(NOTIFY_TEXT.off));
           render();
         });
         return;
       }
       if (permission === 'unsupported') {
         master.checked = false;
-        explain(ios && !isStandalone() ? NOTIFY_TEXT.iosHomeScreen : NOTIFY_TEXT.unsupported, 'notify-unsupported');
+        explain(ios && !isStandalone() ? t(NOTIFY_TEXT.iosHomeScreen) : t(NOTIFY_TEXT.unsupported), 'notify-unsupported');
         return;
       }
       if (permission === 'denied') {
         master.checked = false;
-        explain(NOTIFY_TEXT.denied, 'notify-denied');
+        explain(t(NOTIFY_TEXT.denied), 'notify-denied');
         return;
       }
       // The browser's question comes from this tap, before anything else is awaited.
@@ -107,48 +108,48 @@ export default function notifications(app) {
         await setNotify({ on: result === 'granted' });
         // A site allowed to notify is one Chrome keeps the storage of: asked again now (lib/storage.js).
         if (result === 'granted') refreshPersistence(app, { request: true }).catch(() => {});
-        if (result === 'granted') toast(NOTIFY_TEXT.on, 3000);
-        else if (result === 'denied') explain(NOTIFY_TEXT.denied, 'notify-denied');
-        else toast(NOTIFY_TEXT.notAsked, 4000);
+        if (result === 'granted') toast(t(NOTIFY_TEXT.on), 3000);
+        else if (result === 'denied') explain(t(NOTIFY_TEXT.denied), 'notify-denied');
+        else toast(t(NOTIFY_TEXT.notAsked), 4000);
         render();
       });
     });
-    const sub = permission === 'unsupported' ? (ios && !isStandalone() ? 'On iPhone: add BEAM Campfire to your Home Screen first' : "This browser can't show them") : permission === 'denied' ? 'Blocked in this browser’s settings' : on ? (ios ? 'On, while BEAM Campfire is open' : 'On') : 'Off. A banner in the app tells you while it is open.';
+    const sub = permission === 'unsupported' ? (ios && !isStandalone() ? t('On iPhone: add BEAM Campfire to your Home Screen first') : t("This browser can't show them")) : permission === 'denied' ? t('Blocked in this browser’s settings') : on ? (ios ? t('On, while BEAM Campfire is open') : t('On')) : t('Off. A banner in the app tells you while it is open.');
     const kindRow = (k) => {
-      const sw = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': KIND_WORDS[k].title, 'data-testid': `notify-kind-${k}`, checked: s.kinds[k] !== false });
+      const sw = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': t(KIND_WORDS[k].title), 'data-testid': `notify-kind-${k}`, checked: s.kinds[k] !== false });
       sw.addEventListener('change', () => setNotify({ kinds: { [k]: sw.checked } }));
-      return h('label', { class: 'row' }, h('span', { class: 'main' }, h('div', { class: 't', text: KIND_WORDS[k].title }), h('div', { class: 's wrap', text: KIND_WORDS[k].sub })), sw);
+      return h('label', { class: 'row' }, h('span', { class: 'main' }, h('div', { class: 't', text: t(KIND_WORDS[k].title) }), h('div', { class: 's wrap', text: t(KIND_WORDS[k].sub) })), sw);
     };
-    const amounts = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': NOTIFY_TEXT.amounts, 'data-testid': 'notify-amounts', checked: s.amounts });
+    const amounts = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': t(NOTIFY_TEXT.amounts), 'data-testid': 'notify-amounts', checked: s.amounts });
     amounts.addEventListener('change', () => setNotify({ amounts: amounts.checked }));
     // Periodic Background Sync, only on the person's say-so (lib/notify.js): Chrome / Edge, an installed app.
-    const wake = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': NOTIFY_TEXT.wakeUps, 'data-testid': 'notify-wakeups', checked: wakeUpsOn(app.prefs) });
+    const wake = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': t(NOTIFY_TEXT.wakeUps), 'data-testid': 'notify-wakeups', checked: wakeUpsOn(app.prefs) });
     wake.addEventListener('change', () => setNotify({ wakeUps: wake.checked }).then(() => applyWakeUps(app)));
     put(
       box,
-      h('p', { class: 'lead', text: NOTIFY_TEXT.lead }),
+      h('p', { class: 'lead', text: t(NOTIFY_TEXT.lead) }),
       h(
         'div',
         { class: 'card list' },
-        h('label', { class: 'row', 'data-testid': 'notify-master' }, h('span', { class: 'ico' }, icon('bell')), h('span', { class: 'main' }, h('div', { class: 't', text: NOTIFY_TEXT.title }), h('div', { class: 's wrap', 'data-testid': 'notify-sub', text: sub })), master),
+        h('label', { class: 'row', 'data-testid': 'notify-master' }, h('span', { class: 'ico' }, icon('bell')), h('span', { class: 'main' }, h('div', { class: 't', text: t(NOTIFY_TEXT.title) }), h('div', { class: 's wrap', 'data-testid': 'notify-sub', text: sub })), master),
       ),
-      h('p', { class: 'small settings-note', 'data-testid': 'notify-note', text: ios ? NOTIFY_TEXT.whereIos : NOTIFY_TEXT.whereOther }),
+      h('p', { class: 'small settings-note', 'data-testid': 'notify-note', text: ios ? t(NOTIFY_TEXT.whereIos) : t(NOTIFY_TEXT.whereOther) }),
       // What to be told about: once they are on (switches under an Off would look on).
-      on ? h('p', { class: 'section-title', text: 'Tell me about' }) : null,
+      on ? h('p', { class: 'section-title', text: t('Tell me about') }) : null,
       on ? h('div', { class: 'card list', 'data-testid': 'notify-kinds' }, ...KINDS.map(kindRow)) : null,
-      on ? h('div', { class: 'card list' }, h('label', { class: 'row' }, h('span', { class: 'main' }, h('div', { class: 't', text: NOTIFY_TEXT.amounts }), h('div', { class: 's wrap', text: NOTIFY_TEXT.amountsSub })), amounts)) : null,
+      on ? h('div', { class: 'card list' }, h('label', { class: 'row' }, h('span', { class: 'main' }, h('div', { class: 't', text: t(NOTIFY_TEXT.amounts) }), h('div', { class: 's wrap', text: t(NOTIFY_TEXT.amountsSub) })), amounts)) : null,
       on && !ios && wakeUpsSupported()
-        ? h('div', { class: 'card list' }, h('label', { class: 'row' }, h('span', { class: 'main' }, h('div', { class: 't', text: NOTIFY_TEXT.wakeUps }), h('div', { class: 's wrap', 'data-testid': 'notify-wakeups-sub', text: NOTIFY_TEXT.wakeUpsSub })), wake))
+        ? h('div', { class: 'card list' }, h('label', { class: 'row' }, h('span', { class: 'main' }, h('div', { class: 't', text: t(NOTIFY_TEXT.wakeUps) }), h('div', { class: 's wrap', 'data-testid': 'notify-wakeups-sub', text: t(NOTIFY_TEXT.wakeUpsSub) })), wake))
         : null,
       on
-        ? secondary(NOTIFY_TEXT.test, async () => {
+        ? secondary(t(NOTIFY_TEXT.test), async () => {
             const ok = await testNotification();
-            toast(ok ? 'Sent. It shows when the app is not in front, or in your notifications.' : "The browser didn't show it. Check its notification settings.", 4000);
+            toast(ok ? t('Sent. It shows when the app is not in front, or in your notifications.') : t("The browser didn't show it. Check its notification settings."), 4000);
           }, { 'data-testid': 'notify-test' })
         : null,
     );
   }
   render();
-  const el = screen({ title: NOTIFY_TEXT.title, back: () => app.back('settings'), cls: 'settings' }, box);
+  const el = screen({ title: t(NOTIFY_TEXT.title), back: () => app.back('settings'), cls: 'settings' }, box);
   return { el };
 }

@@ -25,6 +25,7 @@ import { stageImport, checkImportPassword, discardImport } from '../lib/engine.j
 import { prepareImport, importWallet, isAdding } from '../lib/session.js';
 import { passkeyAvailable } from '../lib/passkey.js';
 import { checkWalletFile, importPasswordProblem, formatFileSize, IMPORT_TEXT, IMPORT_PROBLEM } from '../lib/wallet_file.js';
+import { t } from '../lib/i18n.js';
 
 const INPUT_ID = 'import-file-input';
 
@@ -52,25 +53,25 @@ export default function importWalletScreen(app) {
 
   const msg = h('div', { 'aria-live': 'polite', 'data-testid': 'import-msg' });
   // The file's password becomes this wallet's: never offered to the browser's password manager (lib/auth_ui.js).
-  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'off', enterkeyhint: 'go', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', 'aria-label': IMPORT_TEXT.passwordLabel, 'data-testid': 'import-pw' });
-  const showBtn = h('button', { class: 'btn btn-text btn-small inside', type: 'button', 'aria-label': 'Show password' }, icon('eye'));
+  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'off', enterkeyhint: 'go', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', 'aria-label': t(IMPORT_TEXT.passwordLabel), 'data-testid': 'import-pw' });
+  const showBtn = h('button', { class: 'btn btn-text btn-small inside', type: 'button', 'aria-label': t('Show password') }, icon('eye'));
   showBtn.addEventListener('click', () => {
     pw.type = pw.type === 'password' ? 'text' : 'password';
-    showBtn.setAttribute('aria-label', pw.type === 'password' ? 'Show password' : 'Hide password');
+    showBtn.setAttribute('aria-label', pw.type === 'password' ? t('Show password') : t('Hide password'));
   });
   pw.addEventListener('keydown', (e) => e.key === 'Enter' && submit());
   pw.addEventListener('input', () => {
     if (!busy) cta.disabled = !pw.value;
   });
 
-  const cta = primary(IMPORT_TEXT.cta, () => submit(), { disabled: true, 'data-testid': 'import-submit' });
-  const chooseBtn = h('label', { class: 'btn btn-primary', for: INPUT_ID, role: 'button', tabindex: '0', 'data-testid': 'import-choose' }, icon('file'), h('span', { text: IMPORT_TEXT.choose }));
-  const changeBtn = h('label', { class: 'btn btn-text btn-small', for: INPUT_ID, role: 'button', tabindex: '0', 'aria-label': IMPORT_TEXT.change, 'data-testid': 'import-change', text: 'Change' });
+  const cta = primary(t(IMPORT_TEXT.cta), () => submit(), { disabled: true, 'data-testid': 'import-submit' });
+  const chooseBtn = h('label', { class: 'btn btn-primary', for: INPUT_ID, role: 'button', tabindex: '0', 'data-testid': 'import-choose' }, icon('file'), h('span', { text: t(IMPORT_TEXT.choose) }));
+  const changeBtn = h('label', { class: 'btn btn-text btn-small', for: INPUT_ID, role: 'button', tabindex: '0', 'aria-label': t(IMPORT_TEXT.change), 'data-testid': 'import-change', text: t('Change') });
   for (const b of [chooseBtn, changeBtn]) b.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), input.click()));
 
   const body = h('div', { class: 'content' });
   const actions = h('div', { class: 'actions' });
-  const el = screen({ title: IMPORT_TEXT.title, back: () => app.go(adding ? 'addWallet' : 'welcome') });
+  const el = screen({ title: t(IMPORT_TEXT.title), back: () => app.go(adding ? 'addWallet' : 'welcome') });
   // screen() made an empty .content; this screen re-renders its own body and actions.
   el.querySelector('.content').replaceWith(body);
   el.appendChild(actions);
@@ -80,11 +81,11 @@ export default function importWalletScreen(app) {
     if (destroyed) return;
     if (!file) {
       put(body,
-        h('p', { class: 'lead', text: IMPORT_TEXT.intro }),
-        notice('warn', IMPORT_TEXT.copyWarning),
+        h('p', { class: 'lead', text: t(IMPORT_TEXT.intro) }),
+        notice('warn', t(IMPORT_TEXT.copyWarning)),
         msg,
       );
-      put(actions, chooseBtn, h('p', { class: 'small', text: IMPORT_TEXT.where }));
+      put(actions, chooseBtn, h('p', { class: 'small', text: t(IMPORT_TEXT.where) }));
       return;
     }
     // Once a file is chosen the screen is about the password: the file, the field, what went wrong
@@ -92,13 +93,13 @@ export default function importWalletScreen(app) {
     put(body,
       h('div', { class: 'card file-card' },
         h('span', { class: 'ico' }, icon('file')),
-        h('span', { class: 'main' }, h('div', { class: 't', 'data-testid': 'import-file-name', text: file.name || 'wallet.db' }), h('div', { class: 's', text: `${formatFileSize(file.size)} · ${IMPORT_TEXT.untouched}` })),
+        h('span', { class: 'main' }, h('div', { class: 't', 'data-testid': 'import-file-name', text: file.name || 'wallet.db' }), h('div', { class: 's', text: t('{size} · your file is not changed', { size: formatFileSize(file.size) }) })), // i18n-ignore: 'wallet.db' is a file name
         changeBtn,
       ),
-      h('label', { class: 'field' }, IMPORT_TEXT.passwordLabel, h('div', { class: 'input-wrap' }, pw, showBtn)),
-      h('p', { class: 'hint', text: IMPORT_TEXT.passwordHelper }),
+      h('label', { class: 'field' }, t(IMPORT_TEXT.passwordLabel), h('div', { class: 'input-wrap' }, pw, showBtn)),
+      h('p', { class: 'hint', text: t(IMPORT_TEXT.passwordHelper) }),
       msg,
-      notice('warn', IMPORT_TEXT.noPhrase),
+      notice('warn', t(IMPORT_TEXT.noPhrase)),
     );
     put(actions, cta);
   }
@@ -110,7 +111,7 @@ export default function importWalletScreen(app) {
   function setBusy(text) {
     busy = Boolean(text);
     cta.disabled = busy || !pw.value;
-    cta.textContent = text || IMPORT_TEXT.cta;
+    cta.textContent = text || t(IMPORT_TEXT.cta);
     changeBtn.classList.toggle('disabled', busy);
     if (text) put(msg, h('p', { class: 'small', 'aria-live': 'polite', text }));
   }
@@ -153,7 +154,7 @@ export default function importWalletScreen(app) {
     const password = pw.value;
     try {
       if (staged !== file) {
-        setBusy(IMPORT_TEXT.reading);
+        setBusy(t(IMPORT_TEXT.reading));
         await prepareImport(app);
         let bytes;
         try {
@@ -168,16 +169,16 @@ export default function importWalletScreen(app) {
         staged = file;
         if (destroyed) return void (await forgetStaged());
       }
-      setBusy(IMPORT_TEXT.checking);
+      setBusy(t(IMPORT_TEXT.checking));
       const ok = await checkImportPassword(password);
       if (destroyed) return;
       if (!ok) {
         setBusy(null);
-        problem(plain ? `${IMPORT_PROBLEM.wrongPassword} This file is an ordinary database, and BEAM wallets are encrypted.` : IMPORT_PROBLEM.wrongPassword);
+        problem(plain ? t('{wrong} This file is an ordinary database, and BEAM wallets are encrypted.', { wrong: t(IMPORT_PROBLEM.wrongPassword) }) : t(IMPORT_PROBLEM.wrongPassword));
         pw.select();
         return;
       }
-      setBusy(IMPORT_TEXT.saving);
+      setBusy(t(IMPORT_TEXT.saving));
       await importWallet(app, password);
       staged = null;
       pw.value = '';
@@ -190,7 +191,7 @@ export default function importWalletScreen(app) {
       const code = e && e.code;
       if (code !== 'exists') await forgetStaged();
       // Fixed texts only: nothing from the file or the engine, and never the password.
-      problem(code === 'exists' ? IMPORT_PROBLEM.exists : code === 'gone' ? IMPORT_PROBLEM.gone : code === 'file' ? e.problem : code === 'timeout' ? IMPORT_PROBLEM.slow : /^shared_origin/.test(code || '') ? e.message : IMPORT_PROBLEM.failed);
+      problem(code === 'exists' ? t(IMPORT_PROBLEM.exists) : code === 'gone' ? t(IMPORT_PROBLEM.gone) : code === 'file' ? e.problem : code === 'timeout' ? t(IMPORT_PROBLEM.slow) : /^shared_origin/.test(code || '') ? e.message : t(IMPORT_PROBLEM.failed));
     }
   }
 

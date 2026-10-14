@@ -18,9 +18,12 @@ import { screen, primary, notice, focusSoon } from '../lib/ui.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
 import { normalizeNodeAddress, NODE_EXAMPLE } from '../lib/node_address.js';
 import { probeNode, useOwnNode, isOwnNode, canUseOwnNode } from '../lib/own_node.js';
-import { OWNER_KEY_LEAD, OWNER_KEY_PATH } from './node.js';
+import { OWNER_KEY_LINE, OWNER_KEY_PATH } from './node.js';
+import { t, tk, tNodes } from '../lib/i18n.js';
+import { loaderText } from '../lib/loader_words.js';
 
-export const UNREACHABLE_TEXT = "Couldn't reach that node. It needs a secure connection (wss) with a valid certificate.";
+// Shown with t(UNREACHABLE_TEXT).
+export const UNREACHABLE_TEXT = tk("Couldn't reach that node. It needs a secure connection (wss) with a valid certificate.");
 
 export default function ownNode(app, params = {}) {
   const current = isOwnNode(app.prefs.node) ? app.prefs.node : null;
@@ -33,19 +36,19 @@ export default function ownNode(app, params = {}) {
     autocorrect: 'off',
     spellcheck: 'false',
     placeholder: NODE_EXAMPLE,
-    'aria-label': 'Node address',
+    'aria-label': t('Node address'),
     'data-testid': 'own-node-address',
   });
   if (params.edit && current) input.value = current;
-  const hint = h('p', { class: 'hint', 'data-testid': 'own-node-hint', text: "Its host name or IP address, and the port it accepts wallets on." });
-  const keyBox = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': "This node has my wallet's owner key", 'data-testid': 'own-node-key', checked: Boolean(app.prefs.ownNodeKey) });
+  const hint = h('p', { class: 'hint', 'data-testid': 'own-node-hint', text: t('Its host name or IP address, and the port it accepts wallets on.') });
+  const keyBox = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': t("This node has my wallet's owner key"), 'data-testid': 'own-node-key', checked: Boolean(app.prefs.ownNodeKey) });
   const keyText = h('div', { class: 's wrap', 'data-testid': 'own-node-key-text' });
   const msg = h('div', { 'aria-live': 'polite', 'data-testid': 'own-node-msg' });
-  const cta = primary('Use this node', submit, { 'data-testid': 'own-node-submit' });
+  const cta = primary(t('Use this node'), submit, { 'data-testid': 'own-node-submit' });
   let busy = false;
 
   const setKeyText = () => {
-    keyText.textContent = keyBox.checked ? 'Then offline and max-privacy payments can be received too.' : 'Without it: online payments only.';
+    keyText.textContent = keyBox.checked ? t('Then offline and max-privacy payments can be received too.') : t('Without it: online payments only.');
   };
   keyBox.addEventListener('change', setKeyText);
   setKeyText();
@@ -54,13 +57,14 @@ export default function ownNode(app, params = {}) {
     const v = input.value.trim();
     if (!v) {
       hint.className = 'hint';
-      hint.textContent = "Its host name or IP address, and the port it accepts wallets on.";
+      hint.textContent = t('Its host name or IP address, and the port it accepts wallets on.');
       input.classList.remove('bad');
       return null;
     }
     const n = normalizeNodeAddress(v);
-    hint.className = n.ok ? 'hint' : 'hint bad';
-    hint.textContent = n.ok ? `Connects to wss://${n.address}` : n.error;
+    hint.className = n.ok ? 'hint' : 'hint bad'; // i18n-ignore: CSS classes
+    // n.error: lib/node_address.js's sentence (the loader's code), in the person's language.
+    hint.textContent = n.ok ? t('Connects to {url}', { url: `wss://${n.address}` }) : loaderText(n.error);
     input.classList.toggle('bad', !n.ok);
     return n.ok ? n : null;
   }
@@ -70,7 +74,7 @@ export default function ownNode(app, params = {}) {
   });
   input.addEventListener('keydown', (e) => e.key === 'Enter' && submit());
 
-  function setBusy(on, label = 'Use this node') {
+  function setBusy(on, label = t('Use this node')) {
     busy = on;
     cta.disabled = on;
     input.readOnly = on;
@@ -82,52 +86,52 @@ export default function ownNode(app, params = {}) {
     if (busy) return;
     const n = check();
     if (!n) {
-      put(msg, notice('warn', input.value.trim() ? hint.textContent : `Type your node's address, for example ${NODE_EXAMPLE}.`));
+      put(msg, notice('warn', input.value.trim() ? hint.textContent : t("Type your node's address, for example {example}.", { example: NODE_EXAMPLE })));
       return;
     }
     input.value = n.address;
-    setBusy(true, 'Checking the node…');
-    put(msg, notice('info', `Connecting to ${n.address}…`));
+    setBusy(true, t('Checking the node…'));
+    put(msg, notice('info', t('Connecting to {node}…', { node: n.address })));
     const r = await probeNode(n.address);
     if (!r.ok) {
       setBusy(false);
-      put(msg, notice('error', h('strong', { text: `${UNREACHABLE_TEXT} ` }), r.code === 'timeout' ? 'It did not answer. ' : '', 'Nothing was saved.'));
+      put(msg, notice('error', h('strong', { text: `${t(UNREACHABLE_TEXT)} ` }), r.code === 'timeout' ? `${t('It did not answer.')} ` : '', t('Nothing was saved.')));
       return;
     }
-    put(msg, notice('success', `${n.address} answered.`));
-    const ok = await confirmIdentity(app, { title: 'Use this node?', detail: `${n.address} becomes the only node this wallet uses.`, cta: 'Use this node' });
+    put(msg, notice('success', t('{node} answered.', { node: n.address })));
+    const ok = await confirmIdentity(app, { title: t('Use this node?'), detail: t('{node} becomes the only node this wallet uses.', { node: n.address }), cta: t('Use this node') });
     if (!ok) {
       setBusy(false);
-      put(msg, notice('info', 'Nothing was changed.'));
+      put(msg, notice('info', t('Nothing was changed.')));
       return;
     }
-    setBusy(true, 'Switching…');
-    put(msg, notice('success', 'Your node answered. Reopening the wallet to connect through it…'));
+    setBusy(true, t('Switching…'));
+    put(msg, notice('success', t('Your node answered. Reopening the wallet to connect through it…')));
     try {
       await new Promise((res) => setTimeout(res, 900));
       const how = await useOwnNode(app, n.address, { ownerKey: keyBox.checked });
       if (how === 'restarted') app.go('nodeSettings');
     } catch (e) {
       setBusy(false);
-      put(msg, notice('error', `Couldn't switch: ${e.message}`));
+      put(msg, notice('error', t("Couldn't switch: {reason}", { reason: e.message })));
     }
   }
 
   const blocked = !canUseOwnNode();
   if (blocked) {
     cta.disabled = true;
-    put(msg, notice('warn', 'Your own node works in the installed app only.'));
+    put(msg, notice('warn', t('Your own node works in the installed app only.')));
   }
 
   const el = screen(
-    { title: 'Your own node', back: () => app.back('nodeSettings'), cls: 'settings own-node', actions: [cta, h('p', { class: 'small center', text: 'Switching reopens the wallet: you unlock it once more.' })] },
-    h('p', { class: 'lead', text: 'Connect through a BEAM node you run. It becomes the only node this wallet uses.' }),
-    h('label', { class: 'field' }, 'Node address', input),
+    { title: t('Your own node'), back: () => app.back('nodeSettings'), cls: 'settings own-node', actions: [cta, h('p', { class: 'small center', text: t('Switching reopens the wallet: you unlock it once more.') })] },
+    h('p', { class: 'lead', text: t('Connect through a BEAM node you run. It becomes the only node this wallet uses.') }),
+    h('label', { class: 'field' }, t('Node address'), input),
     hint,
     msg,
-    h('div', { class: 'card list key-card' }, h('label', { class: 'row' }, h('span', { class: 'main' }, h('div', { class: 't wrap-t', text: "This node has my wallet's owner key" }), keyText), keyBox)),
-    h('p', { class: 'small', 'data-testid': 'owner-key-line' }, OWNER_KEY_LEAD, h('button', { class: 'btn btn-text link-line', type: 'button', onclick: () => app.go('ownerKey', { from: 'ownNode' }), 'data-testid': 'owner-key-link' }, OWNER_KEY_PATH)),
-    h('p', { class: 'small', 'data-testid': 'own-node-ip-line' }, icon('shield', 'inline-icon'), ' Your node can see your IP address, like any BEAM node.'),
+    h('div', { class: 'card list key-card' }, h('label', { class: 'row' }, h('span', { class: 'main' }, h('div', { class: 't wrap-t', text: t("This node has my wallet's owner key") }), keyText), keyBox)),
+    h('p', { class: 'small', 'data-testid': 'owner-key-line' }, ...tNodes(OWNER_KEY_LINE, { path: h('button', { class: 'btn btn-text link-line', type: 'button', onclick: () => app.go('ownerKey', { from: 'ownNode' }), 'data-testid': 'owner-key-link' }, t(OWNER_KEY_PATH)) })),
+    h('p', { class: 'small', 'data-testid': 'own-node-ip-line' }, icon('shield', 'inline-icon'), ` ${t('Your node can see your IP address, like any BEAM node.')}`),
   );
   if (input.value) check();
   else if (!blocked) focusSoon(input);

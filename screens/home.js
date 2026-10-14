@@ -34,7 +34,7 @@ import { screen, notice, primary, secondary } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
 import { wallet, txStatusText, isPendingTx, isContractTx, contractMoves, contractLabel, contractStatusText } from '../lib/wallet.js';
 import { needsBackupPrompt } from '../lib/session.js';
-import { copyAt } from '../lib/update.js';
+import { copyHost } from '../lib/update.js';
 import { applyUpdate } from '../lib/update_ui.js';
 import { chainSwitch } from './eth_screens.js';
 import { openBuyChooser } from './buy_screens.js';
@@ -54,6 +54,7 @@ import { awayNow, dismissAway } from '../lib/notify.js';
 import { evictionNotice } from './storage_warning.js';
 import { evictionRisk } from '../lib/storage.js';
 import { syncReason } from '../lib/sync.js';
+import { t } from '../lib/i18n.js';
 
 const syncClass = (sync) => (sync.state === 'synced' ? 'ok' : sync.state === 'offline' || sync.state === 'stalled' || sync.state === 'behind' ? 'bad' : 'wait');
 
@@ -72,7 +73,7 @@ export function syncBars(sync, onclick) {
   const lit = sync.state === 'synced' ? 4 : sync.state === 'syncing' ? 1 + Math.min(3, Math.floor((sync.percent || 0) / 34)) : sync.state === 'offline' ? 0 : 1;
   return h(
     'button',
-    { class: `icon-btn sync-bars ${cls}`, type: 'button', 'aria-label': `${sync.title}. BEAM node`, title: sync.title, 'data-testid': 'sync-bars', 'data-state': sync.state, onclick },
+    { class: `icon-btn sync-bars ${cls}`, type: 'button', 'aria-label': t('{status}. BEAM node', { status: sync.title }), title: sync.title, 'data-testid': 'sync-bars', 'data-state': sync.state, onclick },
     ...[1, 2, 3, 4].map((i) => h('span', { class: `bar b${i}${i <= lit ? ' lit' : ''}` })),
   );
 }
@@ -98,7 +99,7 @@ function contractRow(app, tx, onclick) {
     h(
       'span',
       { class: 'end' },
-      get ? h('div', { class: failed ? '' : 'in', text: amt(get, '+') }) : pay ? h('div', { text: amt(pay, '−') }) : h('div', { text: `−${formatAmount(BigInt(tx.fee || 0))} BEAM` }),
+      get ? h('div', { class: failed ? '' : 'in', text: amt(get, '+') }) : pay ? h('div', { text: amt(pay, '−') }) : h('div', { text: `−${formatAmount(BigInt(tx.fee || 0))} BEAM` }), // i18n-ignore: an amount and its ticker
       get && pay ? h('div', { class: 'small', text: amt(pay, '−') }) : null,
     ),
   );
@@ -156,8 +157,8 @@ export default function home(app) {
   function render(s) {
     const beam = s.totals.get(0) || { available: 0n, receiving: 0n, sending: 0n, maturing: 0n };
     const pend = [];
-    if (beam.receiving > 0n) pend.push(`+${formatAmount(beam.receiving)} incoming`);
-    if (beam.sending > 0n) pend.push(`−${formatAmount(beam.sending)} outgoing`);
+    if (beam.receiving > 0n) pend.push(t('+{amount} incoming', { amount: formatAmount(beam.receiving) }));
+    if (beam.sending > 0n) pend.push(t('−{amount} outgoing', { amount: formatAmount(beam.sending) }));
     // Private (max-privacy) coins BEAM still holds back get their own line, with when they can be spent.
     pend.push(...maturingParts(beam, { withPrivate: false }));
     const known = Boolean(s.status) && !s.importing;
@@ -165,9 +166,9 @@ export default function home(app) {
       h(
         'div',
         { class: 'card balance' },
-        h('div', { class: 'label', text: 'Available' }),
+        h('div', { class: 'label', text: t('Available') }),
         coinsLink(app),
-        h('div', { class: 'amount', 'data-testid': 'balance' }, known ? formatAmount(beam.available) : '—', h('span', { class: 'unit', text: 'BEAM' })),
+        h('div', { class: 'amount', 'data-testid': 'balance' }, known ? formatAmount(beam.available) : '—', h('span', { class: 'unit', text: 'BEAM' })), // i18n-ignore: the ticker
         tokens.fiatLine(s),
         pend.length ? h('div', { class: 'pending', text: pend.join(' · ') }) : null,
         privateLine(app, s, 0, 'BEAM'),
@@ -175,10 +176,10 @@ export default function home(app) {
         syncLine(s.sync),
         h('p', { class: 'small', 'data-testid': 'sync-detail', text: s.sync.detail }),
         s.sync.state === 'offline' && s.sync.ownNode
-          ? h('button', { class: 'btn btn-secondary btn-small sync-action', 'data-testid': 'home-use-random', onclick: () => switchToRandom(app) }, "Use BEAM's public nodes")
+          ? h('button', { class: 'btn btn-secondary btn-small sync-action', 'data-testid': 'home-use-random', onclick: () => switchToRandom(app) }, t("Use BEAM's public nodes"))
           : // A public node that is down, behind or being left: the way to another one, right here.
             s.nodeMode === 'random' && (['offline', 'stalled', 'behind'].includes(s.sync.state) || s.sync.reconnecting)
-            ? h('button', { class: 'btn btn-text btn-small sync-action', type: 'button', 'data-testid': 'sync-choose-node', onclick: () => app.go('nodeSettings') }, 'Choose another BEAM node')
+            ? h('button', { class: 'btn btn-text btn-small sync-action', type: 'button', 'data-testid': 'sync-choose-node', onclick: () => app.go('nodeSettings') }, t('Choose another BEAM node'))
             : null,
       ),
     );
@@ -187,28 +188,29 @@ export default function home(app) {
     // Every other asset this wallet has anything of, named and drawn as the desktop app's asset
     // list does (lib/meta.js), valued from the DEX; each opens its page (screens/token_ui.js).
     tokens.render(s);
-    const others = [...s.totals.entries()].filter(([id, t]) => id !== 0 && (t.available > 0n || t.receiving > 0n || t.sending > 0n || t.maturing > 0n));
+    const others = [...s.totals.entries()].filter(([id, tot]) => id !== 0 && (tot.available > 0n || tot.receiving > 0n || tot.sending > 0n || tot.maturing > 0n));
     nameTokens(app, others.map(([id]) => id), s);
 
     const recent = s.txs.slice(0, 5);
     put(txBox, 
-      h('p', { class: 'section-title', text: 'Recent payments' }),
+      h('p', { class: 'section-title', text: t('Recent payments') }),
       recent.length
-        ? h('div', { class: 'card list', 'data-testid': 'recent' }, ...recent.map((t) => txRow(app, t, () => app.go('activity', { txId: t.txId }))), s.txs.length > 5 ? h('button', { class: 'btn btn-text', onclick: () => app.go('activity') }, 'See all') : null)
-        : h('div', { class: 'card empty' }, icon('activity'), h('p', { text: known ? 'No payments yet.' : 'Payments show up here once the wallet is up to date.' })),
+        ? h('div', { class: 'card list', 'data-testid': 'recent' }, ...recent.map((tx) => txRow(app, tx, () => app.go('activity', { txId: tx.txId }))), s.txs.length > 5 ? h('button', { class: 'btn btn-text', onclick: () => app.go('activity') }, t('See all')) : null)
+        : h('div', { class: 'card empty' }, icon('activity'), h('p', { text: known ? t('No payments yet.') : t('Payments show up here once the wallet is up to date.') })),
     );
 
-    const hasFunds = [...s.totals.values()].some((t) => t.available > 0n);
+    const hasFunds = [...s.totals.values()].some((tot) => tot.available > 0n);
     const canSend = s.sync.canSend;
-    const sendBtn = (hasFunds ? primary : secondary)(h('span', {}, 'Send'), () => app.go('send'), { disabled: !canSend || !hasFunds, 'data-testid': 'send' });
+    const sendBtn = (hasFunds ? primary : secondary)(h('span', {}, t('Send')), () => app.go('send'), { disabled: !canSend || !hasFunds, 'data-testid': 'send' });
     sendBtn.prepend(icon('send'));
-    const recvBtn = (hasFunds ? secondary : primary)(h('span', {}, 'Receive'), () => app.go('receive'), { 'data-testid': 'receive' });
+    const recvBtn = (hasFunds ? secondary : primary)(h('span', {}, t('Receive')), () => app.go('receive'), { 'data-testid': 'receive' });
     recvBtn.prepend(icon('receive'));
-    const swapBtn = secondary(h('span', {}, 'Swap'), () => app.go('swap'), { disabled: !canSend, 'data-testid': 'swap' });
+    const swapBtn = secondary(h('span', {}, t('Swap')), () => app.go('swap'), { disabled: !canSend, 'data-testid': 'swap' });
     swapBtn.prepend(icon('swap'));
-    const buyBtn = secondary(h('span', {}, 'Buy'), () => openBuyChooser(app), { 'data-testid': 'buy' });
+    const buyBtn = secondary(h('span', {}, t('Buy')), () => openBuyChooser(app), { 'data-testid': 'buy' });
     buyBtn.prepend(icon('buy'));
-    const why = !canSend && s.sync.state !== 'synced' ? h('p', { class: 'small center', text: `${hasFunds ? 'Sending and swaps are' : 'Swaps are'} paused: ${syncReason(s.sync.title)}.` }) : null;
+    const paused = () => syncReason(s.sync.title);
+    const why = !canSend && s.sync.state !== 'synced' ? h('p', { class: 'small center', text: hasFunds ? t('Sending and swaps are paused: {reason}.', { reason: paused() }) : t('Swaps are paused: {reason}.', { reason: paused() }) }) : null;
     put(actionsBox, h('div', { class: 'btn-row three four' }, ...(hasFunds ? [sendBtn, recvBtn, swapBtn, buyBtn] : [recvBtn, sendBtn, swapBtn, buyBtn])), why);
   }
 
@@ -216,7 +218,7 @@ export default function home(app) {
     const parts = [];
     if (app.updates.available) {
       parts.push(
-        h('div', { class: 'notice info', 'data-testid': 'update-banner' }, icon('download'), h('div', { class: 'grow', text: `BEAM Campfire ${app.updates.available.version} is ready. ${copyAt(app.updates.available.from) ? `It came from ${copyAt(app.updates.available.from)} and was` : 'It was'} checked against the release signature.` }), h('button', { class: 'btn btn-primary btn-small', onclick: () => applyUpdate(app), 'data-testid': 'update-apply' }, 'Update')),
+        h('div', { class: 'notice info', 'data-testid': 'update-banner' }, icon('download'), h('div', { class: 'grow', text: copyHost(app.updates.available.from) ? t('BEAM Campfire {version} is ready. It came from a copy at {host} and was checked against the release signature.', { version: app.updates.available.version, host: copyHost(app.updates.available.from) }) : t('BEAM Campfire {version} is ready. It was checked against the release signature.', { version: app.updates.available.version }) }), h('button', { class: 'btn btn-primary btn-small', onclick: () => applyUpdate(app), 'data-testid': 'update-apply' }, t('Update'))),
       );
     }
     if (needsBackupPrompt(app)) {
@@ -228,24 +230,24 @@ export default function home(app) {
           h(
             'div',
             { class: 'grow' },
-            h('strong', { text: 'Keep a copy of this wallet outside this phone. ' }),
-            "It has no 12 words: if this phone is lost or this app's web address stops working, only a wallet.db copy brings it back.",
+            h('strong', { text: `${t('Keep a copy of this wallet outside this phone.')} ` }),
+            t("It has no 12 words: if this phone is lost or this app's web address stops working, only a wallet.db copy brings it back."),
             // A Safari tab has its own card about this (screens/storage_warning.js); elsewhere, one clause here.
-            evictionRisk(app) === 'mayClear' ? ' This browser may also clear its storage.' : null,
+            evictionRisk(app) === 'mayClear' ? ` ${t('This browser may also clear its storage.')}` : null,
             h(
               'div',
               { class: 'btn-row prompt-actions' },
-              h('button', { class: 'btn btn-primary btn-small', onclick: () => app.go('backup'), 'data-testid': 'backup-prompt-export' }, 'Export wallet.db'),
+              h('button', { class: 'btn btn-primary btn-small', onclick: () => app.go('backup'), 'data-testid': 'backup-prompt-export' }, t('Export wallet.db')),
               h('button', { class: 'btn btn-text btn-small', 'data-testid': 'backup-prompt-later', onclick: async () => {
                 await app.setPrefs({ backupPromptSnoozedUntil: Date.now() + 7 * 86400000 });
                 renderBanner();
-              } }, 'Later'),
+              } }, t('Later')),
             ),
           ),
         ),
       );
     }
-    if (app.updates.refused) parts.push(notice('error', `An update was refused: ${app.updates.refused.reason} You are still on the version you had.`));
+    if (app.updates.refused) parts.push(notice('error', t('An update was refused: {reason} You are still on the version you had.', { reason: app.updates.refused.reason })));
     // Normally the move to a new loader takes seconds after an Update; only a
     // move still pending after that is worth a word.
     if (loaderBehind() && performance.now() > 10000) {
@@ -257,9 +259,9 @@ export default function home(app) {
           h(
             'div',
             { class: 'grow' },
-            h('strong', { text: 'One step left to finish the update. ' }),
-            'Until then Buy, Ethereum and dApps cannot connect. You unlock again after it.',
-            h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-primary btn-small', 'data-testid': 'update-finish', onclick: () => location.reload() }, 'Finish now')),
+            h('strong', { text: `${t('One step left to finish the update.')} ` }),
+            t('Until then Buy, Ethereum and dApps cannot connect. You unlock again after it.'),
+            h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-primary btn-small', 'data-testid': 'update-finish', onclick: () => location.reload() }, t('Finish now'))),
           ),
         ),
       );
@@ -286,10 +288,10 @@ export default function home(app) {
   const moreRow = h(
     'div',
     { class: 'card more-entry' },
-    tile('open-dapps', 'apps', 'dApps', 'dapps', 'dApps: Beam DEX, NFT Gallery and more'),
-    tile('names', 'at', 'BEAM names', 'names'),
-    tile('airdrop', 'gift', 'Airdrop codes', 'airdrop'),
-    h('button', { class: 'tile', type: 'button', onclick: () => openTokensMenu(app), 'data-testid': 'tokens-entry', 'aria-label': 'Tokens: create your own, mint more, burn' }, h('span', { class: 'ico' }, icon('coins')), h('span', { class: 't', text: 'Tokens' })),
+    tile('open-dapps', 'apps', t('dApps'), 'dapps', t('dApps: Beam DEX, NFT Gallery and more')),
+    tile('names', 'at', t('BEAM names'), 'names'),
+    tile('airdrop', 'gift', t('Airdrop codes'), 'airdrop'),
+    h('button', { class: 'tile', type: 'button', onclick: () => openTokensMenu(app), 'data-testid': 'tokens-entry', 'aria-label': t('Tokens: create your own, mint more, burn') }, h('span', { class: 'ico' }, icon('coins')), h('span', { class: 't', text: t('Tokens') })),
   );
 
   // Money waiting for this wallet's names: a line under the balance, only when something waits.
@@ -315,8 +317,8 @@ export default function home(app) {
         'div',
         { class: 'notice info away-line', 'data-testid': 'home-away' },
         icon('clock'),
-        h('div', { class: 'grow' }, h('span', { 'data-testid': 'home-away-text', text: line }), ' ', h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'home-away-open', onclick: () => (dismissAway(), app.go('activity')) }, 'See Activity')),
-        h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Close', onclick: close, 'data-testid': 'home-away-close' }, icon('close')),
+        h('div', { class: 'grow' }, h('span', { 'data-testid': 'home-away-text', text: line }), ' ', h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'home-away-open', onclick: () => (dismissAway(), app.go('activity')) }, t('See Activity'))),
+        h('button', { class: 'icon-btn', type: 'button', 'aria-label': t('Close'), onclick: close, 'data-testid': 'home-away-close' }, icon('close')),
       ),
     );
   }
@@ -343,8 +345,8 @@ export default function home(app) {
         { class: 'top-actions' },
         barsBox,
         // Scan: any QR code, recognized, then the screen for it (screens/scan_go.js, loaded on the tap).
-        h('button', { class: 'icon-btn', 'aria-label': 'Scan a QR code', 'data-testid': 'home-scan', onclick: () => import('./scan_go.js').then((m) => m.scanAndGo(app)) }, icon('scan')),
-        h('button', { class: 'icon-btn', 'aria-label': 'Lock', onclick: () => app.lock('manual'), 'data-testid': 'lock' }, icon('lock')),
+        h('button', { class: 'icon-btn', 'aria-label': t('Scan a QR code'), 'data-testid': 'home-scan', onclick: () => import('./scan_go.js').then((m) => m.scanAndGo(app)) }, icon('scan')),
+        h('button', { class: 'icon-btn', 'aria-label': t('Lock'), onclick: () => app.lock('manual'), 'data-testid': 'lock' }, icon('lock')),
       ),
     },
     chainSwitch(app, 'beam'),

@@ -8,7 +8,8 @@ import { ETH } from '../lib/eth/tokens.js';
 import { compactUnits, percentText } from '../lib/compact.js';
 import { ETH_RPC_HOSTS, DEFAULT_ETH_RPC, txExplorerUrl } from '../lib/eth/hosts.js';
 import { ethPrefs, ethWallet } from '../lib/eth/wallet.js';
-import { doubtOf, doubtNameParts, doubtNoun, doubtWayOut, mayForget, DOUBT_TITLE, DOUBT_WHY, FORGET_WARNING } from '../lib/eth/doubt.js';
+import { doubtOf, doubtHeadline, doubtNoun, doubtWayOut, mayForget, DOUBT_WHY, FORGET_WARNING } from '../lib/eth/doubt.js';
+import { t, tk, tNodes } from '../lib/i18n.js';
 
 // Fixed colours, never taken from a token contract.
 const TOKEN_COLORS = { USDT: '#26a17b', USDC: '#2775ca', WBTC: '#f09242', DAI: '#f5ac37' };
@@ -22,8 +23,8 @@ export function ethBadge(asset, size = '') {
 
 /** "0.01 ETH"; "≈" when the display hides digits (full precision is on the review). */
 export function amountText(value, asset, { approx = true } = {}) {
-  const t = `${formatUnits(value, asset.decimals)} ${asset.symbol}`;
-  return approx && isRoundedDown(value, asset.decimals) ? `≈${t}` : t;
+  const txt = `${formatUnits(value, asset.decimals)} ${asset.symbol}`;
+  return approx && isRoundedDown(value, asset.decimals) ? `≈${txt}` : txt;
 }
 
 /**
@@ -78,11 +79,11 @@ export function shortAddress(address) {
 export function badFeesWords(error, serverName) {
   if (error && error.data && error.data.problem === 'high') {
     return {
-      title: 'The network fee is far above anything BEAM Campfire will pay. ',
-      detail: `${serverName}'s Ethereum server says Ethereum is that expensive right now. It has been, but only for minutes at a time. Nothing was sent, and nothing was paid. Try again in a few minutes, or use another server.`,
+      title: `${t('The network fee is far above anything BEAM Campfire will pay.')} `,
+      detail: t("{server}'s Ethereum server says Ethereum is that expensive right now. It has been, but only for minutes at a time. Nothing was sent, and nothing was paid. Try again in a few minutes, or use another server.", { server: serverName }),
     };
   }
-  return { title: `${serverName}'s Ethereum server gave a network fee that can't be right. `, detail: 'Nothing was sent, and nothing was paid. Try again in a minute, or use another server.' };
+  return { title: `${t("{server}'s Ethereum server gave a network fee that can't be right.", { server: serverName })} `, detail: t('Nothing was sent, and nothing was paid. Try again in a minute, or use another server.') };
 }
 
 export function serverProblem(app, error, { retry, switched }) {
@@ -97,12 +98,12 @@ export function serverProblem(app, error, { retry, switched }) {
     { 'data-testid': 'eth-server-problem', 'data-code': badFees ? 'bad_fees' : null, title: error && error.message ? error.message : '' },
     notice(
       'error',
-      h('strong', { text: fees ? fees.title : `${cur.name}'s Ethereum server didn't answer. ` }),
-      fees ? fees.detail : 'Your coins are safe on Ethereum; only this view is out of date.',
+      h('strong', { text: fees ? fees.title : `${t("{server}'s Ethereum server didn't answer.", { server: cur.name })} ` }),
+      fees ? fees.detail : t('Your coins are safe on Ethereum; only this view is out of date.'),
       h(
         'div',
         { class: 'btn-row prompt-actions' },
-        h('button', { class: 'btn btn-secondary btn-small', onclick: retry, 'data-testid': 'eth-retry' }, 'Try again'),
+        h('button', { class: 'btn btn-secondary btn-small', onclick: retry, 'data-testid': 'eth-retry' }, t('Try again')),
         h('button', {
           class: 'btn btn-text btn-small',
           'data-testid': 'eth-use-other',
@@ -110,7 +111,7 @@ export function serverProblem(app, error, { retry, switched }) {
             await app.setPrefs({ ethRpc: alt.id });
             switched(alt);
           },
-        }, `Use ${alt.name} instead`),
+        }, t('Use {server} instead', { server: alt.name })),
       ),
     ),
   );
@@ -122,13 +123,22 @@ export function serverProblem(app, error, { retry, switched }) {
  * fee: the fee as text ("0.000273 ETH"); verb: 'send' | 'swap'.
  */
 export function highFeeBlock({ share, fee, verb = 'send', ack, onAck, testid = 'eth-high-fee' }) {
-  const part = share > 1 ? `is more than what you ${verb}` : `is ${percentText(share)} of what you ${verb}`;
-  const n = notice('warn', h('strong', { text: `The network fee, about ${fee}, ${part}. ` }), "Ethereum charges it for every transaction, whatever the amount. If it looks wrong, wait a few minutes or pick another Ethereum server in Settings.");
+  const swap = verb === 'swap';
+  const percent = percentText(share);
+  const head =
+    share > 1
+      ? swap
+        ? t('The network fee, about {fee}, is more than what you swap.', { fee })
+        : t('The network fee, about {fee}, is more than what you send.', { fee })
+      : swap
+        ? t('The network fee, about {fee}, is {percent} of what you swap.', { fee, percent })
+        : t('The network fee, about {fee}, is {percent} of what you send.', { fee, percent });
+  const n = notice('warn', ...tNodes('{lead} Ethereum charges it for every transaction, whatever the amount. If it looks wrong, wait a few minutes or pick another Ethereum server in Settings.', { lead: h('strong', { text: head }) }));
   n.dataset.testid = testid;
   const box = h('input', { type: 'checkbox', 'data-testid': `${testid}-ack`, checked: ack });
   box.addEventListener('change', () => onAck(box.checked));
-  const Verb = verb.charAt(0).toUpperCase() + verb.slice(1);
-  return [n, h('label', { class: 'check-row' }, box, h('span', { text: `${Verb} anyway, paying about ${fee} in fees` }))];
+  const label = swap ? t('Swap anyway, paying about {fee} in fees', { fee }) : t('Send anyway, paying about {fee} in fees', { fee });
+  return [n, h('label', { class: 'check-row' }, box, h('span', { text: label }))];
 }
 
 /** Where a transaction of the outbox is followed: a swap's or permission's own screen, or a payment's. */
@@ -142,31 +152,33 @@ export function openEntry(app, entry) {
  * it (re-audit RE2-2). inSheet: words only (a sheet stays where it is; its screen behind shows the
  * buttons once it closes). onForgotten: the screen shows itself again once it is forgotten.
  */
+// The words that name the kind of transaction in doubt (lib/eth/doubt.js doubtNoun), each whole.
+const NOUN_WORDS = Object.freeze({
+  payment: Object.freeze({ see: tk('See the payment'), forget: tk('Forget this payment'), ask: tk('Forget this payment?'), forgotten: tk('Payment forgotten'), paused: Object.freeze({ unsure: tk('Sending is paused: a payment is "Not sure yet".'), refused: tk('Sending is paused: a payment is "Not sent yet".') }) }),
+  swap: Object.freeze({ see: tk('See the swap'), forget: tk('Forget this swap'), ask: tk('Forget this swap?'), forgotten: tk('Swap forgotten'), paused: Object.freeze({ unsure: tk('Sending is paused: a swap is "Not sure yet".'), refused: tk('Sending is paused: a swap is "Not sent yet".') }) }),
+  permission: Object.freeze({ see: tk('See the permission'), forget: tk('Forget this permission'), ask: tk('Forget this permission?'), forgotten: tk('Permission forgotten'), paused: Object.freeze({ unsure: tk('Sending is paused: a permission is "Not sure yet".'), refused: tk('Sending is paused: a permission is "Not sent yet".') }) }),
+});
+const nounWords = (entry) => NOUN_WORDS[doubtNoun(entry)] || NOUN_WORDS.payment;
+
 export function doubtNotice(app, entry, { inSheet = false, testid = 'eth-doubt', onForgotten = null } = {}) {
-  const { lead, address } = doubtNameParts(entry);
-  const noun = doubtNoun(entry);
+  const { key, params } = doubtHeadline(entry);
+  const words = nounWords(entry);
   const forgettable = !inSheet && mayForget(entry);
   const n = notice(
     'warn',
-    h(
-      'strong',
-      {},
-      `${lead.charAt(0).toUpperCase()}${lead.slice(1)} `,
-      address ? h('span', { class: 'addr-inline', text: address }) : null,
-      `${address ? ' ' : ''}is "${DOUBT_TITLE[doubtOf(entry)]}". `,
-    ),
-    `${DOUBT_WHY} ${doubtWayOut({ history: ethPrefs(app).history })}`,
-    forgettable ? ` It has been like this for over a day: you can also forget it.` : '',
+    h('strong', {}, ...tNodes(key, params.address ? { ...params, address: h('span', { class: 'addr-inline', text: params.address }) } : params), ' '),
+    `${t(DOUBT_WHY)} ${doubtWayOut({ history: ethPrefs(app).history })}`,
+    forgettable ? ` ${t('It has been like this for over a day: you can also forget it.')}` : '',
     inSheet
       ? null
       : h(
           'div',
           { class: 'btn-row prompt-actions' },
-          h('button', { class: 'btn btn-secondary btn-small', onclick: () => openEntry(app, entry), 'data-testid': `${testid}-see` }, `See the ${noun}`),
-          h('button', { class: 'btn btn-text btn-small', onclick: () => app.go('ethSettings'), 'data-testid': `${testid}-settings` }, 'Settings'),
+          h('button', { class: 'btn btn-secondary btn-small', onclick: () => openEntry(app, entry), 'data-testid': `${testid}-see` }, t(words.see)),
+          h('button', { class: 'btn btn-text btn-small', onclick: () => app.go('ethSettings'), 'data-testid': `${testid}-settings` }, t('Settings')),
         ),
     // Its own row: three buttons do not fit a phone's width.
-    forgettable ? h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-secondary btn-small', onclick: () => forgetSheet(app, entry, onForgotten), 'data-testid': `${testid}-forget` }, `Forget this ${noun}`)) : null,
+    forgettable ? h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-secondary btn-small', onclick: () => forgetSheet(app, entry, onForgotten), 'data-testid': `${testid}-forget` }, t(words.forget))) : null,
   );
   n.dataset.testid = testid;
   n.dataset.hash = entry.hash;
@@ -180,13 +192,13 @@ export function doubtNotice(app, entry, { inSheet = false, testid = 'eth-doubt',
  * screen is shown again).
  */
 export function forgetSheet(app, entry, onDone = null) {
-  const noun = doubtNoun(entry);
+  const words = nounWords(entry);
   let message = null;
   openSheet(
     (close, rerender) => [
-      h('h2', { 'data-testid': 'eth-forget-title', text: `Forget this ${noun}?` }),
-      notice('warn', h('strong', { 'data-testid': 'eth-forget-warning', text: FORGET_WARNING })),
-      h('p', { class: 'lead', text: 'BEAM Campfire stops waiting for it, and you can send from this Ethereum wallet again. If it does go through, your balance shows it.' }),
+      h('h2', { 'data-testid': 'eth-forget-title', text: t(words.ask) }),
+      notice('warn', h('strong', { 'data-testid': 'eth-forget-warning', text: t(FORGET_WARNING) })),
+      h('p', { class: 'lead', text: t('BEAM Campfire stops waiting for it, and you can send from this Ethereum wallet again. If it does go through, your balance shows it.') }),
       message,
       h(
         'div',
@@ -201,27 +213,28 @@ export function forgetSheet(app, entry, onDone = null) {
                 const w = await ethWallet(app);
                 if (w) await w.forget(entry.hash);
                 close();
-                toast(`${noun.charAt(0).toUpperCase()}${noun.slice(1)} forgotten`);
+                toast(t(words.forgotten));
                 if (onDone) onDone();
                 else app.go(app.currentName, app.params, { replace: true });
               } catch (e) {
-                message = notice('error', `It was not forgotten: ${e.message}`);
+                message = notice('error', t('It was not forgotten: {reason}', { reason: e.message }));
                 rerender();
               }
             },
           },
-          `Forget this ${noun}`,
+          t(words.forget),
         ),
-        h('button', { class: 'btn btn-text', 'data-testid': 'eth-forget-keep', onclick: () => close() }, 'Keep waiting'),
+        h('button', { class: 'btn btn-text', 'data-testid': 'eth-forget-keep', onclick: () => close() }, t('Keep waiting')),
       ),
     ],
-    { label: `Forget this ${noun}` },
+    { label: t(words.forget) },
   );
 }
 
 /** Ethereum Home's one line above Send while a transaction is in doubt; tapping it opens that transaction. */
 export function doubtLine(app, entry) {
-  const n = notice('warn', h('span', { text: `Sending is paused: a ${doubtNoun(entry)} is "${DOUBT_TITLE[doubtOf(entry)]}". ` }), h('button', { class: 'btn btn-text btn-small inline', onclick: () => openEntry(app, entry), 'data-testid': 'eth-doubt-line-see' }, 'See it'));
+  const paused = nounWords(entry).paused[doubtOf(entry) === 'unsure' ? 'unsure' : 'refused'];
+  const n = notice('warn', h('span', { text: `${t(paused)} ` }), h('button', { class: 'btn btn-text btn-small inline', onclick: () => openEntry(app, entry), 'data-testid': 'eth-doubt-line-see' }, t('See it')));
   n.dataset.testid = 'eth-doubt-line';
   n.dataset.hash = entry.hash;
   return n;
@@ -234,7 +247,7 @@ export function doubtLine(app, entry) {
  */
 export function followDoubt(app, getWallet, onChange, { every = 4000 } = {}) {
   let busy = false;
-  const t = setInterval(async () => {
+  const timer = setInterval(async () => {
     const w = getWallet();
     if (busy || !w || !app.dbPass || document.visibilityState !== 'visible' || !w.doubt()) return;
     busy = true;
@@ -247,27 +260,40 @@ export function followDoubt(app, getWallet, onChange, { every = 4000 } = {}) {
     }
     onChange();
   }, every);
-  return () => clearInterval(t);
+  return () => clearInterval(timer);
 }
 
 /**
  * "Not sent" is one server's verdict after half an hour of refusals (lib/eth/send.js
  * REFUSAL_WATCH_MS), said as such, with Etherscan one tap away (release audit BM-2).
  */
-export const NOT_SENT_NOTE =
-  "Your Ethereum server refused it for half an hour and never showed it on Ethereum, so most likely it never left and nothing was spent. That is the server's word, not Ethereum's. BEAM Campfire looks for it again each time you open your Ethereum wallet.";
+export const NOT_SENT_NOTE = tk(
+  "Your Ethereum server refused it for half an hour and never showed it on Ethereum, so most likely it never left and nothing was spent. That is the server's word, not Ethereum's. BEAM Campfire looks for it again each time you open your Ethereum wallet.",
+);
 
 /**
  * Beside a verified "Replaced" that Stack Wallet's index lists in a block (re-audit RE2-5): both are
  * said, and "Replaced" stays until the chosen server shows this one's own receipt. said: {state,
  * blockNumber} (lib/eth/wallet.js indexSays); noun: 'payment' | 'swap' | 'permission'.
  */
+const INDEX_SAYS = Object.freeze({
+  payment: Object.freeze({
+    failed: tk('Stack Wallet\'s history index says this payment failed in block {block}. Your Ethereum server showed another transaction from this wallet in its place, so it stays "Replaced" here until your server shows this payment in a block too. Etherscan can tell you which is right.'),
+    mined: tk('Stack Wallet\'s history index says this payment is in block {block}. Your Ethereum server showed another transaction from this wallet in its place, so it stays "Replaced" here until your server shows this payment in a block too. Etherscan can tell you which is right.'),
+  }),
+  swap: Object.freeze({
+    failed: tk('Stack Wallet\'s history index says this swap failed in block {block}. Your Ethereum server showed another transaction from this wallet in its place, so it stays "Replaced" here until your server shows this swap in a block too. Etherscan can tell you which is right.'),
+    mined: tk('Stack Wallet\'s history index says this swap is in block {block}. Your Ethereum server showed another transaction from this wallet in its place, so it stays "Replaced" here until your server shows this swap in a block too. Etherscan can tell you which is right.'),
+  }),
+  permission: Object.freeze({
+    failed: tk('Stack Wallet\'s history index says this permission failed in block {block}. Your Ethereum server showed another transaction from this wallet in its place, so it stays "Replaced" here until your server shows this permission in a block too. Etherscan can tell you which is right.'),
+    mined: tk('Stack Wallet\'s history index says this permission is in block {block}. Your Ethereum server showed another transaction from this wallet in its place, so it stays "Replaced" here until your server shows this permission in a block too. Etherscan can tell you which is right.'),
+  }),
+});
+
 export function indexSaysNotice(said, noun = 'payment') {
-  const where = `in block ${Number(said.blockNumber).toLocaleString('en-US')}`;
-  const n = notice(
-    'warn',
-    `Stack Wallet's history index says this ${noun} ${said.state === 'failed' ? `failed ${where}` : `is ${where}`}. Your Ethereum server showed another transaction from this wallet in its place, so it stays "Replaced" here until your server shows this ${noun} in a block too. Etherscan can tell you which is right.`,
-  );
+  const says = INDEX_SAYS[noun] || INDEX_SAYS.payment;
+  const n = notice('warn', t(said.state === 'failed' ? says.failed : says.mined, { block: Number(said.blockNumber).toLocaleString('en-US') }));
   n.dataset.testid = 'eth-index-says';
   return n;
 }
@@ -276,20 +302,20 @@ export function indexSaysNotice(said, noun = 'payment') {
 export function notSentNotice(hash, serverSaid = null) {
   const n = notice(
     'error',
-    `${NOT_SENT_NOTE}${serverSaid ? ` The server said: ${serverSaid}` : ''}`,
-    h('div', {}, h('a', { class: 'btn btn-text btn-small inline', href: txExplorerUrl(hash), target: '_blank', rel: 'noopener noreferrer', 'data-testid': 'eth-not-sent-explorer' }, 'Check it on Etherscan')),
+    `${t(NOT_SENT_NOTE)}${serverSaid ? ` ${t('The server said: {reason}', { reason: serverSaid })}` : ''}`,
+    h('div', {}, h('a', { class: 'btn btn-text btn-small inline', href: txExplorerUrl(hash), target: '_blank', rel: 'noopener noreferrer', 'data-testid': 'eth-not-sent-explorer' }, t('Check it on Etherscan'))),
   );
   n.dataset.testid = 'eth-not-sent';
   return n;
 }
 
 const STATE_TEXT = {
-  signed: 'Sending',
-  pending: 'Waiting for Ethereum',
+  signed: tk('Sending'),
+  pending: tk('Waiting for Ethereum'),
   confirmed: null,
-  failed: 'Failed',
-  replaced: 'Replaced',
-  rejected: 'Not sent',
+  failed: tk('Failed'),
+  replaced: tk('Replaced'),
+  rejected: tk('Not sent'),
 };
 
 /** A Uniswap swap's or approval's title in the activity list, or null for a payment. */
@@ -297,11 +323,14 @@ function swapTitle(item) {
   const open = item.state === 'signed' || item.state === 'pending';
   const failed = item.state === 'failed' || item.state === 'replaced' || item.state === 'rejected';
   if (item.kind === 'swap') {
-    const to = item.swapOut || 'a token';
-    return open ? `Swapping to ${to}` : failed ? 'Swap not done' : `Swapped to ${to}`;
+    const to = item.swapOut;
+    if (open) return to ? t('Swapping to {symbol}', { symbol: to }) : t('Swapping to a token');
+    if (failed) return t('Swap not done');
+    return to ? t('Swapped to {symbol}', { symbol: to }) : t('Swapped to a token');
   }
-  if (item.kind === 'approve') return open ? `Allowing ${item.asset.symbol}` : failed ? `${item.asset.symbol} not allowed` : `Allowed ${item.asset.symbol}`;
-  if (item.kind === 'approveReset') return `Reset the ${item.asset.symbol} permission`;
+  const symbol = item.asset.symbol;
+  if (item.kind === 'approve') return open ? t('Allowing {symbol}', { symbol }) : failed ? t('{symbol} not allowed', { symbol }) : t('Allowed {symbol}', { symbol });
+  if (item.kind === 'approveReset') return t('Reset the {symbol} permission', { symbol });
   return null;
 }
 
@@ -309,13 +338,14 @@ function swapTitle(item) {
 export function activityRow(item, onclick) {
   const open = item.state === 'signed' || item.state === 'pending';
   const bad = item.state === 'failed' || item.state === 'replaced' || item.state === 'rejected';
+  const symbol = item.asset.symbol;
   const title =
-    (item.doubt === 'unsure' ? 'Not sure yet' : item.doubt === 'refused' ? 'Not sent yet' : null) ||
+    (item.doubt === 'unsure' ? t('Not sure yet') : item.doubt === 'refused' ? t('Not sent yet') : null) ||
     swapTitle(item) ||
-    STATE_TEXT[item.state] ||
-    (item.direction === 'in' ? `Received ${item.asset.symbol}` : item.direction === 'self' ? `Sent ${item.asset.symbol} to yourself` : `Sent ${item.asset.symbol}`);
+    (STATE_TEXT[item.state] ? t(STATE_TEXT[item.state]) : null) ||
+    (item.direction === 'in' ? t('Received {symbol}', { symbol }) : item.direction === 'self' ? t('Sent {symbol} to yourself', { symbol }) : t('Sent {symbol}', { symbol }));
   const when = item.at ? fmtDate(Math.floor(item.at / 1000)) : null;
-  const who = item.counterparty ? h('span', { class: 'nowrap', text: `${item.direction === 'in' ? 'from' : 'to'} ${shortAddress(item.counterparty)}` }) : null;
+  const who = item.counterparty ? h('span', { class: 'nowrap', text: item.direction === 'in' ? t('from {address}', { address: shortAddress(item.counterparty) }) : t('to {address}', { address: shortAddress(item.counterparty) }) }) : null;
   const sub = [when, when && who ? ' · ' : null, who].filter(Boolean);
   const sign = item.direction === 'in' ? '+' : '−';
   if (item.kind === 'approve' || item.kind === 'approveReset') {
@@ -323,7 +353,7 @@ export function activityRow(item, onclick) {
       'button',
       { class: 'row', onclick, 'data-testid': 'eth-activity-row', 'data-hash': item.hash, 'data-state': item.state, 'data-kind': item.kind },
       h('span', { class: `ico ${bad ? 'fail' : 'swap'}` }, icon(open ? 'clock' : 'check')),
-      h('span', { class: 'main' }, h('div', { class: 't', text: title }), h('div', { class: 's addr', text: when ? `${when} · for Uniswap` : 'For Uniswap' })),
+      h('span', { class: 'main' }, h('div', { class: 't', text: title }), h('div', { class: 's addr', text: when ? t('{when} · for Uniswap', { when }) : t('For Uniswap') })),
       h('span', { class: 'end small', title: amountText(item.amount, item.asset), text: item.kind === 'approve' ? `${compactUnits(item.amount, item.asset.decimals)} ${item.asset.symbol}` : '' }),
     );
   }
@@ -332,6 +362,7 @@ export function activityRow(item, onclick) {
       'button',
       { class: 'row', onclick, 'data-testid': 'eth-activity-row', 'data-hash': item.hash, 'data-state': item.state, 'data-kind': 'swap' },
       h('span', { class: `ico ${bad ? 'fail' : 'swap'}` }, icon(open ? 'clock' : 'swap')),
+      // i18n-ignore: the date and a brand name, no words
       h('span', { class: 'main' }, h('div', { class: 't', text: title }), h('div', { class: 's addr', text: when ? `${when} · Uniswap` : 'Uniswap' })),
       h('span', { class: 'end', title: amountText(item.amount, item.asset), text: `−${compactUnits(item.amount, item.asset.decimals)} ${item.asset.symbol}` }),
     );

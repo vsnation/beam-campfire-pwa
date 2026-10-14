@@ -29,6 +29,7 @@ import { walletKey } from '../lib/wallet_scope.js';
 import { NameInbox, advise, claimText, namePaymentsText, isEmpty, VISIBILITY, homeShouldRead } from '../lib/bans_inbox.js';
 import { bans, nameProblemText } from './names.js';
 import { tellOther } from '../lib/notify.js';
+import { t } from '../lib/i18n.js';
 
 /** Per wallet (lib/wallet_scope.js): deleting the wallet deletes it. */
 export const HINT_NAME = 'namesHint';
@@ -70,12 +71,12 @@ const unit = (id) => wallet.label(id).unit;
 
 /** The approve sheet's words for a claim the engine built (screens/consent.js intentExtras). */
 export function claimWords({ summary, advice, canSpend, built }) {
-  const t = claimText({ summary, advice, canSpend, built, fmt, unit });
+  const words = claimText({ summary, advice, canSpend, built, fmt, unit });
   return {
     names: summary.names,
-    rows: [['Sent to', t.from], ['Your balance changes by', t.balanceChange]],
-    warn: t.warning,
-    notes: [t.feeNote, t.batches, t.privacyNote].filter(Boolean),
+    rows: [[t('Sent to'), words.from], [t('Your balance changes by'), words.balanceChange]],
+    warn: words.warning,
+    notes: [words.feeNote, words.batches, words.privacyNote].filter(Boolean),
   };
 }
 
@@ -85,11 +86,11 @@ export function claimWords({ summary, advice, canSpend, built }) {
  */
 export async function runClaim(app, inbox = nameInbox()) {
   const summary = inbox.latest;
-  if (!summary || summary.visibility !== VISIBILITY.visible || isEmpty(summary)) return { ok: false, code: 'nothing', text: 'There is nothing waiting to be claimed.' };
+  if (!summary || summary.visibility !== VISIBILITY.visible || isEmpty(summary)) return { ok: false, code: 'nothing', text: t('There is nothing waiting to be claimed.') };
   const advice = advise(summary, wallet.available(0));
   const canSpend = wallet.state.sync.canSend;
-  const t = claimText({ summary, advice, canSpend, fmt, unit });
-  if (!canSpend) return { ok: false, code: 'paused', text: t.blocker };
+  const words = claimText({ summary, advice, canSpend, fmt, unit });
+  if (!canSpend) return { ok: false, code: 'paused', text: words.blocker };
   try {
     const r = await bans().claimAll({ words: (built) => claimWords({ summary, advice, canSpend, built }) });
     const done = claimText({ summary, advice, canSpend, built: r, fmt, unit });
@@ -97,14 +98,14 @@ export async function runClaim(app, inbox = nameInbox()) {
     wallet.refreshTxs();
     wallet.refreshStatus();
     setTimeout(() => inbox.refresh({ force: true }), 90000);
-    return { ok: true, code: 'sent', text: `Claim sent. Your balance changes by ${done.balanceChange} once the network confirms it, usually within a few minutes.` };
+    return { ok: true, code: 'sent', text: t('Claim sent. Your balance changes by {change} once the network confirms it, usually within a few minutes.', { change: done.balanceChange }) };
   } catch (e) {
     if (e && e.code === 'claimUnsupported') {
       inbox.refresh({ force: true });
-      return { ok: false, code: e.code, text: "This version of BEAM Campfire can't claim name payments yet. They stay safe and waiting for you." };
+      return { ok: false, code: e.code, text: t("This version of BEAM Campfire can't claim name payments yet. They stay safe and waiting for you.") };
     }
     if (e && e.refusal === 'nothingToClaim') inbox.refresh({ force: true });
-    const text = e && e.code === 'rejected' ? 'Cancelled. Nothing was claimed; it is still waiting for you.' : `${nameProblemText(e, 'claim')}${e && e.code !== 'refused' ? ' Your payments are still waiting for you.' : ''}`;
+    const text = e && e.code === 'rejected' ? t('Cancelled. Nothing was claimed; it is still waiting for you.') : e && e.code !== 'refused' ? `${nameProblemText(e, 'claim')} ${t('Your payments are still waiting for you.')}` : nameProblemText(e, 'claim');
     return { ok: false, code: (e && e.code) || 'error', text, calm: Boolean(e && (e.code === 'rejected' || e.refusal === 'nothingToClaim')) };
   }
 }
@@ -123,9 +124,9 @@ export function namesHomeLine(app) {
   let toldAmounts; // undefined until the first read (history); then what was last seen waiting
 
   /** New money paid to a name while BEAM Campfire is not in front: a notification (lib/notify.js); the line says it on screen. */
-  function tellNew(t) {
-    const now = t ? t.amounts : null;
-    if (toldAmounts !== undefined && now && now !== toldAmounts) tellOther(app, { kind: 'in', title: 'Money was paid to your BEAM name', body: `${t.lead}: ${now}. Claim it on Home.`, plainBody: 'Claim it on Home.', tag: 'names-inbox', url: '#open=home' });
+  function tellNew(pay) {
+    const now = pay ? pay.amounts : null;
+    if (toldAmounts !== undefined && now && now !== toldAmounts) tellOther(app, { kind: 'in', title: t('Money was paid to your BEAM name'), body: t('{lead}: {amounts}. Claim it on Home.', { lead: pay.lead, amounts: now }), plainBody: t('Claim it on Home.'), tag: 'names-inbox', url: '#open=home' });
     toldAmounts = now;
   }
 
@@ -134,19 +135,19 @@ export function namesHomeLine(app) {
     const s = inbox && inbox.latest;
     if (inbox && inbox.claiming) {
       const r = inbox.claiming.receives;
-      put(el, h('div', { class: 'card names-line', 'data-testid': 'names-home-line', 'data-state': 'claiming' }, h('span', { class: 'ico' }, icon('clock')), h('span', { class: 'grow', text: `Claim on its way: ${[...r.keys()].map((id) => `+${fmt(r.get(id))} ${unit(id)}`).join(', ')}` })));
+      put(el, h('div', { class: 'card names-line', 'data-testid': 'names-home-line', 'data-state': 'claiming' }, h('span', { class: 'ico' }, icon('clock')), h('span', { class: 'grow', text: t('Claim on its way: {amounts}', { amounts: [...r.keys()].map((id) => `+${fmt(r.get(id))} ${unit(id)}`).join(', ') }) })));
       return;
     }
-    const t = namePaymentsText(s, fmt, unit);
-    if (s) tellNew(t);
-    if (!t) return put(el);
+    const pay = namePaymentsText(s, fmt, unit);
+    if (s) tellNew(pay);
+    if (!pay) return put(el);
     put(
       el,
       h(
         'div',
         { class: 'card names-line', 'data-testid': 'names-home-line', 'data-state': 'waiting' },
-        h('span', { class: 'grow' }, h('span', { class: 'small', text: `${t.lead}: ` }), h('strong', { 'data-testid': 'names-home-amounts', text: t.amounts })),
-        h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'names-home-claim', disabled: busy, onclick: claim }, busy ? 'Preparing…' : 'Claim'),
+        h('span', { class: 'grow' }, h('span', { class: 'small', text: `${pay.lead}: ` }), h('strong', { 'data-testid': 'names-home-amounts', text: pay.amounts })),
+        h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'names-home-claim', disabled: busy, onclick: claim }, busy ? t('Preparing…') : t('Claim')),
         message ? h('p', { class: `small names-line-msg ${message.ok || message.calm ? '' : 'bad'}`, 'data-testid': 'names-home-msg', 'data-code': message.code, text: message.text }) : null,
       ),
     );

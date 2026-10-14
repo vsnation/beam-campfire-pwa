@@ -21,6 +21,7 @@ import { wallet } from '../lib/wallet.js';
 import { VERIFIED, impersonationOf } from '../lib/meta.js';
 import { encodeMetadata, fieldProblem, parseSupply, unlimited, ASSET_DEPOSIT, CREATE_FEE, LIMITS, NTH_RATIO } from '../lib/minter.js';
 import { minter, problemNotice, pausedReason, forgetOnLock } from './minter.js';
+import { t } from '../lib/i18n.js';
 
 const beam = (g) => `${formatAmount(g)} BEAM`;
 
@@ -40,9 +41,9 @@ function fieldsOf(d) {
 
 /** "#25C2A0" for "#25c2a0" or "#2CA": the colour a swatch shows; null when it is not one. */
 export function swatchColor(text) {
-  const t = String(text || '').trim();
-  if (!/^#(?:[0-9a-fA-F]{3}){1,2}$/.test(t)) return null;
-  const hex = t.length === 4 ? t.slice(1).split('').map((c) => c + c).join('') : t.slice(1);
+  const s = String(text || '').trim();
+  if (!/^#(?:[0-9a-fA-F]{3}){1,2}$/.test(s)) return null;
+  const hex = s.length === 4 ? s.slice(1).split('').map((c) => c + c).join('') : s.slice(1);
   return `#${hex.toUpperCase()}`;
 }
 
@@ -56,9 +57,9 @@ function swatchOf(c) {
 /** The verified asset a new token named `name` with ticker `ticker` would copy, or null (lib/meta.js rules). */
 export function copiesVerified(name, ticker) {
   const n = String(name || '').trim();
-  const t = String(ticker || '').trim();
-  if (!n && !t) return null;
-  const id = impersonationOf(n || null, t || null);
+  const tick = String(ticker || '').trim();
+  if (!n && !tick) return null;
+  const id = impersonationOf(n || null, tick || null);
   return id == null ? null : { id, ...VERIFIED[id] };
 }
 
@@ -83,15 +84,16 @@ export default function minterCreate(app) {
     el.value = draft[key];
     return el;
   };
-  const nameIn = input('name', 'mint-name', { placeholder: 'My Token', 'aria-label': 'Token name' });
-  const tickerIn = input('ticker', 'mint-ticker', { placeholder: 'MYT', autocapitalize: 'characters', 'aria-label': 'Ticker' });
-  const supplyIn = input('supply', 'mint-supply', { placeholder: 'No maximum', inputmode: 'numeric', 'aria-label': 'Maximum supply' });
-  const shortIn = input('shortDescription', 'mint-short-desc', { placeholder: 'What the token is for', 'aria-label': 'Short description' });
-  const colorIn = input('color', 'mint-color', { placeholder: '#25C2A0', autocapitalize: 'characters', 'aria-label': 'Colour' });
-  const siteIn = input('siteUrl', 'mint-site', { placeholder: 'https://', type: 'url', inputmode: 'url', 'aria-label': 'Website' });
-  const unitIn = input('unitName', 'mint-unit', { 'aria-label': 'Unit name' });
-  const nthIn = input('nthUnitName', 'mint-nth', { 'aria-label': 'Smallest unit name' });
-  const longIn = input('longDescription', 'mint-long-desc', { tag: 'textarea', rows: '4', 'aria-label': 'Long description' });
+  // The example name and ticker stay English: a token's name and ticker take English letters only.
+  const nameIn = input('name', 'mint-name', { placeholder: 'My Token', 'aria-label': t('Token name') }); // i18n-ignore: an example token name (English letters only)
+  const tickerIn = input('ticker', 'mint-ticker', { placeholder: 'MYT', autocapitalize: 'characters', 'aria-label': t('Ticker') }); // i18n-ignore: an example ticker
+  const supplyIn = input('supply', 'mint-supply', { placeholder: t('No maximum'), inputmode: 'numeric', 'aria-label': t('Maximum supply') });
+  const shortIn = input('shortDescription', 'mint-short-desc', { placeholder: t('What the token is for'), 'aria-label': t('Short description') });
+  const colorIn = input('color', 'mint-color', { placeholder: '#25C2A0', autocapitalize: 'characters', 'aria-label': t('Colour') });
+  const siteIn = input('siteUrl', 'mint-site', { placeholder: 'https://', type: 'url', inputmode: 'url', 'aria-label': t('Website') }); // i18n-ignore: the start of a web address
+  const unitIn = input('unitName', 'mint-unit', { 'aria-label': t('Unit name') });
+  const nthIn = input('nthUnitName', 'mint-nth', { 'aria-label': t('Smallest unit name') });
+  const longIn = input('longDescription', 'mint-long-desc', { tag: 'textarea', rows: '4', 'aria-label': t('Long description') });
   const swatch = h('span', { class: 'swatch', 'aria-hidden': 'true' });
 
   const hintEl = (testid) => h('p', { class: 'hint', 'data-testid': testid });
@@ -112,11 +114,11 @@ export default function minterCreate(app) {
   const moreBox = h(
     'div',
     { class: 'stack' },
-    h('div', { class: 'two-fields' }, h('label', { class: 'field' }, 'Unit name', unitIn, hints.unitName), h('label', { class: 'field' }, 'Smallest unit name', nthIn, hints.nthUnitName)),
-    h('label', { class: 'field' }, 'Long description (optional)', longIn, hints.longDescription),
+    h('div', { class: 'two-fields' }, h('label', { class: 'field' }, t('Unit name'), unitIn, hints.unitName), h('label', { class: 'field' }, t('Smallest unit name'), nthIn, hints.nthUnitName)),
+    h('label', { class: 'field' }, t('Long description (optional)'), longIn, hints.longDescription),
   );
   const reason = h('p', { class: 'hint center', 'data-testid': 'mint-reason', 'aria-live': 'polite' });
-  const cta = primary('Create my token', () => toReview(), { disabled: true, 'data-testid': 'mint-cta' });
+  const cta = primary(t('Create my token'), () => toReview(), { disabled: true, 'data-testid': 'mint-cta' });
 
   // ------------------------------------------------------------ state
   const touched = (k) => Boolean(draft.touched[k]);
@@ -148,23 +150,24 @@ export default function minterCreate(app) {
   const cost = () => (params ? params.issueFee + ASSET_DEPOSIT : null);
 
   function ctaState() {
-    if (!params) return { off: loadError ? 'The Minter could not be read. Try again above.' : 'Reading what creating a token costs…' };
+    if (!params) return { off: loadError ? t('The Minter could not be read. Try again above.') : t('Reading what creating a token costs…') };
     const text = metadataText();
-    if (!draft.name.trim() || !draft.ticker.trim()) return { off: 'Give your token a name and a ticker.' };
+    if (!draft.name.trim() || !draft.ticker.trim()) return { off: t('Give your token a name and a ticker.') };
     if (!text) {
       const f = fieldsOf(draft);
       for (const k of ['name', 'shortName', 'unitName', 'nthUnitName', 'shortDescription', 'longDescription', 'color', 'siteUrl']) {
+        // fieldProblem() already calls the short name "Ticker".
         const p = fieldProblem(k, f);
-        const hidden = !draft.more && (['nthUnitName', 'longDescription'].includes(k) || (k === 'unitName' && draft.unitEdited)) ? ' (under More details)' : '';
-        if (p) return { off: `${k === 'shortName' ? p.replace('Short name', 'Ticker') : p}${hidden}` };
+        const hidden = !draft.more && (['nthUnitName', 'longDescription'].includes(k) || (k === 'unitName' && draft.unitEdited));
+        if (p) return { off: hidden ? t('{problem} (under More details)', { problem: p }) : p };
       }
-      return { off: 'The token details are too long in total.' };
+      return { off: t('The token details are too long in total.') };
     }
     if (supply().error) return { off: supply().error };
-    const paused = pausedReason('Creating a token');
+    const paused = pausedReason('create');
     if (paused) return { off: paused };
     const need = cost() + CREATE_FEE;
-    if (wallet.available(0) < need) return { off: `Creating a token needs ${beam(need)}, and this wallet has ${beam(wallet.available(0))}.`, receive: true };
+    if (wallet.available(0) < need) return { off: t('Creating a token needs {need}, and this wallet has {balance}.', { need: beam(need), balance: beam(wallet.available(0)) }), receive: true };
     return { off: null };
   }
 
@@ -175,17 +178,17 @@ export default function minterCreate(app) {
     return h(
       'div',
       { class: 'card flat swap-details', 'data-testid': 'mint-cost' },
-      row('To the BEAM DAO', 'Issuance fee', p ? beam(p.issueFee) : 'Reading…', 'mint-cost-dao'),
-      row('Asset deposit', 'Never returned', beam(ASSET_DEPOSIT), 'mint-cost-deposit'),
-      row('Network fee', null, beam(CREATE_FEE), 'mint-cost-fee'),
-      row('Creating a token costs', null, p ? beam(cost() + CREATE_FEE) : '…', 'mint-cost-total'),
+      row(t('To the BEAM DAO'), t('Issuance fee'), p ? beam(p.issueFee) : t('Reading…'), 'mint-cost-dao'),
+      row(t('Asset deposit'), t('Never returned'), beam(ASSET_DEPOSIT), 'mint-cost-deposit'),
+      row(t('Network fee'), null, beam(CREATE_FEE), 'mint-cost-fee'),
+      row(t('Creating a token costs'), null, p ? beam(cost() + CREATE_FEE) : '…', 'mint-cost-total'),
     );
   }
 
   function renderForm() {
     put(
       costBox,
-      loadError ? notice('error', h('strong', { text: "The Minter didn't answer. " }), 'Nothing was sent. ', h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'mint-load-retry', onclick: load }, 'Try again')) : null,
+      loadError ? notice('error', h('strong', { text: `${t("The Minter didn't answer.")} ` }), `${t('Nothing was sent.')} `, h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'mint-load-retry', onclick: load }, t('Try again'))) : null,
       costCard(),
     );
     const show = (k, hint) => {
@@ -195,44 +198,45 @@ export default function minterCreate(app) {
       return p;
     };
     show('name', '');
-    show('ticker', `Up to ${LIMITS.shortName} characters`);
+    show('ticker', t('Up to {max} characters', { max: LIMITS.shortName }));
     const sp = show('supply', '');
     if (!sp) {
       const s = supply();
-      hints.supply.textContent = s.empty ? 'Optional. Empty: no maximum, mint as much as you like.' : `At most ${formatAmount(s.limit)} ${draft.ticker.trim() || 'tokens'} can ever exist`;
+      const tick = draft.ticker.trim();
+      hints.supply.textContent = s.empty ? t('Optional. Empty: no maximum, mint as much as you like.') : tick ? t('At most {amount} {ticker} can ever exist', { amount: formatAmount(s.limit), ticker: tick }) : t('At most {amount} tokens can ever exist', { amount: formatAmount(s.limit) });
     }
     show('shortDescription', '');
     show('color', '');
     show('siteUrl', '');
-    show('unitName', 'Same as the ticker unless you change it');
-    show('nthUnitName', `1 token = ${Number(NTH_RATIO).toLocaleString('en-US')} of these`);
+    show('unitName', t('Same as the ticker unless you change it'));
+    show('nthUnitName', t('1 token = {n} of these', { n: Number(NTH_RATIO).toLocaleString('en-US') }));
     show('longDescription', '');
     unitIn.placeholder = draft.ticker || 'MYT';
     const c = swatchColor(draft.color);
     swatch.classList.toggle('hidden', !c);
     if (c) swatch.style.setProperty('--swatch', c);
     const copied = copiesVerified(draft.name, draft.unitEdited ? draft.unitName : draft.ticker);
-    put(copyBox, copied ? notice('warn', `Wallets will mark your token "Not the verified ${copied.symbol}", because ${copied.name} already exists. Pick a name and ticker of your own.`) : null);
-    moreBtn.textContent = draft.more ? 'Fewer details' : 'More details';
+    put(copyBox, copied ? notice('warn', t('Wallets will mark your token "Not the verified {symbol}", because {name} already exists. Pick a name and ticker of your own.', { symbol: copied.symbol, name: copied.name })) : null);
+    moreBtn.textContent = draft.more ? t('Fewer details') : t('More details');
     moreBox.classList.toggle('hidden', !draft.more);
     const st = ctaState();
     const ticker = draft.ticker.trim();
     cta.disabled = Boolean(st.off);
-    cta.textContent = ticker && !fieldProblem('shortName', fieldsOf(draft)) ? `Create ${ticker}` : 'Create my token';
-    put(reason, st.off || '', st.receive ? ' ' : null, st.receive ? h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'mint-receive', onclick: () => app.go('receive') }, 'Receive BEAM') : null);
+    cta.textContent = ticker && !fieldProblem('shortName', fieldsOf(draft)) ? t('Create {ticker}', { ticker }) : t('Create my token');
+    put(reason, st.off || '', st.receive ? ' ' : null, st.receive ? h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'mint-receive', onclick: () => app.go('receive') }, t('Receive BEAM')) : null);
     reason.classList.toggle('hidden', !st.off);
     put(actions, reason, cta);
   }
 
   function formBody() {
     return [
-      h('p', { class: 'step', text: 'Step 1 of 2: describe it' }),
+      h('p', { class: 'step', text: t('Step 1 of 2: describe it') }),
       costBox,
-      h('label', { class: 'field' }, 'Token name', nameIn, hints.name),
-      h('div', { class: 'two-fields' }, h('label', { class: 'field' }, 'Ticker', tickerIn, hints.ticker), h('label', { class: 'field' }, 'Maximum supply', supplyIn, hints.supply)),
+      h('label', { class: 'field' }, t('Token name'), nameIn, hints.name),
+      h('div', { class: 'two-fields' }, h('label', { class: 'field' }, t('Ticker'), tickerIn, hints.ticker), h('label', { class: 'field' }, t('Maximum supply'), supplyIn, hints.supply)),
       copyBox,
-      h('label', { class: 'field' }, 'Short description (optional)', shortIn, hints.shortDescription),
-      h('div', { class: 'two-fields wide-second' }, h('label', { class: 'field' }, 'Colour (optional)', h('div', { class: 'input-wrap swatch-wrap' }, colorIn, swatch), hints.color), h('label', { class: 'field' }, 'Website (optional)', siteIn, hints.siteUrl)),
+      h('label', { class: 'field' }, t('Short description (optional)'), shortIn, hints.shortDescription),
+      h('div', { class: 'two-fields wide-second' }, h('label', { class: 'field' }, t('Colour (optional)'), h('div', { class: 'input-wrap swatch-wrap' }, colorIn, swatch), hints.color), h('label', { class: 'field' }, t('Website (optional)'), siteIn, hints.siteUrl)),
       moreBtn,
       moreBox,
     ];
@@ -249,32 +253,32 @@ export default function minterCreate(app) {
     const row = (k, sub, v, testid) => h('div', { class: 'kv' }, h('span', { class: 'k' }, k, sub ? h('div', { class: 'small', text: sub }) : null), h('span', { class: 'v', 'data-testid': testid, text: v }));
     const c = swatchColor(draft.color);
     const meta = h('pre', { class: 'mono meta-text hidden', 'data-testid': 'review-metadata', text: text });
-    const metaBtn = h('button', { class: 'btn btn-text link-left', type: 'button', 'data-testid': 'review-show-metadata' }, 'Show what is stored on the chain');
+    const metaBtn = h('button', { class: 'btn btn-text link-left', type: 'button', 'data-testid': 'review-show-metadata' }, t('Show what is stored on the chain'));
     metaBtn.addEventListener('click', () => {
       const open = meta.classList.toggle('hidden') === false;
-      metaBtn.textContent = open ? 'Hide what is stored on the chain' : 'Show what is stored on the chain';
+      metaBtn.textContent = open ? t('Hide what is stored on the chain') : t('Show what is stored on the chain');
     });
     return [
-      h('p', { class: 'step', text: 'Step 2 of 2: check it' }),
-      h('p', { class: 'lead', text: 'These details are stored on the chain for good: nobody can change them later.' }),
+      h('p', { class: 'step', text: t('Step 2 of 2: check it') }),
+      h('p', { class: 'lead', text: t('These details are stored on the chain for good: nobody can change them later.') }),
       h(
         'div',
         { class: 'card token-preview', 'data-testid': 'review-token' },
-        h('div', { class: 'row asset-row token-title' }, assetBadge(preview), h('span', { class: 'main' }, h('div', { class: 't', 'data-testid': 'review-name', text: draft.name }), h('div', { class: 's', 'data-testid': 'review-ticker', text: `${ticker} · new token` }))),
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Maximum supply' }), h('span', { class: 'v', 'data-testid': 'review-supply', text: s.empty ? 'No maximum' : `${formatAmount(s.limit)} ${ticker}` })),
-        fieldsOf(draft).shortDescription ? h('div', { class: 'kv kv-stack' }, h('span', { class: 'k', text: 'Description' }), h('span', { class: 'v plain', text: draft.shortDescription.trim() })) : null,
-        c ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Colour' }), h('span', { class: 'v swatch-v', 'data-testid': 'review-color' }, swatchOf(c), c)) : null,
-        draft.siteUrl.trim() ? h('div', { class: 'kv kv-stack' }, h('span', { class: 'k', text: 'Website' }), h('span', { class: 'v plain', text: draft.siteUrl.trim() })) : null,
+        h('div', { class: 'row asset-row token-title' }, assetBadge(preview), h('span', { class: 'main' }, h('div', { class: 't', 'data-testid': 'review-name', text: draft.name }), h('div', { class: 's', 'data-testid': 'review-ticker', text: t('{ticker} · new token', { ticker }) }))),
+        h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Maximum supply') }), h('span', { class: 'v', 'data-testid': 'review-supply', text: s.empty ? t('No maximum') : `${formatAmount(s.limit)} ${ticker}` })),
+        fieldsOf(draft).shortDescription ? h('div', { class: 'kv kv-stack' }, h('span', { class: 'k', text: t('Description') }), h('span', { class: 'v plain', text: draft.shortDescription.trim() })) : null,
+        c ? h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Colour') }), h('span', { class: 'v swatch-v', 'data-testid': 'review-color' }, swatchOf(c), c)) : null,
+        draft.siteUrl.trim() ? h('div', { class: 'kv kv-stack' }, h('span', { class: 'k', text: t('Website') }), h('span', { class: 'v plain', text: draft.siteUrl.trim() })) : null,
       ),
       h(
         'div',
         { class: 'card flat swap-details', 'data-testid': 'review-cost' },
-        row('To the BEAM DAO', 'Issuance fee', beam(p.issueFee), 'review-dao'),
-        row('Asset deposit', 'Never returned', beam(ASSET_DEPOSIT), 'review-deposit'),
-        row('Network fee', null, beam(CREATE_FEE), 'review-fee'),
-        row('Leaves your wallet', null, beam(lost + CREATE_FEE), 'review-total'),
+        row(t('To the BEAM DAO'), t('Issuance fee'), beam(p.issueFee), 'review-dao'),
+        row(t('Asset deposit'), t('Never returned'), beam(ASSET_DEPOSIT), 'review-deposit'),
+        row(t('Network fee'), null, beam(CREATE_FEE), 'review-fee'),
+        row(t('Leaves your wallet'), null, beam(lost + CREATE_FEE), 'review-total'),
       ),
-      notice('warn', h('strong', { text: `These ${beam(lost)} do not come back. ` }), 'Not even if you never mint the token. Nothing is minted yet: once the token exists, mint it from My tokens.'),
+      notice('warn', h('strong', { text: `${t('These {amount} do not come back.', { amount: beam(lost) })} ` }), t('Not even if you never mint the token. Nothing is minted yet: once the token exists, mint it from My tokens.')),
       metaBtn,
       meta,
       result ? problemNotice(result, 'review-result') : null,
@@ -284,19 +288,19 @@ export default function minterCreate(app) {
   function renderReview() {
     const ticker = draft.ticker.trim();
     const total = cost() + CREATE_FEE;
-    const paused = pausedReason('Creating a token');
+    const paused = pausedReason('create');
     const short = wallet.available(0) < total;
-    const go = primary(building ? 'Preparing…' : `Create ${ticker} for ${beam(total)}`, create, { disabled: building || Boolean(paused) || short, 'data-testid': 'review-cta', class: 'btn btn-primary wrap' });
-    const why = paused || (short ? `This needs ${beam(total)}, and this wallet has ${beam(wallet.available(0))}.` : building ? 'Building the transaction and checking it…' : null);
-    put(actions, why ? h('p', { class: 'hint center', 'data-testid': 'review-reason', text: why }) : null, go, h('button', { class: 'btn btn-text', type: 'button', 'data-testid': 'review-change', disabled: building, onclick: () => setStep('form') }, 'Change the details'));
+    const go = primary(building ? t('Preparing…') : t('Create {ticker} for {amount}', { ticker, amount: beam(total) }), create, { disabled: building || Boolean(paused) || short, 'data-testid': 'review-cta', class: 'btn btn-primary wrap' });
+    const why = paused || (short ? t('This needs {need}, and this wallet has {balance}.', { need: beam(total), balance: beam(wallet.available(0)) }) : building ? t('Building the transaction and checking it…') : null);
+    put(actions, why ? h('p', { class: 'hint center', 'data-testid': 'review-reason', text: why }) : null, go, h('button', { class: 'btn btn-text', type: 'button', 'data-testid': 'review-change', disabled: building, onclick: () => setStep('form') }, t('Change the details')));
   }
 
   // ------------------------------------------------------------ done
   function doneBody() {
     return [
       h('div', { class: 'status-icon ok' }, icon('check')),
-      h('h2', { class: 'title center', 'data-testid': 'mint-done', text: `${done.ticker} is being created` }),
-      h('p', { class: 'center small', text: 'It appears in My tokens once the network confirms it, usually within a few minutes. Mint your first tokens there.' }),
+      h('h2', { class: 'title center', 'data-testid': 'mint-done', text: t('{ticker} is being created', { ticker: done.ticker }) }),
+      h('p', { class: 'center small', text: t('It appears in My tokens once the network confirms it, usually within a few minutes. Mint your first tokens there.') }),
     ];
   }
 
@@ -313,14 +317,14 @@ export default function minterCreate(app) {
     const step = done ? 'done' : draft.step === 'review' && params && metadataText() ? 'review' : 'form';
     if (rebuild || step !== shown) {
       shown = step;
-      title.textContent = step === 'done' ? 'Create a token' : step === 'review' ? 'Check your token' : 'Create a token';
+      title.textContent = step === 'done' ? t('Create a token') : step === 'review' ? t('Check your token') : t('Create a token');
       if (step === 'form') put(body, ...formBody());
       else if (step === 'review') put(body, ...reviewBody());
       else put(body, ...doneBody());
     }
     if (step === 'form') renderForm();
     else if (step === 'review') renderReview();
-    else put(actions, primary('Go to My tokens', () => app.go('minterTokens', {}, { replace: true }), { 'data-testid': 'mint-done-tokens' }), h('button', { class: 'btn btn-text', onclick: () => app.go('home') }, 'Done'));
+    else put(actions, primary(t('Go to My tokens'), () => app.go('minterTokens', {}, { replace: true }), { 'data-testid': 'mint-done-tokens' }), h('button', { class: 'btn btn-text', onclick: () => app.go('home') }, t('Done')));
   }
 
   function toReview() {
@@ -401,7 +405,7 @@ export default function minterCreate(app) {
 
   const el = screen(
     {
-      title: 'Create a token',
+      title: t('Create a token'),
       back: () => {
         if (!done && draft.step === 'review' && !building) return setStep('form');
         // Leaving the feature forgets the draft (Receive BEAM and back keeps it).

@@ -26,6 +26,7 @@ import { h } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, secondary, notice, openSheet, versionLine } from '../lib/ui.js';
 import { onSharedOrigin, HOME_URL, SHARED_TEXT } from '../lib/shared_origin.js';
+import { t, tNodes } from '../lib/i18n.js';
 
 /**
  * In place of Create / Restore / Import on an address other websites share: why not here, the way
@@ -74,7 +75,7 @@ export function sharedOriginParts(app, { restore, importDb, testid = '' }) {
 export function isIosSafariTab() {
   const ua = navigator.userAgent;
   const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const standalone = navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  const standalone = navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches; // i18n-ignore: a CSS media query
   return ios && !standalone;
 }
 
@@ -94,13 +95,13 @@ export default function welcome(app) {
       topbar: false,
       cls: 'welcome',
       actions: shared ? shared.actions : [
-        primary('Create a new wallet', () => {
+        primary(t('Create a new wallet'), () => {
           app.setup = { mode: 'create' };
           app.go('backup');
         }, { 'data-testid': 'create' }),
-        secondary('Restore with 12 words', restore, { 'data-testid': 'restore' }),
-        secondary('Import a wallet.db file', importDb, { 'data-testid': 'import' }),
-        h('p', { class: 'small center', text: 'No sign-up. Your keys stay on this device.' }),
+        secondary(t('Restore with 12 words'), restore, { 'data-testid': 'restore' }),
+        secondary(t('Import a wallet.db file'), importDb, { 'data-testid': 'import' }),
+        h('p', { class: 'small center', text: t('No sign-up. Your keys stay on this device.') }),
       ],
     },
     h(
@@ -109,8 +110,8 @@ export default function welcome(app) {
       // notice with the desktop / Android line under the buttons (375x667 without scrolling).
       { class: `hero${guide || shared ? ' compact' : ''}` },
       h('img', { src: 'img/logo.svg', alt: '' }),
-      h('h1', { text: 'BEAM Campfire' }),
-      h('p', { text: 'Your privacy. Your wallet. Your BEAM.' }),
+      h('h1', { text: 'BEAM Campfire' }), // i18n-ignore: the brand
+      h('p', { text: t('Your privacy. Your wallet. Your BEAM.') }),
     ),
     shared ? shared.body : guide,
   );
@@ -126,18 +127,18 @@ function a2hsGuide(app) {
     h(
       'div',
       { class: 'banner' },
-      h('h3', { class: 'grow', text: 'First, add BEAM Campfire to your Home Screen' }),
+      h('h3', { class: 'grow', text: t('First, add BEAM Campfire to your Home Screen') }),
       h('button', {
         class: 'icon-btn',
-        'aria-label': 'Hide this tip',
+        'aria-label': t('Hide this tip'),
         onclick: async () => {
           await app.setPrefs({ a2hsDismissed: true });
           card.remove();
         },
       }, icon('close')),
     ),
-    h('p', {}, 'Tap Share ', icon('share', 'inline-icon'), ' in Safari, choose "Add to Home Screen", then open BEAM Campfire from there.'),
-    h('p', { class: 'small', text: 'Home Screen apps keep their data. Safari tabs may lose it after 7 days without use, and a wallet made in a Safari tab does not move to the Home Screen app.' }),
+    h('p', {}, ...tNodes('Tap Share {icon} in Safari, choose "Add to Home Screen", then open BEAM Campfire from there.', { icon: icon('share', 'inline-icon') })),
+    h('p', { class: 'small', text: t('Home Screen apps keep their data. Safari tabs may lose it after 7 days without use, and a wallet made in a Safari tab does not move to the Home Screen app.') }),
   );
   return card;
 }

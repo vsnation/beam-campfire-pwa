@@ -15,21 +15,22 @@ import { h } from '../lib/dom.js';
 import { openSheet, notice, primary, textButton, copyText, toast } from '../lib/ui.js';
 import { recognize } from '../lib/scan_recognize.js';
 import { scanAnything } from './scan_sheet.js';
+import { t, tk } from '../lib/i18n.js';
 
 const UNSUPPORTED = Object.freeze({
-  chain: 'It is a payment on another network than Ethereum. BEAM Campfire uses Ethereum mainnet only, so nothing was opened.',
-  coin: 'It is an address of another coin, which this wallet does not hold, so nothing was opened.',
-  link: 'It is a web link. BEAM Campfire does not open links from codes, so nothing was opened.',
-  token: 'It is a payment in an Ethereum token this wallet does not know, so nothing was opened.',
+  chain: tk('It is a payment on another network than Ethereum. BEAM Campfire uses Ethereum mainnet only, so nothing was opened.'),
+  coin: tk('It is an address of another coin, which this wallet does not hold, so nothing was opened.'),
+  link: tk('It is a web link. BEAM Campfire does not open links from codes, so nothing was opened.'),
+  token: tk('It is a payment in an Ethereum token this wallet does not know, so nothing was opened.'),
 });
 
 function showText(text, why) {
   openSheet((close) => [
-    h('h2', { text: 'What the code says' }),
+    h('h2', { text: t('What the code says') }),
     h('div', { 'data-testid': 'scan-said' }, notice('info', why)),
     h('p', { class: 'mono scan-text', 'data-testid': 'scan-text', text: text.length > 400 ? `${text.slice(0, 400)}…` : text }),
-    h('div', { class: 'btn-row' }, primary('Copy the text', () => (copyText(text, 'Copied'), close()), { 'data-testid': 'scan-copy' }), textButton('Close', () => close())),
-  ], { label: 'What the code says' });
+    h('div', { class: 'btn-row' }, primary(t('Copy the text'), () => (copyText(text, t('Copied')), close()), { 'data-testid': 'scan-copy' }), textButton(t('Close'), () => close())),
+  ], { label: t('What the code says') });
 }
 
 /** Where a recognized code goes. Exported for the tests: {to, params} or {sheet: reason}. */
@@ -42,9 +43,9 @@ export async function destination(r, { hasEth = async () => false, tokens = [] }
     case 'eth': {
       if (!(await hasEth())) return { sheet: 'noEth' };
       if (r.token) {
-        const t = tokens.find((x) => x.address && x.address.toLowerCase() === r.token.toLowerCase());
-        if (!t) return { sheet: 'token' };
-        return { to: 'ethSend', draft: { to: r.to, amount: '', symbol: t.symbol } };
+        const token = tokens.find((x) => x.address && x.address.toLowerCase() === r.token.toLowerCase());
+        if (!token) return { sheet: 'token' };
+        return { to: 'ethSend', draft: { to: r.to, amount: '', symbol: token.symbol } };
       }
       return { to: 'ethSend', draft: { to: r.to, amountWei: r.valueWei || null, symbol: 'ETH' } };
     }
@@ -59,17 +60,17 @@ export async function destination(r, { hasEth = async () => false, tokens = [] }
 
 /** The whole Scan: camera (or a paste), what it is, then the screen for it. */
 export async function scanAndGo(app) {
-  let r = await scanAnything({ title: 'Scan a QR code' });
+  let r = await scanAnything({ title: t('Scan a QR code') });
   if (!r) return;
   if (r.paste) {
     let text = '';
     try {
       text = await navigator.clipboard.readText();
     } catch {
-      return toast("BEAM Campfire couldn't read the clipboard. Copy the text again and tap Scan.", 4000);
+      return toast(t("BEAM Campfire couldn't read the clipboard. Copy the text again and tap Scan."), 4000);
     }
     r = { ...recognize(text), text: String(text).trim().slice(0, 2000) };
-    if (r.kind === 'empty') return toast('The clipboard is empty.', 3000);
+    if (r.kind === 'empty') return toast(t('The clipboard is empty.'), 3000);
   }
   const [{ hasEthWallet }, { TOKENS }, { toInputString }] = await Promise.all([import('../lib/eth/record.js'), import('../lib/eth/tokens.js'), import('../lib/eth/units.js')]);
   const d = await destination(r, { hasEth: () => hasEthWallet().catch(() => false), tokens: TOKENS });
@@ -88,11 +89,11 @@ export async function scanAndGo(app) {
   }
   if (d.sheet === 'noEth') {
     return openSheet((close) => [
-      h('h2', { text: 'An Ethereum address' }),
-      h('div', { 'data-testid': 'scan-no-eth' }, notice('info', 'To send to it, add an Ethereum wallet first: it sits next to your BEAM wallet, with its own recovery words.')),
-      primary('Add an Ethereum wallet', () => (close(), app.go('ethStart')), { 'data-testid': 'scan-add-eth' }),
-      textButton('Not now', () => close()),
-    ], { label: 'An Ethereum address' });
+      h('h2', { text: t('An Ethereum address') }),
+      h('div', { 'data-testid': 'scan-no-eth' }, notice('info', t('To send to it, add an Ethereum wallet first: it sits next to your BEAM wallet, with its own recovery words.'))),
+      primary(t('Add an Ethereum wallet'), () => (close(), app.go('ethStart')), { 'data-testid': 'scan-add-eth' }),
+      textButton(t('Not now'), () => close()),
+    ], { label: t('An Ethereum address') });
   }
-  return showText(r.text || '', UNSUPPORTED[d.sheet] || 'BEAM Campfire does not know what this is, so nothing was opened.');
+  return showText(r.text || '', UNSUPPORTED[d.sheet] ? t(UNSUPPORTED[d.sheet]) : t('BEAM Campfire does not know what this is, so nothing was opened.'));
 }

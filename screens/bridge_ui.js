@@ -31,6 +31,7 @@ import { setMoveBadge } from './eth_screens.js';
 import { headline, crossingWords, lockedNote } from './bridge_words.js';
 import { ago } from './bridge_text.js';
 import { tellOther } from '../lib/notify.js';
+import { t, tk } from '../lib/i18n.js';
 
 /** The bridge screens (registered in eth_screens.js). */
 export const BRIDGE_SCREENS = new Set(['bridgeMove', 'bridgeCrossing', 'bridgeList']);
@@ -59,11 +60,12 @@ function crossingTeller(app, ctl) {
       const before = seen.get(c.id);
       seen.set(c.id, c.state);
       if (first || before === c.state) continue;
-      if (c.state === 'delivered') tellOther(app, { kind: 'moves', title: 'Your coins reached BEAM: collect them', body: 'Open the bridge and tap Collect to put them in this wallet.', tag: `bridge-${c.id}`, url: '#open=bridgeList', banner: !BRIDGE_SCREENS.has(app.currentName) });
-      else if (c.state === 'paid') tellOther(app, { kind: 'moves', title: 'Your coins reached your Ethereum wallet', body: 'The bridge paid them.', tag: `bridge-${c.id}`, url: '#open=bridgeList' });
-      else if (c.state === 'lockFailed' && c.lastError === LOCK_FAILED_SHARED) tellOther(app, { kind: 'moves', title: 'Check your move to BEAM', body: 'Your Ethereum server says it was refused, but coins of its amount reached BEAM. Tap to see.', tag: `bridge-${c.id}`, url: '#open=bridgeList', banner: !BRIDGE_SCREENS.has(app.currentName) });
-      else if (c.state === 'lockFailed' && c.lastError === LOCK_REFUSED) tellOther(app, { kind: 'moves', title: 'A move to BEAM did not go through', body: 'Your Ethereum server refused it. Tap to see why.', tag: `bridge-${c.id}`, url: '#open=bridgeList', banner: !BRIDGE_SCREENS.has(app.currentName) });
-      else if (c.state === 'lockFailed') tellOther(app, { kind: 'moves', title: 'A move to BEAM did not go through', body: 'Nothing was locked. Tap to see why.', tag: `bridge-${c.id}`, url: '#open=bridgeList', banner: !BRIDGE_SCREENS.has(app.currentName) });
+      // lastError is compared as the record keeps it (English: controller.js).
+      if (c.state === 'delivered') tellOther(app, { kind: 'moves', title: t('Your coins reached BEAM: collect them'), body: t('Open the bridge and tap Collect to put them in this wallet.'), tag: `bridge-${c.id}`, url: '#open=bridgeList', banner: !BRIDGE_SCREENS.has(app.currentName) });
+      else if (c.state === 'paid') tellOther(app, { kind: 'moves', title: t('Your coins reached your Ethereum wallet'), body: t('The bridge paid them.'), tag: `bridge-${c.id}`, url: '#open=bridgeList' });
+      else if (c.state === 'lockFailed' && c.lastError === LOCK_FAILED_SHARED) tellOther(app, { kind: 'moves', title: t('Check your move to BEAM'), body: t('Your Ethereum server says it was refused, but coins of its amount reached BEAM. Tap to see.'), tag: `bridge-${c.id}`, url: '#open=bridgeList', banner: !BRIDGE_SCREENS.has(app.currentName) });
+      else if (c.state === 'lockFailed' && c.lastError === LOCK_REFUSED) tellOther(app, { kind: 'moves', title: t('A move to BEAM did not go through'), body: t('Your Ethereum server refused it. Tap to see why.'), tag: `bridge-${c.id}`, url: '#open=bridgeList', banner: !BRIDGE_SCREENS.has(app.currentName) });
+      else if (c.state === 'lockFailed') tellOther(app, { kind: 'moves', title: t('A move to BEAM did not go through'), body: t('Nothing was locked. Tap to see why.'), tag: `bridge-${c.id}`, url: '#open=bridgeList', banner: !BRIDGE_SCREENS.has(app.currentName) });
     }
   };
 }
@@ -104,7 +106,7 @@ function endSession() {
  * when locked, or when the saved crossings do not open.
  */
 export async function bridgeOf(app) {
-  if (!app || !app.dbPass || !app.record) throw Object.assign(new Error('Unlock the wallet first.'), { code: 'locked' });
+  if (!app || !app.dbPass || !app.record) throw Object.assign(new Error(t('Unlock the wallet first.')), { code: 'locked' });
   installLockHook(app);
   const w = await ethWallet(app);
   if (!w) return null;
@@ -154,7 +156,7 @@ export async function bridgeOf(app) {
     if (!app.dbPass) {
       s.off();
       ctl.dispose();
-      throw Object.assign(new Error('Unlock the wallet first.'), { code: 'locked' });
+      throw Object.assign(new Error(t('Unlock the wallet first.')), { code: 'locked' });
     }
     activity();
     session = s;
@@ -177,11 +179,11 @@ export function bridgeProblem(e, retry) {
     { 'data-testid': 'bridge-unavailable' },
     notice(
       'error',
-      h('strong', { text: sealed ? "Your saved moves didn't open. " : "The bridge couldn't open. " }),
+      h('strong', { text: `${sealed ? t("Your saved moves didn't open.") : t("The bridge couldn't open.")} ` }),
       sealed
-        ? 'They were kept exactly as they were; nothing was changed or sent. Lock and unlock BEAM Campfire, then try again.'
-        : `One of your wallets did not answer (${(e && e.message) || e}). This is not something you did, and nothing was sent.`,
-      retry ? h('div', { class: 'btn-row prompt-actions' }, secondary('Try again', retry, { class: 'btn btn-secondary btn-small', 'data-testid': 'bridge-retry' })) : null,
+        ? t('They were kept exactly as they were; nothing was changed or sent. Lock and unlock BEAM Campfire, then try again.')
+        : t('One of your wallets did not answer ({reason}). This is not something you did, and nothing was sent.', { reason: String((e && e.message) || e) }),
+      retry ? h('div', { class: 'btn-row prompt-actions' }, secondary(t('Try again'), retry, { class: 'btn btn-secondary btn-small', 'data-testid': 'bridge-retry' })) : null,
     ),
   );
 }
@@ -189,6 +191,8 @@ export function bridgeProblem(e, retry) {
 // ---------------------------------------------------------------- pieces
 
 const MARKS = { done: 'check', active: 'clock', waiting: null, failed: 'close' };
+/** What a screen reader says after a step's label (shown with t()). */
+const SAID = { done: tk('(done)'), active: tk('(now)'), waiting: tk('(next)'), failed: tk('(did not happen)') };
 
 /** The steps of a move, each marked done, under way, still to come, or failed. */
 export function stepList(steps) {
@@ -202,7 +206,7 @@ export function stepList(steps) {
         h('span', { class: 'mark', 'aria-hidden': 'true' }, MARKS[s.status] ? icon(MARKS[s.status]) : null),
         h('span', { class: 'label', text: s.label }),
         s.note ? h('span', { class: 'note', text: s.note }) : null,
-        h('span', { class: 'sr', text: { done: ' (done)', active: ' (now)', waiting: ' (next)', failed: ' (did not happen)' }[s.status] }),
+        h('span', { class: 'sr', text: SAID[s.status] ? ` ${t(SAID[s.status])}` : undefined }),
       ),
     ),
   );
@@ -230,9 +234,9 @@ export function priceQuestion({ allow, refuse }) {
   return h(
     'div',
     { class: 'card bridge-ask', 'data-testid': 'bridge-prices-ask' },
-    h('h3', { text: 'The bridge fee follows coin prices' }),
-    h('p', { class: 'small', text: "To work it out, BEAM Campfire asks CoinGecko for the prices of ETH and of the coin you move, the same prices the bridge uses. CoinGecko sees your IP address, not your wallets. It is asked only while you use the bridge." }),
-    h('div', { class: 'btn-row prompt-actions' }, secondary('Allow CoinGecko prices', allow, { class: 'btn btn-secondary btn-small', 'data-testid': 'bridge-prices-allow' }), textButton('Not now', refuse, { class: 'btn btn-text btn-small', 'data-testid': 'bridge-prices-refuse' })),
+    h('h3', { text: t('The bridge fee follows coin prices') }),
+    h('p', { class: 'small', text: t('To work it out, BEAM Campfire asks CoinGecko for the prices of ETH and of the coin you move, the same prices the bridge uses. CoinGecko sees your IP address, not your wallets. It is asked only while you use the bridge.') }),
+    h('div', { class: 'btn-row prompt-actions' }, secondary(t('Allow CoinGecko prices'), allow, { class: 'btn btn-secondary btn-small', 'data-testid': 'bridge-prices-allow' }), textButton(t('Not now'), refuse, { class: 'btn btn-text btn-small', 'data-testid': 'bridge-prices-refuse' })),
   );
 }
 
@@ -243,13 +247,13 @@ export function pricesOff({ allow, useWbeam }) {
     { 'data-testid': 'bridge-prices-off' },
     notice(
       'info',
-      h('strong', { text: 'Prices are off, so this move cannot be priced. ' }),
-      'Without prices only WBEAM → BEAM can move: its bridge fee is a fixed 0.02 WBEAM. Every other bridge fee follows CoinGecko prices.',
+      h('strong', { text: `${t('Prices are off, so this move cannot be priced.')} ` }),
+      t('Without prices only WBEAM → BEAM can move: its bridge fee is a fixed 0.02 WBEAM. Every other bridge fee follows CoinGecko prices.'),
       h(
         'div',
         { class: 'btn-row prompt-actions' },
-        useWbeam ? secondary('Move WBEAM to BEAM', useWbeam, { class: 'btn btn-secondary btn-small', 'data-testid': 'bridge-use-wbeam' }) : null,
-        textButton('Allow CoinGecko prices', allow, { class: 'btn btn-text btn-small', 'data-testid': 'bridge-prices-allow' }),
+        useWbeam ? secondary(t('Move WBEAM to BEAM'), useWbeam, { class: 'btn btn-secondary btn-small', 'data-testid': 'bridge-use-wbeam' }) : null,
+        textButton(t('Allow CoinGecko prices'), allow, { class: 'btn btn-text btn-small', 'data-testid': 'bridge-prices-allow' }),
       ),
     ),
   );

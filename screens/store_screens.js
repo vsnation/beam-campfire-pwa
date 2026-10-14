@@ -2,11 +2,12 @@
 // and the IPFS hash load only when one is opened: dApps and Home stay as light as they were.
 import { h } from '../lib/dom.js';
 import { screen, notice } from '../lib/ui.js';
+import { t, tk } from '../lib/i18n.js';
 
-/** A screen from dapp_store.js imported on first use; a spinner until then. */
+/** A screen from dapp_store.js imported on first use; a spinner until then. title: a tk() text. */
 function lazyScreen(name, title) {
   return (app, params) => {
-    const holder = h('main', { class: 'screen splash', 'aria-busy': 'true' }, h('div', { class: 'spinner', role: 'progressbar', 'aria-label': 'Opening' }));
+    const holder = h('main', { class: 'screen splash', 'aria-busy': 'true' }, h('div', { class: 'spinner', role: 'progressbar', 'aria-label': t('Opening') }));
     let inner = null;
     let dead = false;
     import('./dapp_store.js')
@@ -18,7 +19,7 @@ function lazyScreen(name, title) {
       .catch((e) => {
         if (dead) return;
         console.error(e);
-        holder.replaceWith(screen({ title, back: () => app.back('dapps') }, notice('error', `This screen could not be opened: ${e.message}. Go back and try again.`)));
+        holder.replaceWith(screen({ title: t(title), back: () => app.back('dapps') }, notice('error', t('This screen could not be opened: {reason}. Go back and try again.', { reason: e.message }))));
       });
     return {
       el: holder,
@@ -31,8 +32,8 @@ function lazyScreen(name, title) {
 }
 
 export const STORE_SCREENS = Object.freeze({
-  dappStore: lazyScreen('dappStore', "BEAM's DApp Store"),
-  dappStoreItem: lazyScreen('dappStoreItem', 'DApp Store'),
-  dappPublisher: lazyScreen('dappPublisher', 'Publisher'),
-  dappPublishers: lazyScreen('dappPublishers', 'Publishers'),
+  dappStore: lazyScreen('dappStore', tk("BEAM's DApp Store")),
+  dappStoreItem: lazyScreen('dappStoreItem', tk('DApp Store')),
+  dappPublisher: lazyScreen('dappPublisher', tk('Publisher')),
+  dappPublishers: lazyScreen('dappPublishers', tk('Publishers')),
 });

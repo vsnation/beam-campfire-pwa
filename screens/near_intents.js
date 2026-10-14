@@ -34,6 +34,7 @@ import { loaderBehind } from '../lib/loader.js';
 import { coinBadge } from './buy_screens.js';
 import { ethBadge } from './eth_ui.js';
 import { rememberNearSwaps } from '../lib/notify.js';
+import { t, tNodes } from '../lib/i18n.js';
 
 const QUOTE_DELAY_MS = 600;
 
@@ -60,29 +61,29 @@ export default function nearIntents(app, params = {}) {
   let timer = null;
   let alive = true;
 
-  const amountInput = h('input', { class: 'swap-input', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: '0', 'aria-label': 'Amount you send', 'data-testid': 'ni-amount' });
+  const amountInput = h('input', { class: 'swap-input', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: '0', 'aria-label': t('Amount you send'), 'data-testid': 'ni-amount' });
   amountInput.value = draft.amount;
   const coinBtn = h('button', { class: 'asset-pick', type: 'button', 'data-testid': 'ni-coin', onclick: () => pickCoin() });
   const paySub = h('div', { class: 'swap-sub' });
   const refundLabel = h('span', { class: 'grow' });
-  const refund = h('input', { class: 'input mono', type: 'text', autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', 'aria-label': 'Your refund address', 'data-testid': 'ni-refund' });
+  const refund = h('input', { class: 'input mono', type: 'text', autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', 'aria-label': t('Your refund address'), 'data-testid': 'ni-refund' });
   refund.value = draft.refund;
-  const pasteBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'ni-refund-paste' }, icon('paste'), 'Paste');
+  const pasteBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'ni-refund-paste' }, icon('paste'), t('Paste'));
   const refundHint = h('p', { class: 'hint', 'data-testid': 'ni-refund-hint' });
   const getsBox = h('div', { class: 'card swap-box' });
   const detailsBox = h('div');
   const topBox = h('div', { class: 'stack' });
   const problemBox = h('div', { 'aria-live': 'polite' });
   const reason = h('p', { class: 'hint center', 'data-testid': 'ni-reason', 'aria-live': 'polite' });
-  const cta = primary('Get a deposit address', getAddress, { disabled: true, 'data-testid': 'ni-cta' });
+  const cta = primary(t('Get a deposit address'), getAddress, { disabled: true, 'data-testid': 'ni-cta' });
 
   // ------------------------------------------------------------ amounts
   function amountState() {
-    const t = amountInput.value.trim();
-    if (!coin || !t) return { value: null, error: null };
+    const typed = amountInput.value.trim();
+    if (!coin || !typed) return { value: null, error: null };
     try {
-      const v = parseUnits(t, coin.decimals, { symbol: coin.symbol });
-      return v > 0n ? { value: v, error: null } : { value: null, error: 'The amount must be more than zero.' };
+      const v = parseUnits(typed, coin.decimals, { symbol: coin.symbol });
+      return v > 0n ? { value: v, error: null } : { value: null, error: t('The amount must be more than zero.') };
     } catch (e) {
       return { value: null, error: e.message };
     }
@@ -91,8 +92,8 @@ export default function nearIntents(app, params = {}) {
   function refundError() {
     const r = refund.value.trim();
     if (!coin || !r) return null;
-    if (coin.isEvm && !EVM_ADDRESS.test(r)) return `${coin.chainName} addresses start with 0x and have 42 characters.`;
-    if (/\s/.test(r)) return 'An address has no spaces.';
+    if (coin.isEvm && !EVM_ADDRESS.test(r)) return t('{chain} addresses start with 0x and have 42 characters.', { chain: coin.chainName });
+    if (/\s/.test(r)) return t('An address has no spaces.');
     return null;
   }
 
@@ -104,7 +105,7 @@ export default function nearIntents(app, params = {}) {
       const list = await intentsTokens({ refresh });
       if (!alive) return;
       tokens = list;
-      if (!coin && list.length) setCoin(list.find((t) => t.assetId === (params.assetId || draft.assetId)) || list.find((t) => t.symbol === 'BTC' && t.blockchain === 'btc') || list[0]);
+      if (!coin && list.length) setCoin(list.find((tok) => tok.assetId === (params.assetId || draft.assetId)) || list.find((tok) => tok.symbol === 'BTC' && tok.blockchain === 'btc') || list[0]);
     } catch (e) {
       if (!alive) return;
       tokensError = e instanceof OneClickError ? e : new OneClickError('network', String(e && e.message));
@@ -140,33 +141,33 @@ export default function nearIntents(app, params = {}) {
   function pickCoin() {
     if (!tokens) return;
     openSheet((close) => {
-      const search = h('input', { class: 'input', type: 'search', placeholder: 'Coin or chain (BTC, Tron, Solana…)', 'aria-label': 'Search', autocomplete: 'off', 'data-testid': 'ni-coin-search' });
+      const search = h('input', { class: 'input', type: 'search', placeholder: t('Coin or chain (BTC, Tron, Solana…)'), 'aria-label': t('Search'), autocomplete: 'off', 'data-testid': 'ni-coin-search' });
       const list = h('div', { class: 'card list picker-list' });
-      const row = (t) =>
+      const row = (tok) =>
         h(
           'button',
-          { class: `row${coin && t.assetId === coin.assetId ? ' on' : ''}`, 'data-testid': 'ni-coin-row', 'data-asset-id': t.assetId, 'data-symbol': t.symbol, 'data-chain': t.blockchain, onclick: () => close(t) },
-          coinBadge(t.assetId, t.symbol),
-          h('span', { class: 'main' }, h('div', { class: 't', text: t.symbol }), h('div', { class: 's', text: t.isNative ? t.chainName : `on ${t.chainName}` })),
-          t.priceUsd ? h('span', { class: 'end small', text: priceText(t.priceUsd) }) : null,
+          { class: `row${coin && tok.assetId === coin.assetId ? ' on' : ''}`, 'data-testid': 'ni-coin-row', 'data-asset-id': tok.assetId, 'data-symbol': tok.symbol, 'data-chain': tok.blockchain, onclick: () => close(tok) },
+          coinBadge(tok.assetId, tok.symbol),
+          h('span', { class: 'main' }, h('div', { class: 't', text: tok.symbol }), h('div', { class: 's', text: tok.isNative ? tok.chainName : t('on {chain}', { chain: tok.chainName }) })),
+          tok.priceUsd ? h('span', { class: 'end small', text: priceText(tok.priceUsd) }) : null,
         );
       const fill = () => {
         const q = search.value.trim().toLowerCase();
-        const shown = tokens.filter((t) => !q || t.symbol.toLowerCase().includes(q) || t.chainName.toLowerCase().includes(q) || t.blockchain.includes(q));
+        const shown = tokens.filter((tok) => !q || tok.symbol.toLowerCase().includes(q) || tok.chainName.toLowerCase().includes(q) || tok.blockchain.includes(q));
         const popular = shown.filter(isPopular);
-        const rest = shown.filter((t) => !isPopular(t));
+        const rest = shown.filter((tok) => !isPopular(tok));
         put(
           list,
-          ...(popular.length ? [h('p', { class: 'section-title', text: 'Most used' }), ...popular.map(row)] : []),
-          ...(rest.length ? [h('p', { class: 'section-title', text: `All coins (${tokens.length})` }), ...rest.map(row)] : []),
-          shown.length ? null : h('p', { class: 'small center pad', text: `NEAR Intents does not take "${search.value.trim()}". Try its ticker or its chain.` }),
+          ...(popular.length ? [h('p', { class: 'section-title', text: t('Most used') }), ...popular.map(row)] : []),
+          ...(rest.length ? [h('p', { class: 'section-title', text: t('All coins ({count})', { count: tokens.length }) }), ...rest.map(row)] : []),
+          shown.length ? null : h('p', { class: 'small center pad', text: t('NEAR Intents does not take "{query}". Try its ticker or its chain.', { query: search.value.trim() }) }),
         );
       };
       search.addEventListener('input', fill);
       fill();
-      return [h('h2', { text: 'The coin you send' }), search, list, h('button', { class: 'btn btn-text', onclick: () => close() }, 'Close')];
-    }, { label: 'The coin you send' }).then((t) => {
-      if (t && alive) setCoin(t);
+      return [h('h2', { text: t('The coin you send') }), search, list, h('button', { class: 'btn btn-text', onclick: () => close() }, t('Close'))];
+    }, { label: t('The coin you send') }).then((tok) => {
+      if (tok && alive) setCoin(tok);
     });
   }
 
@@ -237,7 +238,7 @@ export default function nearIntents(app, params = {}) {
         await ctx.store.save(swap);
       } catch (e) {
         if (!alive) return;
-        saveProblem = `BEAM Campfire couldn't keep this swap on this device (${e.message}), so no address is shown. Nothing was sent. Try again.`;
+        saveProblem = t("BEAM Campfire couldn't keep this swap on this device ({reason}), so no address is shown. Nothing was sent. Try again.", { reason: e.message });
         busy = false;
         render();
         problemBox.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -258,26 +259,26 @@ export default function nearIntents(app, params = {}) {
   }
 
   function ctaState() {
-    if (busy) return { off: 'Asking NEAR Intents for a deposit address…' };
-    if (!ctx) return { off: 'Opening your Ethereum wallet…' };
+    if (busy) return { off: t('Asking NEAR Intents for a deposit address…') };
+    if (!ctx) return { off: t('Opening your Ethereum wallet…') };
     if (tokensError) return { off: '' };
-    if (!coin) return { off: tokens === null ? 'Loading the coins NEAR Intents takes…' : 'Pick the coin you have.' };
+    if (!coin) return { off: tokens === null ? t('Loading the coins NEAR Intents takes…') : t('Pick the coin you have.') };
     const a = amountState();
     if (a.error) return { off: a.error };
-    if (a.value == null) return { off: `Enter how much ${coin.symbol} you send.` };
-    if (!refund.value.trim()) return { off: `Add your ${coin.chainName} address for a refund.` };
+    if (a.value == null) return { off: t('Enter how much {symbol} you send.', { symbol: coin.symbol }) };
+    if (!refund.value.trim()) return { off: t('Add your {chain} address for a refund.', { chain: coin.chainName }) };
     if (refundError()) return { off: refundError() };
     // The notice can be below the fold (the keyboard is up): its title goes right above the button too.
-    if (saveProblem) return { off: "BEAM Campfire couldn't keep this swap. Nothing was sent." };
-    if (problem) return { off: problem.unreachable && loaderBehind() ? 'Finish the update first.' : problemWords(problem, { coin }).title };
-    if (quoting || !quote) return { off: 'Getting a price from NEAR Intents…' };
+    if (saveProblem) return { off: t("BEAM Campfire couldn't keep this swap. Nothing was sent.") };
+    if (problem) return { off: problem.unreachable && loaderBehind() ? t('Finish the update first.') : problemWords(problem, { coin }).title };
+    if (quoting || !quote) return { off: t('Getting a price from NEAR Intents…') };
     return { off: null };
   }
 
   // ------------------------------------------------------------ problems
   function problemNotice() {
     if (saveProblem) {
-      const n = notice('error', h('strong', { text: 'Nothing was sent. ' }), saveProblem, h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'ni-fix', onclick: getAddress }, 'Try again')));
+      const n = notice('error', h('strong', { text: `${t('Nothing was sent.')} ` }), saveProblem, h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'ni-fix', onclick: getAddress }, t('Try again'))));
       n.dataset.testid = 'ni-problem';
       return n;
     }
@@ -301,7 +302,7 @@ export default function nearIntents(app, params = {}) {
   }
 
   function updateNotice() {
-    const n = notice('warn', h('strong', { text: 'Finish the update first. ' }), 'Until it is finished this version cannot reach NEAR Intents. Nothing was sent.', h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-primary btn-small', 'data-testid': 'ni-update-finish', onclick: () => location.reload() }, 'Finish now')));
+    const n = notice('warn', h('strong', { text: `${t('Finish the update first.')} ` }), t('Until it is finished this version cannot reach NEAR Intents. Nothing was sent.'), h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-primary btn-small', 'data-testid': 'ni-update-finish', onclick: () => location.reload() }, t('Finish now'))));
     n.dataset.testid = 'ni-update';
     return n;
   }
@@ -322,7 +323,7 @@ export default function nearIntents(app, params = {}) {
           'button',
           { class: 'card row dapps-entry', 'data-testid': 'ni-open-swap', 'data-deposit': s.depositAddress, onclick: () => app.go('nearIntentsDeposit', { deposit: s.depositAddress }) },
           h('span', { class: 'ico wait' }, coinBadge(s.origin.assetId, s.origin.symbol, 'small')),
-          h('span', { class: 'main' }, h('div', { class: 't', text: stateLine(s) }), h('div', { class: 's', text: 'NEAR Intents · tap to see the deposit address' })),
+          h('span', { class: 'main' }, h('div', { class: 't', text: stateLine(s) }), h('div', { class: 's', text: t('NEAR Intents · tap to see the deposit address') })),
           h('span', { class: 'chev' }, icon('chevron')),
         ),
       ),
@@ -330,7 +331,7 @@ export default function nearIntents(app, params = {}) {
         ? updateNotice()
         : tokensError
           ? (() => {
-              const n = notice('error', h('strong', { text: "Couldn't load NEAR Intents' coins. " }), 'This is not something you did. Nothing was sent.', h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'ni-coins-retry', onclick: () => loadTokens(true) }, 'Try again')));
+              const n = notice('error', h('strong', { text: `${t("Couldn't load NEAR Intents' coins.")} ` }), t('This is not something you did. Nothing was sent.'), h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'ni-coins-retry', onclick: () => loadTokens(true) }, t('Try again'))));
               n.dataset.testid = 'ni-coins-failed';
               return n;
             })()
@@ -338,32 +339,32 @@ export default function nearIntents(app, params = {}) {
     );
 
     const a = amountState();
-    put(coinBtn, ...(coin ? [coinBadge(coin.assetId, coin.symbol, 'small'), h('span', { class: 'coin-chip' }, h('span', { text: coin.symbol }), h('span', { class: 'chain', text: coin.chainName }))] : [h('span', { text: tokens || tokensError ? 'Choose' : '…' })]), icon('down'));
+    put(coinBtn, ...(coin ? [coinBadge(coin.assetId, coin.symbol, 'small'), h('span', { class: 'coin-chip' }, h('span', { text: coin.symbol }), h('span', { class: 'chain', text: coin.chainName }))] : [h('span', { text: tokens || tokensError ? t('Choose') : '…' })]), icon('down'));
     const worth = coin && coin.priceUsd != null && a.value != null ? `≈ ${usd((Number(a.value) / 10 ** coin.decimals) * coin.priceUsd)}` : '';
     put(paySub, h('span', { 'data-testid': 'ni-worth', text: worth }));
 
-    refundLabel.textContent = coin ? `Your ${coin.chainName} address for a refund` : 'Your address for a refund';
-    refund.placeholder = coin ? `Your ${coin.symbol} address` : 'Address';
-    const rErr = refundError() || (problem && problem.code === 'refused' && /refund/i.test(problem.said || '') ? `NEAR Intents says this isn't a ${coin ? coin.chainName : ''} address.` : null);
-    refundHint.textContent = rErr || (refund.value && refund.value === draft.prefilled ? 'This wallet’s address, filled in for you.' : coin ? `If the swap can't happen, your ${coin.symbol} goes back here.` : '');
+    refundLabel.textContent = coin ? t('Your {chain} address for a refund', { chain: coin.chainName }) : t('Your address for a refund');
+    refund.placeholder = coin ? t('Your {symbol} address', { symbol: coin.symbol }) : t('Address');
+    const rErr = refundError() || (problem && problem.code === 'refused' && /refund/i.test(problem.said || '') ? t("NEAR Intents says this isn't a {chain} address.", { chain: coin ? coin.chainName : '' }) : null);
+    refundHint.textContent = rErr || (refund.value && refund.value === draft.prefilled ? t('This wallet’s address, filled in for you.') : coin ? t("If the swap can't happen, your {symbol} goes back here.", { symbol: coin.symbol }) : '');
     refundHint.className = `hint${rErr ? ' bad' : ''}`;
     refund.classList.toggle('bad', Boolean(rErr));
 
     const q = quote;
     put(
       getsBox,
-      h('div', { class: 'swap-label', text: 'You get in this wallet' }),
+      h('div', { class: 'swap-label', text: t('You get in this wallet') }),
       h(
         'div',
         { class: 'swap-line' },
-        h('div', { class: `swap-out${q ? '' : ' muted'}`, 'data-testid': q ? 'ni-eth' : quoting ? 'ni-eth-loading' : 'ni-eth-empty', 'data-wei': q ? String(q.amountOut) : '', title: q ? `${exactUnits(q.amountOut, 18)} ETH` : null, text: q ? `≈ ${compactUnits(q.amountOut, 18)}` : quoting ? '…' : '0' }),
-        h('span', { class: 'asset-pick static' }, ethBadge(ETH, 'small'), h('span', { text: 'ETH' })),
+        h('div', { class: `swap-out${q ? '' : ' muted'}`, 'data-testid': q ? 'ni-eth' : quoting ? 'ni-eth-loading' : 'ni-eth-empty', 'data-wei': q ? String(q.amountOut) : '', title: q ? `${exactUnits(q.amountOut, 18)} ETH` : null, text: q ? `≈ ${compactUnits(q.amountOut, 18)}` : quoting ? '…' : '0' }), // i18n-ignore: an amount and its ticker
+        h('span', { class: 'asset-pick static' }, ethBadge(ETH, 'small'), h('span', { text: 'ETH' })), // i18n-ignore: the coin's ticker
       ),
       h(
         'div',
         { class: 'swap-sub stacked' },
-        h('span', { 'data-testid': 'ni-eth-worth' }, q && q.amountOutUsd != null ? `≈\u00a0${usd(q.amountOutUsd)}, delivered to ` : 'Delivered to ', ctx ? h('span', { class: 'mono', text: shorten(ctx.address, 6, 4) }) : 'this wallet', q && q.amountOutUsd != null ? '' : ', this Ethereum wallet'),
-        q && wbeam != null ? h('span', { 'data-testid': 'ni-wbeam-estimate', text: `Then buys about ${compactUnits(wbeam, 8)} WBEAM at today's price` }) : null,
+        h('span', { 'data-testid': 'ni-eth-worth' }, ...deliveredTo(q)),
+        q && wbeam != null ? h('span', { 'data-testid': 'ni-wbeam-estimate', text: t("Then buys about {amount} WBEAM at today's price", { amount: compactUnits(wbeam, 8) }) }) : null,
       ),
     );
     put(
@@ -372,9 +373,9 @@ export default function nearIntents(app, params = {}) {
         ? h(
             'div',
             { class: 'card flat swap-details', 'data-testid': 'ni-details' },
-            kv('At least', `${compactUnits(q.minAmountOut, 18)} ETH`, { 'data-testid': 'ni-min' }, 'with 1% price protection'),
-            q.timeEstimate != null ? kv('Takes about', durationText(q.timeEstimate), { 'data-testid': 'ni-time' }, 'after your deposit is confirmed') : null,
-            kv('Fees', 'Included above', { 'data-testid': 'ni-fees' }, feeText(q) ? `${feeText(q)}: NEAR Intents' fee and network fees` : "NEAR Intents' fee and network fees"),
+            kv(t('At least'), `${compactUnits(q.minAmountOut, 18)} ETH`, { 'data-testid': 'ni-min' }, t('with 1% price protection')),
+            q.timeEstimate != null ? kv(t('Takes about'), durationText(q.timeEstimate), { 'data-testid': 'ni-time' }, t('after your deposit is confirmed')) : null,
+            kv(t('Fees'), t('Included above'), { 'data-testid': 'ni-fees' }, feeText(q) ? t("{fee}: NEAR Intents' fee and network fees", { fee: feeText(q) }) : t("NEAR Intents' fee and network fees")),
           )
         : null,
     );
@@ -382,9 +383,19 @@ export default function nearIntents(app, params = {}) {
     put(problemBox, problemNotice());
     const st = ctaState();
     cta.disabled = st.off !== null;
-    cta.textContent = coin ? `Get a ${coin.symbol} deposit address` : 'Get a deposit address';
+    cta.textContent = coin ? t('Get a {symbol} deposit address', { symbol: coin.symbol }) : t('Get a deposit address');
     reason.textContent = st.off || '';
     reason.classList.toggle('hidden', !st.off);
+  }
+
+  /** "≈ $12.30, delivered to 0x12ab…cdef", or without a price "Delivered to 0x12ab…cdef, this Ethereum wallet". */
+  function deliveredTo(q) {
+    const address = ctx ? h('span', { class: 'mono', text: shorten(ctx.address, 6, 4) }) : null;
+    if (q && q.amountOutUsd != null) {
+      const amount = `≈\u00a0${usd(q.amountOutUsd)}`;
+      return address ? tNodes('{amount}, delivered to {address}', { amount, address }) : [t('{amount}, delivered to this wallet', { amount })];
+    }
+    return address ? tNodes('Delivered to {address}, this Ethereum wallet', { address }) : [t('Delivered to this wallet, this Ethereum wallet')];
   }
 
   function kv(label, value, extra, note) {
@@ -405,18 +416,18 @@ export default function nearIntents(app, params = {}) {
       draft.refund = refund.value;
       changed();
     } catch {
-      refundHint.textContent = 'Press and hold in the box, then tap Paste.';
+      refundHint.textContent = t('Press and hold in the box, then tap Paste.');
       refund.focus();
     }
   });
 
-  const intro = h('p', { class: 'small', 'data-testid': 'ni-intro', text: 'Send BTC, ZEC, LTC or 200 other coins from any wallet or exchange. NEAR Intents swaps them into ETH for this wallet; then you buy WBEAM with it here.' });
+  const intro = h('p', { class: 'small', 'data-testid': 'ni-intro', text: t('Send BTC, ZEC, LTC or 200 other coins from any wallet or exchange. NEAR Intents swaps them into ETH for this wallet; then you buy WBEAM with it here.') });
   const who = h('p', { class: 'small', 'data-testid': 'ni-who-sees', text: whoSees(ONECLICK.host) });
-  const wantBeam = h('button', { class: 'btn btn-text link-left wrap', 'data-testid': 'ni-buy-native-beam', onclick: () => app.go('buyBeam', { from: 'eth' }) }, 'Want private BEAM in your BEAM wallet instead?');
+  const wantBeam = h('button', { class: 'btn btn-text link-left wrap', 'data-testid': 'ni-buy-native-beam', onclick: () => app.go('buyBeam', { from: 'eth' }) }, t('Want private BEAM in your BEAM wallet instead?'));
 
   const el = screen(
     {
-      title: 'Pay with another coin',
+      title: t('Pay with another coin'),
       back: () => {
         app.intentsDraft = null;
         app.back('ethHome');
@@ -426,7 +437,7 @@ export default function nearIntents(app, params = {}) {
     },
     topBox,
     intro,
-    h('div', { class: 'card swap-box' }, h('div', { class: 'swap-label', text: 'You send' }), h('div', { class: 'swap-line' }, amountInput, coinBtn), paySub),
+    h('div', { class: 'card swap-box' }, h('div', { class: 'swap-label', text: t('You send') }), h('div', { class: 'swap-line' }, amountInput, coinBtn), paySub),
     h('label', { class: 'field' }, h('span', { class: 'banner' }, refundLabel, pasteBtn), refund),
     refundHint,
     getsBox,
@@ -440,7 +451,7 @@ export default function nearIntents(app, params = {}) {
     try {
       ctx = await intentsFor(app);
     } catch (e) {
-      put(problemBox, notice('error', `The Ethereum wallet could not be opened: ${e.message}`));
+      put(problemBox, notice('error', t('The Ethereum wallet could not be opened: {reason}', { reason: e.message })));
       return;
     }
     if (!alive) return;

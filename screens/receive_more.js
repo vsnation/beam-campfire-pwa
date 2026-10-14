@@ -17,6 +17,7 @@ import { primary, secondary, textButton, notice, openSheet, copyText } from '../
 import { wallet } from '../lib/wallet.js';
 import { PRIVATE_TYPES, MORE_WAYS as T, typeTitle, typeExplainer, privateReceiveGate, blockedReason, receiveErrorText, makePrivateAddress } from '../lib/receive_types.js';
 import { qrElement } from './receive.js';
+import { t, asSentence } from '../lib/i18n.js';
 
 export function moreWays(app) {
   let open = false;
@@ -41,7 +42,7 @@ export function moreWays(app) {
       h(
         'button',
         { class: 'card row more-ways-head', type: 'button', 'aria-expanded': String(open), 'data-testid': 'more-ways-toggle', onclick: () => ((open = !open), render()) },
-        h('span', { class: 'main' }, h('div', { class: 't', text: T.title }), h('div', { class: 's wrap', text: T.hint })),
+        h('span', { class: 'main' }, h('div', { class: 't', text: t(T.title) }), h('div', { class: 's wrap', text: t(T.hint) })),
         h('span', { class: 'chev' }, icon(open ? 'down' : 'chevron')),
       ),
       open && !gate.available
@@ -50,9 +51,9 @@ export function moreWays(app) {
             { 'data-testid': 'more-ways-blocked', 'data-block': gate.block },
             notice(
               'warn',
-              h('strong', { text: `${T.blockedTitle}. ` }),
+              h('strong', { text: asSentence(t(T.blockedTitle)) }),
               why.reason,
-              why.actions.length ? h('div', { class: 'btn-row prompt-actions' }, ...why.actions.map((a, i) => h('button', { class: `btn ${i === 0 ? 'btn-primary' : 'btn-text'} btn-small`, type: 'button', 'data-testid': `more-ways-${a}`, onclick: () => go(a) }, actionLabel[a]))) : null,
+              why.actions.length ? h('div', { class: 'btn-row prompt-actions' }, ...why.actions.map((a, i) => h('button', { class: `btn ${i === 0 ? 'btn-primary' : 'btn-text'} btn-small`, type: 'button', 'data-testid': `more-ways-${a}`, onclick: () => go(a) }, t(actionLabel[a])))) : null,
             ),
           )
         : null,
@@ -67,7 +68,7 @@ export function moreWays(app) {
     return h(
       'button',
       { class: `row type-row${enabled || busy ? '' : ' off'}`, type: 'button', disabled: !enabled, 'aria-disabled': String(!enabled), 'data-testid': `receive-type-${type}`, onclick: () => make(type) },
-      h('span', { class: 'main' }, h('div', { class: 't', text: typeTitle(type) }), h('div', { class: 's wrap', text: busy ? T.making : typeExplainer(type) })),
+      h('span', { class: 'main' }, h('div', { class: 't', text: typeTitle(type) }), h('div', { class: 's wrap', text: busy ? t(T.making) : typeExplainer(type) })),
       h('span', { class: 'chev' }, busy ? h('span', { class: 'spinner small' }) : icon(gate.available ? 'chevron' : 'lock')),
     );
   }
@@ -98,10 +99,10 @@ export function moreWays(app) {
         h('p', { class: 'small', text: typeExplainer(type) }),
         h('div', { class: 'qr sheet-qr' }, qrElement(address)),
         h('p', { class: 'mono addr-groups center', 'data-testid': 'private-address', text: `${address.slice(0, 18)}…${address.slice(-18)}` }),
-        primary(h('span', {}, 'Copy address'), () => copyText(address, 'Address copied'), { 'data-testid': 'private-copy' }),
-        canShare ? secondary('Share', () => navigator.share({ text: address }).catch(() => {}), { 'data-testid': 'private-share' }) : null,
-        h('p', { class: 'small', text: 'It is kept in Your addresses.' }),
-        textButton('Done', () => close(), { 'data-testid': 'private-done' }),
+        primary(h('span', {}, t('Copy address')), () => copyText(address, t('Address copied')), { 'data-testid': 'private-copy' }),
+        canShare ? secondary(t('Share'), () => navigator.share({ text: address }).catch(() => {}), { 'data-testid': 'private-share' }) : null,
+        h('p', { class: 'small', text: t('It is kept in Your addresses.') }),
+        textButton(t('Done'), () => close(), { 'data-testid': 'private-done' }),
       ],
       { label: typeTitle(type) },
     );

@@ -21,6 +21,7 @@ import { icon } from '../lib/icons.js';
 import { screen, primary, notice, progressBar, versionText } from '../lib/ui.js';
 import { registerLoader, readInstallProgress, reloadOnceIntoVerifiedCopy, INTEGRITY_CODES } from '../lib/loader.js';
 import { isIosSafariTab } from './welcome.js';
+import { t, tn, tNodes } from '../lib/i18n.js';
 
 export const STALL_MS = 30000; // no bytes for this long, once downloading: stalled
 export const SLOW_START_MS = 45000; // the browser has not started setup yet: say it is normal
@@ -37,14 +38,15 @@ export function installVersion(p) {
 
 /** The line under the bar once every file is checked. Pure (unit-tested). */
 export function doneLine(version) {
-  return version ? `Version ${version} checked. Opening BEAM Campfire…` : 'Checked. Opening BEAM Campfire…';
+  return version ? t('Version {version} checked. Opening BEAM Campfire…', { version }) : t('Checked. Opening BEAM Campfire…');
 }
 
 /** The line under the progress bar. Pure (unit-tested). */
 export function progressLine(p) {
-  if (!p) return 'Starting setup…';
-  if (!p.total) return 'Checking the release signature…';
-  return `${p.done} of ${p.total} files checked · ${MB(p.doneBytes)} of ${MB(p.totalBytes)} MB`;
+  if (!p) return t('Starting setup…');
+  if (!p.total) return t('Checking the release signature…');
+  // The count is the release's files (always many: 'one' never shows in English).
+  return tn({ one: '{done} of {n} file checked · {doneMb} of {totalMb} MB', other: '{done} of {n} files checked · {doneMb} of {totalMb} MB' }, p.total, { done: p.done, doneMb: MB(p.doneBytes), totalMb: MB(p.totalBytes) });
 }
 
 export default function install(app) {
@@ -60,24 +62,24 @@ export default function install(app) {
   let slowShown = false;
 
   const bar = progressBar(null);
-  const line = h('p', { class: 'small', 'aria-live': 'polite', 'data-testid': 'install-line', text: 'Starting…' });
+  const line = h('p', { class: 'small', 'aria-live': 'polite', 'data-testid': 'install-line', text: t('Starting…') });
   const status = h('div', { 'data-testid': 'install-status' });
   const actions = h('div', { class: 'actions' });
   // Shown once the signed release says which version it is (installVersion).
   const versionEl = h('p', { class: 'version hidden', 'data-testid': 'app-version' });
   const tip = isIosSafariTab()
-    ? notice('info', h('strong', { text: 'Adding it to your Home Screen? ' }), 'Do it now and open it from there: the Home Screen app sets itself up separately.')
+    ? notice('info', ...tNodes('{question} Do it now and open it from there: the Home Screen app sets itself up separately.', { question: h('strong', { text: t('Adding it to your Home Screen?') }) }))
     : null;
 
   const el = screen(
     { topbar: false, cls: 'install' },
-    h('div', { class: 'hero compact' }, h('img', { src: 'img/logo.svg', alt: '' }), h('h1', { text: 'BEAM Campfire' })),
-    h('h2', { class: 'title center', 'data-testid': 'install-title', text: 'Setting up BEAM Campfire on this device…' }),
+    h('div', { class: 'hero compact' }, h('img', { src: 'img/logo.svg', alt: '' }), h('h1', { text: 'BEAM Campfire' })), // i18n-ignore: the app's name
+    h('h2', { class: 'title center', 'data-testid': 'install-title', text: t('Setting up BEAM Campfire on this device…') }),
     bar,
     line,
     status,
-    notice('info', h('strong', { text: 'This happens once. Keep this screen open. ' }), 'Every file is checked against the BEAM Campfire release signature before it is used.'),
-    h('p', { class: 'small', text: 'If the connection drops, nothing is lost: the files already checked are kept, and setup continues the next time you open BEAM Campfire.' }),
+    notice('info', ...tNodes('{lead} Every file is checked against the BEAM Campfire release signature before it is used.', { lead: h('strong', { text: t('This happens once. Keep this screen open.') }) })),
+    h('p', { class: 'small', text: t('If the connection drops, nothing is lost: the files already checked are kept, and setup continues the next time you open BEAM Campfire.') }),
     tip,
   );
   el.appendChild(actions);
@@ -104,7 +106,7 @@ export default function install(app) {
   function stopped(kind, message) {
     phase = kind;
     put(status, notice(kind === 'stalled' ? 'warn' : 'error', message));
-    put(actions, primary('Try again', retry, { 'data-testid': 'install-retry' }));
+    put(actions, primary(t('Try again'), retry, { 'data-testid': 'install-retry' }));
   }
 
   async function tick() {
@@ -135,16 +137,22 @@ export default function install(app) {
       // iOS Simulator). That is not a stalled download: say so, and offer Try again only much later.
       const waited = Date.now() - startedAt;
       if (waited > NO_START_MS) {
-        stopped('stalled', 'Setup has not started after two and a half minutes. Your browser may have paused it.');
+        stopped('stalled', t('Setup has not started after two and a half minutes. Your browser may have paused it.'));
       } else if (waited > SLOW_START_MS && !slowShown) {
         slowShown = true;
-        put(status, notice('info', 'Your browser is still preparing the setup. The first time, this can take about a minute.'));
+        put(status, notice('info', t('Your browser is still preparing the setup. The first time, this can take about a minute.')));
       }
       return;
     }
     if (Date.now() - lastChange > STALL_MS) {
-      const kept = p && p.done ? ` The ${p.done} files already checked are kept.` : '';
-      stopped('stalled', `The download has not moved for ${Math.round(STALL_MS / 1000)} seconds. The connection to the BEAM Campfire site may have dropped.${kept}`);
+      const seconds = Math.round(STALL_MS / 1000);
+      // English always said "files", even for 1: both forms keep that (tn gives other languages their forms).
+      stopped(
+        'stalled',
+        p && p.done
+          ? tn({ one: 'The download has not moved for {seconds} seconds. The connection to the BEAM Campfire site may have dropped. The {n} files already checked are kept.', other: 'The download has not moved for {seconds} seconds. The connection to the BEAM Campfire site may have dropped. The {n} files already checked are kept.' }, p.done, { seconds })
+          : t('The download has not moved for {seconds} seconds. The connection to the BEAM Campfire site may have dropped.', { seconds }),
+      );
     }
   }
 
@@ -154,8 +162,12 @@ export default function install(app) {
       phase = 'failed';
       return app.go('problem', { kind: 'integrity', detail: err.message });
     }
-    const kept = lastProgress && lastProgress.done ? ` The ${lastProgress.done} files already checked are kept; Try again continues from there.` : '';
-    stopped('failed', code === 'stopped' ? `Setup was stopped.${kept}` : `Couldn't reach the BEAM Campfire site to finish setting up. Check your connection.${kept}`);
+    const kept = lastProgress && lastProgress.done ? lastProgress.done : 0;
+    // English always said "files", even for 1: both forms keep that (tn gives other languages their forms).
+    if (code === 'stopped')
+      stopped('failed', kept ? tn({ one: 'Setup was stopped. The {n} files already checked are kept; Try again continues from there.', other: 'Setup was stopped. The {n} files already checked are kept; Try again continues from there.' }, kept) : t('Setup was stopped.'));
+    else
+      stopped('failed', kept ? tn({ one: "Couldn't reach the BEAM Campfire site to finish setting up. Check your connection. The {n} files already checked are kept; Try again continues from there.", other: "Couldn't reach the BEAM Campfire site to finish setting up. Check your connection. The {n} files already checked are kept; Try again continues from there." }, kept) : t("Couldn't reach the BEAM Campfire site to finish setting up. Check your connection."));
   }
 
   function follow(r) {
@@ -189,13 +201,13 @@ export default function install(app) {
 
   async function retry() {
     put(actions);
-    put(status, h('p', { class: 'small', text: 'Trying again…' }));
+    put(status, h('p', { class: 'small', text: t('Trying again…') }));
     const w = reg && reg.installing;
     if (w) {
       // End the stuck run; the next one resumes from the files already checked.
       await new Promise((resolve) => {
-        const t = setTimeout(resolve, 10000);
-        w.addEventListener('statechange', () => w.state === 'redundant' && (clearTimeout(t), resolve()));
+        const tmr = setTimeout(resolve, 10000);
+        w.addEventListener('statechange', () => w.state === 'redundant' && (clearTimeout(tmr), resolve()));
         w.postMessage({ type: 'abort-install' });
       });
     }
@@ -213,8 +225,8 @@ export default function install(app) {
       if (destroyed) return;
       put(
         actions,
-        primary('Open BEAM Campfire', () => location.reload(), { 'data-testid': 'install-open' }),
-        h('p', { class: 'small', text: 'Still here? If your browser\'s developer tools are open, turn off "Update on reload" and "Bypass for network" (Application, Service workers), then open it again.' }),
+        primary(t('Open BEAM Campfire'), () => location.reload(), { 'data-testid': 'install-open' }),
+        h('p', { class: 'small', text: t('Still here? If your browser\'s developer tools are open, turn off "Update on reload" and "Bypass for network" (Application, Service workers), then open it again.') }),
       );
     }, OPEN_TIMEOUT_MS);
     if (!reloadOnceIntoVerifiedCopy()) app.continueBoot();

@@ -11,18 +11,19 @@ import { h, put } from '../lib/dom.js';
 import { screen, primary, notice } from '../lib/ui.js';
 import { isAllowedWord, isValidPhrase, loadEngine } from '../lib/engine.js';
 import { isAdding } from '../lib/session.js';
+import { t, tn } from '../lib/i18n.js';
 
 export default function restore(app) {
   const adding = isAdding(app);
   const inputs = [];
   const boxes = [];
   const msg = h('div', { 'aria-live': 'polite' });
-  const cta = primary('Restore my wallet', submit, { disabled: true, 'data-testid': 'restore-submit' });
+  const cta = primary(t('Restore my wallet'), submit, { disabled: true, 'data-testid': 'restore-submit' });
   let ready = false;
   loadEngine().then(() => {
     ready = true;
     validate();
-  }, (e) => put(msg, notice('error', `The wallet engine did not start: ${e.message}. Reload the page to try again.`)));
+  }, (e) => put(msg, notice('error', t('The wallet engine did not start: {reason}. Reload the page to try again.', { reason: e.message }))));
 
   for (let i = 0; i < 12; i++) {
     const input = h('input', {
@@ -33,7 +34,7 @@ export default function restore(app) {
       spellcheck: 'false',
       inputmode: 'text',
       enterkeyhint: i === 11 ? 'done' : 'next',
-      'aria-label': `Word ${i + 1}`,
+      'aria-label': t('Word {n}', { n: i + 1 }),
       'data-testid': `word-${i + 1}`,
     });
     input.addEventListener('paste', (e) => {
@@ -59,8 +60,8 @@ export default function restore(app) {
     boxes.push(h('label', { class: 'word-input' }, h('span', { class: 'n', text: String(i + 1) }), input));
   }
 
-  function splitWords(t) {
-    return String(t).toLowerCase().split(/[\s,;]+/).map((w) => w.replace(/^\d+[.)]?$/, '')).filter(Boolean);
+  function splitWords(raw) {
+    return String(raw).toLowerCase().split(/[\s,;]+/).map((w) => w.replace(/^\d+[.)]?$/, '')).filter(Boolean);
   }
 
   function fill(start, parts) {
@@ -86,7 +87,7 @@ export default function restore(app) {
     }
     const complete = words.every(Boolean);
     if (bad.length) {
-      put(msg, notice('warn', `Word${bad.length > 1 ? 's' : ''} #${bad.join(', #')} ${bad.length > 1 ? "aren't" : "isn't"} in BEAM's word list. Check the spelling.`));
+      put(msg, notice('warn', tn({ one: "Word #{positions} isn't in BEAM's word list. Check the spelling.", other: "Words #{positions} aren't in BEAM's word list. Check the spelling." }, bad.length, { positions: bad.join(', #') })));
       cta.disabled = true;
       return;
     }
@@ -94,11 +95,11 @@ export default function restore(app) {
       const valid = await isValidPhrase(words);
       if (seq !== checkSeq) return;
       if (!valid) {
-        put(msg, notice('warn', "These words don't form a valid BEAM phrase. Check the order and each word."));
+        put(msg, notice('warn', t("These words don't form a valid BEAM phrase. Check the order and each word.")));
         cta.disabled = true;
         return;
       }
-      put(msg, notice('success', 'All 12 words check out.'));
+      put(msg, notice('success', t('All 12 words check out.')));
       cta.disabled = false;
       return;
     }
@@ -117,12 +118,12 @@ export default function restore(app) {
   }
 
   const el = screen(
-    { title: 'Restore your wallet', back: () => app.go(adding ? 'addWallet' : 'welcome'), actions: [cta] },
-    h('p', { class: 'step', text: 'Step 1 of 2' }),
-    h('p', { class: 'lead', text: 'Enter your 12 words in order. You can paste all of them into the first box.' }),
+    { title: t('Restore your wallet'), back: () => app.go(adding ? 'addWallet' : 'welcome'), actions: [cta] },
+    h('p', { class: 'step', text: t('Step 1 of 2') }),
+    h('p', { class: 'lead', text: t('Enter your 12 words in order. You can paste all of them into the first box.') }),
     h('div', { class: 'words' }, ...boxes),
     msg,
-    h('p', { class: 'small', text: 'Your coins come back after a one-time download of about 330 MB. The words never leave this device.' }),
+    h('p', { class: 'small', text: t('Your coins come back after a one-time download of about 330 MB. The words never leave this device.') }),
   );
   return { el };
 }

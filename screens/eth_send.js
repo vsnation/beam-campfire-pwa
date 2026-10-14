@@ -25,6 +25,7 @@ import { recipientProblem, prepareSend, SendError, ETH_TRANSFER_GAS } from '../l
 import { amountText, ethText, serverProblem, doubtNotice, followDoubt } from './eth_ui.js';
 import { openEthReview } from './eth_review.js';
 import { scanEthAddress } from './scan_sheet.js';
+import { t } from '../lib/i18n.js';
 
 /** What a token transfer usually costs in gas, for the estimate shown before the real one. */
 const TYPICAL_TOKEN_GAS = 65000n;
@@ -35,33 +36,33 @@ export default function ethSend(app) {
   let fees = null; // walletFees(), for the fee shown before review
   let preparing = false;
 
-  const addr = h('textarea', { class: 'input mono', rows: 2, autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', placeholder: 'Paste the 0x… address', 'aria-label': 'Ethereum address', 'data-testid': 'eth-send-to' });
+  const addr = h('textarea', { class: 'input mono', rows: 2, autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', placeholder: t('Paste the 0x… address'), 'aria-label': t('Ethereum address'), 'data-testid': 'eth-send-to' });
   addr.value = draft.to;
-  const pasteBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'eth-paste-to' }, icon('paste'), 'Paste');
-  const scanBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'eth-scan-to', 'aria-label': 'Scan a QR code' }, icon('scan'), 'Scan');
+  const pasteBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'eth-paste-to' }, icon('paste'), t('Paste'));
+  const scanBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'eth-scan-to', 'aria-label': t('Scan a QR code') }, icon('scan'), t('Scan'));
   const addrHint = h('p', { class: 'hint', 'data-testid': 'eth-to-hint' });
-  const assetSel = h('select', { class: 'input', 'aria-label': 'What to send', 'data-testid': 'eth-send-asset' });
-  const assetField = h('label', { class: 'field hidden' }, 'What to send', assetSel);
-  const amount = h('input', { class: 'input', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: '0', 'aria-label': 'Amount', 'data-testid': 'eth-send-amount' });
+  const assetSel = h('select', { class: 'input', 'aria-label': t('What to send'), 'data-testid': 'eth-send-asset' });
+  const assetField = h('label', { class: 'field hidden' }, t('What to send'), assetSel);
+  const amount = h('input', { class: 'input', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: '0', 'aria-label': t('Amount'), 'data-testid': 'eth-send-amount' });
   amount.value = draft.amount;
   const unitLabel = h('span', { class: 'small' });
-  const maxBtn = h('button', { class: 'btn btn-secondary btn-small inside', type: 'button', 'data-testid': 'eth-max' }, 'Max');
+  const maxBtn = h('button', { class: 'btn btn-secondary btn-small inside', type: 'button', 'data-testid': 'eth-max' }, t('Max'));
   const amountHint = h('p', { class: 'hint', 'data-testid': 'eth-amount-hint' });
   const feeLine = h('div', { class: 'kv' });
   const msg = h('div', { 'aria-live': 'polite' });
   // A transaction in doubt holds back this one (lib/eth/doubt.js): said first, before anything is typed.
   const doubtBox = h('div');
   let doubtShown = null; // the hash and kind of doubt on screen, so typing does not rebuild it
-  const cta = primary('Send', review, { disabled: true, 'data-testid': 'eth-send-review' });
+  const cta = primary(t('Send'), review, { disabled: true, 'data-testid': 'eth-send-review' });
 
-  const asset = () => (draft.symbol === 'ETH' ? ETH : TOKENS.find((t) => t.symbol === draft.symbol) || ETH);
+  const asset = () => (draft.symbol === 'ETH' ? ETH : TOKENS.find((tok) => tok.symbol === draft.symbol) || ETH);
   const balanceOf = (a) => (w ? (a === ETH ? w.state.eth : w.state.tokens.get(a.symbol)) : null);
   const typicalUpTo = (a) => (fees ? (a === ETH ? ETH_TRANSFER_GAS : TYPICAL_TOKEN_GAS) * fees.maxFeePerGas : null);
   const typicalLikely = (a) => (fees ? (a === ETH ? ETH_TRANSFER_GAS : TYPICAL_TOKEN_GAS) * (fees.baseFee + fees.maxPriorityFeePerGas) : null);
 
   function fillAssets() {
-    const list = [ETH, ...TOKENS.filter((t) => (balanceOf(t) ?? 0n) > 0n)];
-    put(assetSel, ...list.map((a) => h('option', { value: a.symbol, text: `${a.symbol} (${amountText(balanceOf(a) ?? 0n, a)} available)` })));
+    const list = [ETH, ...TOKENS.filter((tok) => (balanceOf(tok) ?? 0n) > 0n)];
+    put(assetSel, ...list.map((a) => h('option', { value: a.symbol, text: t('{symbol} ({amount} available)', { symbol: a.symbol, amount: amountText(balanceOf(a) ?? 0n, a) }) })));
     if (!list.some((a) => a.symbol === draft.symbol)) draft.symbol = 'ETH';
     assetSel.value = draft.symbol;
     assetField.classList.toggle('hidden', list.length < 2);
@@ -75,9 +76,9 @@ export default function ethSend(app) {
     const a = asset();
     unitLabel.textContent = a.symbol;
     const like = typicalLikely(a);
-    put(feeLine, h('span', { class: 'k', text: 'Network fee' }), h('span', { class: 'v', 'data-testid': 'eth-send-fee', text: like == null ? 'Checking…' : `about ${ethText(like)}` }));
+    put(feeLine, h('span', { class: 'k', text: t('Network fee') }), h('span', { class: 'v', 'data-testid': 'eth-send-fee', text: like == null ? t('Checking…') : t('about {fee}', { fee: ethText(like) }) }));
     const prob = recipientProblem(addr.value, { own: w && w.state.address });
-    addrHint.textContent = prob ? prob.message : addr.value.trim() ? 'An Ethereum address. Check the first and last characters with the receiver.' : '';
+    addrHint.textContent = prob ? prob.message : addr.value.trim() ? t('An Ethereum address. Check the first and last characters with the receiver.') : '';
     addrHint.className = `hint${prob && prob.code !== 'empty' ? ' bad' : !prob ? ' good' : ''}`;
     addr.classList.toggle('bad', Boolean(prob && prob.code !== 'empty'));
     addr.classList.toggle('good', !prob);
@@ -88,24 +89,24 @@ export default function ethSend(app) {
     if (amount.value.trim()) {
       try {
         amt = parseUnits(amount.value, a.decimals, { symbol: a.symbol });
-        if (amt <= 0n) err = 'The amount must be more than zero.';
+        if (amt <= 0n) err = t('The amount must be more than zero.');
       } catch (e) {
         err = e.message;
       }
     }
     const upTo = typicalUpTo(a);
     if (amt != null && !err && have != null) {
-      if (amt > have) err = `That's more than you have (${amountText(have, a)}).`;
-      else if (a === ETH && upTo != null && amt + upTo > have) err = `With the network fee that's more than you have. Up to ${ethText(have > upTo ? have - upTo : 0n)} after the fee.`;
-      else if (a !== ETH && upTo != null && (w.state.eth ?? 0n) < upTo) err = `The network fee is paid in ETH (about ${ethText(typicalLikely(a))}), and this wallet has ${ethText(w.state.eth ?? 0n)}.`;
+      if (amt > have) err = t("That's more than you have ({amount}).", { amount: amountText(have, a) });
+      else if (a === ETH && upTo != null && amt + upTo > have) err = t("With the network fee that's more than you have. Up to {amount} after the fee.", { amount: ethText(have > upTo ? have - upTo : 0n) });
+      else if (a !== ETH && upTo != null && (w.state.eth ?? 0n) < upTo) err = t('The network fee is paid in ETH (about {fee}), and this wallet has {balance}.', { fee: ethText(typicalLikely(a)), balance: ethText(w.state.eth ?? 0n) });
     }
-    amountHint.textContent = err || (have == null ? 'Checking the balance…' : `Available: ${amountText(have, a)}`);
+    amountHint.textContent = err || (have == null ? t('Checking the balance…') : t('Available: {amount}', { amount: amountText(have, a) }));
     amountHint.className = `hint${err ? ' bad' : ''}`;
     amount.classList.toggle('bad', Boolean(err));
     const ok = w && !prob && amt != null && !err && have != null && !preparing;
     cta.disabled = !ok || Boolean(doubt);
     // The reason sits on the grey button too: the notice that names it may be scrolled away.
-    cta.textContent = doubt ? 'Sending is paused (see above)' : preparing ? 'Checking with Ethereum…' : ok ? `Send ${amountText(amt, a, { approx: false })}` : 'Send';
+    cta.textContent = doubt ? t('Sending is paused (see above)') : preparing ? t('Checking with Ethereum…') : ok ? t('Send {amount}', { amount: amountText(amt, a, { approx: false }) }) : t('Send');
     return ok && !doubt ? { asset: a, amount: amt } : null;
   }
 
@@ -134,11 +135,11 @@ export default function ethSend(app) {
     }
   }
 
-  let t = null;
+  let tmr = null;
   addr.addEventListener('input', () => {
     draft.to = addr.value.trim();
-    clearTimeout(t);
-    t = setTimeout(evaluate, 200);
+    clearTimeout(tmr);
+    tmr = setTimeout(evaluate, 200);
   });
   pasteBtn.addEventListener('click', async () => {
     try {
@@ -146,7 +147,7 @@ export default function ethSend(app) {
       draft.to = addr.value;
       evaluate();
     } catch {
-      addrHint.textContent = 'Press and hold in the box, then tap Paste.';
+      addrHint.textContent = t('Press and hold in the box, then tap Paste.');
       addr.focus();
     }
   });
@@ -155,10 +156,10 @@ export default function ethSend(app) {
     if (!r) return;
     if (r.paste) return pasteBtn.click();
     addr.value = draft.to = r.to;
-    const t = r.token ? TOKENS.find((x) => x.address === r.token.toLowerCase()) : null;
-    if (t) {
-      draft.symbol = t.symbol;
-      assetSel.value = t.symbol;
+    const tok = r.token ? TOKENS.find((x) => x.address === r.token.toLowerCase()) : null;
+    if (tok) {
+      draft.symbol = tok.symbol;
+      assetSel.value = tok.symbol;
     }
     if (r.valueWei && !r.token) {
       draft.symbol = 'ETH';
@@ -203,7 +204,7 @@ export default function ethSend(app) {
 
   const el = screen(
     {
-      title: 'Send on Ethereum',
+      title: t('Send on Ethereum'),
       back: () => {
         app.ethSendDraft = null;
         app.back('ethHome');
@@ -212,9 +213,9 @@ export default function ethSend(app) {
     },
     doubtBox,
     assetField,
-    h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: 'To' }), scanBtn, pasteBtn), addr),
+    h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: t('To') }), scanBtn, pasteBtn), addr),
     addrHint,
-    h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: 'Amount' }), unitLabel), h('div', { class: 'input-wrap' }, amount, maxBtn)),
+    h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: t('Amount') }), unitLabel), h('div', { class: 'input-wrap' }, amount, maxBtn)),
     amountHint,
     h('div', { class: 'card flat' }, feeLine),
     msg,
@@ -222,7 +223,7 @@ export default function ethSend(app) {
   return {
     el,
     destroy() {
-      clearTimeout(t);
+      clearTimeout(tmr);
       stopDoubt();
     },
   };

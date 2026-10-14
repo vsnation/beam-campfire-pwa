@@ -34,10 +34,13 @@ import { NODES, nodeName, isPoolNode } from '../lib/nodes.js';
 import { isOwnNode, useRandomNodes, usePoolNode, forgetPoolNode } from '../lib/own_node.js';
 import { syncLine } from './home.js';
 import { nodeRowState } from '../lib/node_rows.js';
+import { t, tk, tNodes } from '../lib/i18n.js';
 
-export const OWNER_KEY_LEAD = "Your node needs this wallet's owner key: ";
-export const OWNER_KEY_PATH = 'Settings → Backup → Show owner key';
-export const CHECK_IP_LINE = 'Checking connects to each node from this device, so they see your IP address.';
+// One sentence with the way to the key as a button inside it ({path}); shown with tNodes(OWNER_KEY_LINE, { path })
+// and t(OWNER_KEY_PATH), here and on Your own node.
+export const OWNER_KEY_LINE = tk("Your node needs this wallet's owner key: {path}");
+export const OWNER_KEY_PATH = tk('Settings → Backup → Show owner key');
+export const CHECK_IP_LINE = tk('Checking connects to each node from this device, so they see your IP address.');
 const CHECK_TIMEOUT_MS = 8000;
 const fmt = (n) => Number(n).toLocaleString('en-US');
 const withId = (id, el) => (el.setAttribute('data-testid', id), el);
@@ -45,27 +48,29 @@ const withId = (id, el) => (el.setAttribute('data-testid', id), el);
 /** What the person's own node can receive, in words; from the engine once it has said. */
 export function ownNodeKeyText(app, s) {
   const confirmed = s.connEvent && s.connEvent.node_connected ? s.connEvent.own_node === true : null;
-  if (confirmed === true) return "It has this wallet's owner key: online, offline and max-privacy payments can be received.";
-  if (confirmed === false && app.prefs.ownNodeKey) return "It doesn't know this wallet's owner key yet: online payments only. Check the key your node was started with.";
-  if (app.prefs.ownNodeKey) return "Started with this wallet's owner key: offline and max-privacy payments too, once it connects.";
-  return "Online payments only. With this wallet's owner key, it could also receive offline and max-privacy payments.";
+  if (confirmed === true) return t("It has this wallet's owner key: online, offline and max-privacy payments can be received.");
+  if (confirmed === false && app.prefs.ownNodeKey) return t("It doesn't know this wallet's owner key yet: online payments only. Check the key your node was started with.");
+  if (app.prefs.ownNodeKey) return t("Started with this wallet's owner key: offline and max-privacy payments too, once it connects.");
+  return t("Online payments only. With this wallet's owner key, it could also receive offline and max-privacy payments.");
 }
 
 /** Asks for Face ID or the password, then moves the wallet from its own node to BEAM's public nodes. */
 export async function switchToRandom(app, { first = null } = {}) {
   const ok = await confirmIdentity(app, {
-    title: first ? `Use ${nodeName(first)}?` : "Use BEAM's public nodes?",
-    detail: `Your wallet connects through BEAM's public nodes again${first ? `, starting with ${nodeName(first)}` : ''}. They can see your IP address.`,
-    cta: first ? `Use ${nodeName(first)}` : "Use BEAM's public nodes",
+    title: first ? t('Use {node}?', { node: nodeName(first) }) : t("Use BEAM's public nodes?"),
+    detail: first
+      ? t("Your wallet connects through BEAM's public nodes again, starting with {node}. They can see your IP address.", { node: nodeName(first) })
+      : t("Your wallet connects through BEAM's public nodes again. They can see your IP address."),
+    cta: first ? t('Use {node}', { node: nodeName(first) }) : t("Use BEAM's public nodes"),
   });
   if (!ok) return false;
-  toast("Connecting through BEAM's public nodes…");
+  toast(t("Connecting through BEAM's public nodes…"));
   try {
     await useRandomNodes(app, { first });
-    toast("Connected through BEAM's public nodes");
+    toast(t("Connected through BEAM's public nodes"));
     return true;
   } catch (e) {
-    toast(`Couldn't switch: ${e.message}`);
+    toast(t("Couldn't switch: {reason}", { reason: e.message }));
     return false;
   }
 }
@@ -94,24 +99,24 @@ export default function nodeSettings(app) {
   }
 
   const keyLine = () =>
-    h('p', { class: 'small', 'data-testid': 'owner-key-line' }, OWNER_KEY_LEAD, h('button', { class: 'btn btn-text link-line', onclick: () => app.go('ownerKey', { from: 'nodeSettings' }), 'data-testid': 'owner-key-link' }, OWNER_KEY_PATH));
+    h('p', { class: 'small', 'data-testid': 'owner-key-line' }, ...tNodes(OWNER_KEY_LINE, { path: h('button', { class: 'btn btn-text link-line', onclick: () => app.go('ownerKey', { from: 'nodeSettings' }), 'data-testid': 'owner-key-link' }, t(OWNER_KEY_PATH)) }));
 
   function renderStatus(s) {
     const sync = s.sync || {};
     const connected = s.nodeConnected && s.everConnected;
     const height = s.status ? Number(s.status.current_height) || 0 : 0;
-    const blockLine = connected && height ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Newest block' }), h('span', { class: 'v', 'data-testid': 'node-height', text: fmt(height) })) : null;
+    const blockLine = connected && height ? h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Newest block') }), h('span', { class: 'v', 'data-testid': 'node-height', text: fmt(height) })) : null;
     if (own) {
       const down = sync.state === 'offline';
       put(
         statusBox,
         down
-          ? notice('error', h('strong', { text: "Can't reach your node. " }), "The app won't switch by itself: other nodes would see your IP address.", h('button', { class: 'btn btn-primary btn-small node-inline-btn', 'data-testid': 'node-use-random', onclick: () => leaveOwn() }, "Use BEAM's public nodes"))
+          ? notice('error', h('strong', { text: `${t("Can't reach your node.")} ` }), t("The app won't switch by itself: other nodes would see your IP address."), h('button', { class: 'btn btn-primary btn-small node-inline-btn', 'data-testid': 'node-use-random', onclick: () => leaveOwn() }, t("Use BEAM's public nodes")))
           : null,
         h(
           'div',
           { class: 'card', 'data-testid': 'node-status' },
-          h('h3', { 'data-testid': 'node-connection', text: down ? 'Your node' : connected ? 'Connected to your node' : 'Connecting to your node…' }),
+          h('h3', { 'data-testid': 'node-connection', text: down ? t('Your node') : connected ? t('Connected to your node') : t('Connecting to your node…') }),
           h('p', { class: 'mono', 'data-testid': 'node-address', text: app.prefs.node }),
           h('p', { class: 'small', 'data-testid': 'node-key-status', text: ownNodeKeyText(app, s) }),
           blockLine,
@@ -119,7 +124,8 @@ export default function nodeSettings(app) {
         ),
       );
     } else {
-      const title = sync.reconnecting ? 'Reconnecting to another node…' : connected ? 'Connected to' : s.node ? 'Connecting to' : 'Not connected';
+      // A heading over the node's address (the line under it).
+      const title = sync.reconnecting ? t('Reconnecting to another node…') : connected ? t('Connected to') : s.node ? t('Connecting to') : t('Not connected');
       put(
         statusBox,
         h(
@@ -159,10 +165,10 @@ export default function nodeSettings(app) {
         h(
           'span',
           { class: 'main' },
-          h('div', { class: 't' }, name, v.inUse ? h('span', { class: 'tag private node-tag', 'data-testid': `node-${name}-in-use`, text: 'In use' }) : null),
+          h('div', { class: 't' }, name, v.inUse ? h('span', { class: 'tag private node-tag', 'data-testid': `node-${name}-in-use`, text: t('In use') }) : null),
           h('div', { class: 's', 'data-testid': `node-${name}-state`, text: v.text }),
         ),
-        v.canUse ? h('button', { class: 'btn btn-text btn-small', type: 'button', disabled: busy, 'data-testid': `node-${name}-use`, onclick: () => useNode(v.a) }, 'Use this one') : null,
+        v.canUse ? h('button', { class: 'btn btn-text btn-small', type: 'button', disabled: busy, 'data-testid': `node-${name}-use`, onclick: () => useNode(v.a) }, t('Use this one')) : null,
       );
     });
     put(
@@ -170,28 +176,28 @@ export default function nodeSettings(app) {
       h(
         'div',
         { class: 'card list public-nodes', 'data-testid': 'public-nodes' },
-        h('h3', {}, icon('globe', 'inline-icon'), " BEAM's public nodes"),
-        h('p', { class: 'small', text: own ? 'Not in use: your wallet talks to your own node only.' : 'The wallet talks to one of these and moves to the next by itself when one stops answering.' }),
+        h('h3', {}, icon('globe', 'inline-icon'), ` ${t("BEAM's public nodes")}`),
+        h('p', { class: 'small', text: own ? t('Not in use: your wallet talks to your own node only.') : t('The wallet talks to one of these and moves to the next by itself when one stops answering.') }),
         allDown
           ? withId('nodes-all-down', notice(
               'warn',
-              h('strong', { text: "None of BEAM's public nodes is answering this browser right now. " }),
-              'Your coins are safe on the blockchain, and the wallet keeps trying by itself. If you run a BEAM node, you can ',
-              h('button', { class: 'btn btn-text link-line', type: 'button', 'data-testid': 'nodes-all-down-own', onclick: () => app.go('ownNode', { edit: false }) }, 'use your own node'),
-              '.',
+              h('strong', { text: `${t("None of BEAM's public nodes is answering this browser right now.")} ` }),
+              ...tNodes('Your coins are safe on the blockchain, and the wallet keeps trying by itself. If you run a BEAM node, you can {own}.', {
+                own: h('button', { class: 'btn btn-text link-line', type: 'button', 'data-testid': 'nodes-all-down-own', onclick: () => app.go('ownNode', { edit: false }) }, t('use your own node')),
+              }),
             ))
           : null,
         first
-          ? h('p', { class: 'small', 'data-testid': 'node-first' }, `It starts on ${nodeName(first)} each time it opens. `, h('button', { class: 'btn btn-text link-line', type: 'button', disabled: busy, 'data-testid': 'node-forget-first', onclick: forgetFirst }, 'Start on any node'))
+          ? h('p', { class: 'small', 'data-testid': 'node-first' }, `${t('It starts on {node} each time it opens.', { node: nodeName(first) })} `, h('button', { class: 'btn btn-text link-line', type: 'button', disabled: busy, 'data-testid': 'node-forget-first', onclick: forgetFirst }, t('Start on any node')))
           : null,
         ...rows,
         h(
           'div',
           { class: 'node-check' },
           own
-            ? secondary(checking ? 'Checking…' : "Check BEAM's public nodes", () => checkAll(), { disabled: checking, 'data-testid': 'node-check' })
-            : h('button', { class: 'btn btn-text btn-small', type: 'button', disabled: checking, 'data-testid': 'node-check', onclick: () => checkAll() }, icon('refresh', 'inline-icon'), checking ? ' Checking…' : ' Check again'),
-          h('p', { class: 'small', 'data-testid': 'node-check-line', text: CHECK_IP_LINE }),
+            ? secondary(checking ? t('Checking…') : t("Check BEAM's public nodes"), () => checkAll(), { disabled: checking, 'data-testid': 'node-check' })
+            : h('button', { class: 'btn btn-text btn-small', type: 'button', disabled: checking, 'data-testid': 'node-check', onclick: () => checkAll() }, icon('refresh', 'inline-icon'), ` ${checking ? t('Checking…') : t('Check again')}`),
+          h('p', { class: 'small', 'data-testid': 'node-check-line', text: t(CHECK_IP_LINE) }),
         ),
       ),
     );
@@ -209,14 +215,14 @@ export default function nodeSettings(app) {
           'button',
           { class: 'row', type: 'button', onclick: () => app.go('ownNode', { edit: own }), 'data-testid': 'node-own' },
           h('span', { class: 'ico' }, icon('shield')),
-          h('span', { class: 'main' }, h('div', { class: 't' }, 'Your own node', own ? h('span', { class: 'tag private node-tag', text: 'In use' }) : null), h('div', { class: 's wrap', text: "A BEAM node you run, and only that one. With this wallet's owner key it also receives offline and max-privacy payments." })),
+          h('span', { class: 'main' }, h('div', { class: 't' }, t('Your own node'), own ? h('span', { class: 'tag private node-tag', text: t('In use') }) : null), h('div', { class: 's wrap', text: t("A BEAM node you run, and only that one. With this wallet's owner key it also receives offline and max-privacy payments.") })),
           h('span', { class: 'chev' }, icon('chevron')),
         ),
       ),
       own && !confirmed ? keyLine() : null,
-      own ? h('button', { class: 'btn btn-secondary', 'data-testid': 'node-change', onclick: () => app.go('ownNode', { edit: true }) }, 'Change address') : null,
+      own ? h('button', { class: 'btn btn-secondary', 'data-testid': 'node-change', onclick: () => app.go('ownNode', { edit: true }) }, t('Change address')) : null,
       // Down: the notice at the top carries this button.
-      own && !down ? h('button', { class: 'btn btn-secondary', 'data-testid': 'node-use-public', onclick: () => leaveOwn() }, "Use BEAM's public nodes") : null,
+      own && !down ? h('button', { class: 'btn btn-secondary', 'data-testid': 'node-use-public', onclick: () => leaveOwn() }, t("Use BEAM's public nodes")) : null,
     );
   }
 
@@ -251,16 +257,16 @@ export default function nodeSettings(app) {
     if (own) return leaveOwn(address);
     busy = true;
     const name = nodeName(address);
-    put(msg, notice('info', `Connecting to ${name}…`));
+    put(msg, notice('info', t('Connecting to {node}…', { node: name })));
     renderNodes(wallet.state);
     try {
       await usePoolNode(app, address);
       if (gone) return;
-      toast(`Using ${name}`);
+      toast(t('Using {node}', { node: name }));
       app.go('nodeSettings', {}, { replace: true });
     } catch (e) {
       busy = false;
-      put(msg, notice('error', `It did not switch: ${e.message}`));
+      put(msg, notice('error', t('It did not switch: {reason}', { reason: e.message })));
       renderNodes(wallet.state);
     }
   }
@@ -268,19 +274,19 @@ export default function nodeSettings(app) {
   async function forgetFirst() {
     if (busy) return;
     await forgetPoolNode(app);
-    toast('Starts on any of the nodes from now on');
+    toast(t('Starts on any of the nodes from now on'));
     lastNodes = '';
     renderNodes(wallet.state);
   }
 
   const el = screen(
-    { title: 'BEAM node', back: () => app.back('settings'), cls: 'settings node-screen' },
-    h('p', { class: 'lead', text: 'How this wallet reaches the BEAM network.' }),
+    { title: t('BEAM node'), back: () => app.back('settings'), cls: 'settings node-screen' },
+    h('p', { class: 'lead', text: t('How this wallet reaches the BEAM network.') }),
     statusBox,
     msg,
     nodesBox,
     ownBox,
-    h('p', { class: 'small', 'data-testid': 'node-ip-line' }, icon('shield', 'inline-icon'), ' The node you connect to can see your IP address.'),
+    h('p', { class: 'small', 'data-testid': 'node-ip-line' }, icon('shield', 'inline-icon'), ` ${t('The node you connect to can see your IP address.')}`),
   );
   renderStatus(wallet.state);
   const off = wallet.onChange((s) => renderStatus(s));

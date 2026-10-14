@@ -26,9 +26,9 @@ import { ETH_RPC_HOSTS, DEFAULT_ETH_RPC } from '../lib/eth/hosts.js';
 import { getEthRecord, ethRecordKind, withEthKey } from '../lib/eth/vault.js';
 import { bytesToHex } from '../lib/eth/hex.js';
 import { ethPrefs, removeEthWallet } from '../lib/eth/wallet.js';
+import { t, tn, tNodes } from '../lib/i18n.js';
 
 const MASK = '•'.repeat(64);
-const KEY_WARNING = 'The private key is the only way back to it: keep it somewhere safe and never share it.';
 
 /**
  * The private key, blurred until the person confirms it is them; then shown
@@ -38,11 +38,12 @@ const KEY_WARNING = 'The private key is the only way back to it: keep it somewhe
  */
 function keyReveal(app, { onHide = null } = {}) {
   let hex = null;
-  const text = h('p', { class: 'mono', 'data-testid': 'eth-key-text', 'aria-label': 'Private key, hidden', text: MASK });
-  const showBtn = h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'eth-key-reveal' }, icon('eye'), 'Tap to show the private key');
+  const text = h('p', { class: 'mono', 'data-testid': 'eth-key-text', 'aria-label': t('Private key, hidden'), text: MASK });
+  const showBtn = h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'eth-key-reveal' }, icon('eye'), t('Tap to show the private key'));
   const cover = h('div', { class: 'cover' }, showBtn);
-  const copyBtn = h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'eth-key-copy', onclick: () => hex && copySecret(hex, 'Private key copied', { app }) }, icon('copy'), 'Copy');
-  const hideBtn = h('button', { class: 'btn btn-text btn-small', 'data-testid': 'eth-key-hide', onclick: () => hide() }, 'Hide');
+  const copied = t('Private key copied');
+  const copyBtn = h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'eth-key-copy', onclick: () => hex && copySecret(hex, copied, { app }) }, icon('copy'), t('Copy'));
+  const hideBtn = h('button', { class: 'btn btn-text btn-small', 'data-testid': 'eth-key-hide', onclick: () => hide() }, t('Hide'));
   const tools = h('div', { class: 'btn-row key-actions hidden' }, copyBtn, hideBtn);
   const box = h('div', { class: 'key-box masked', 'data-testid': 'eth-key-box', 'data-state': 'masked' }, text);
   const el = h('div', {}, h('div', { class: 'reveal' }, box, cover), tools);
@@ -51,7 +52,7 @@ function keyReveal(app, { onHide = null } = {}) {
     if (!hex && box.dataset.state === 'masked') return;
     hex = null;
     text.textContent = MASK;
-    text.setAttribute('aria-label', 'Private key, hidden');
+    text.setAttribute('aria-label', t('Private key, hidden'));
     box.classList.add('masked');
     box.dataset.state = 'masked';
     tools.classList.add('hidden');
@@ -61,12 +62,12 @@ function keyReveal(app, { onHide = null } = {}) {
 
   /** Asks for the password (or Face ID), then opens the sealed key. true once shown. */
   async function show() {
-    const ok = await confirmIdentity(app, { title: 'Show the private key', detail: 'Anyone who sees it can take your Ethereum coins. Make sure no one is looking.', cta: 'Show private key' });
+    const ok = await confirmIdentity(app, { title: t('Show the private key'), detail: t('Anyone who sees it can take your Ethereum coins. Make sure no one is looking.'), cta: t('Show private key') });
     if (!ok) return false;
     try {
       hex = await withEthKey(app, async ({ sk }) => bytesToHex(sk, false));
     } catch (e) {
-      toast(`The key could not be opened: ${e.message}`);
+      toast(t('The key could not be opened: {reason}', { reason: e.message }));
       return false;
     }
     text.textContent = hex;
@@ -94,51 +95,51 @@ export default function ethSettings(app) {
     if (reveal) reveal.hide();
     reveal = null;
     const pref = ethPrefs(app);
-    const sel = h('select', { class: 'inline', 'aria-label': 'Ethereum server', 'data-testid': 'eth-server-select' }, ...ETH_RPC_HOSTS.map((x) => h('option', { value: x.id, text: x.id === DEFAULT_ETH_RPC ? `${x.name} (default)` : x.name })));
+    const sel = h('select', { class: 'inline', 'aria-label': t('Ethereum server'), 'data-testid': 'eth-server-select' }, ...ETH_RPC_HOSTS.map((x) => h('option', { value: x.id, text: x.id === DEFAULT_ETH_RPC ? t('{name} (default)', { name: x.name }) : x.name })));
     sel.value = pref.rpcId;
     sel.addEventListener('change', async () => {
       await app.setPrefs({ ethRpc: sel.value });
-      toast(`Ethereum through ${ETH_RPC_HOSTS.find((x) => x.id === sel.value).name}`);
+      toast(t('Ethereum through {server}', { server: ETH_RPC_HOSTS.find((x) => x.id === sel.value).name }));
       render(record);
     });
-    const hist = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': 'History from Stack Wallet', 'data-testid': 'eth-history-switch', checked: pref.history });
+    const hist = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': t('History from Stack Wallet'), 'data-testid': 'eth-history-switch', checked: pref.history });
     hist.addEventListener('change', async () => {
       await app.setPrefs({ ethHistory: hist.checked });
-      toast(hist.checked ? "History from Stack Wallet's index is on" : 'Only what this device sent is shown');
+      toast(hist.checked ? t("History from Stack Wallet's index is on") : t('Only what this device sent is shown'));
     });
-    const prices = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': 'Bridge prices from CoinGecko', 'data-testid': 'eth-bridge-prices-switch', checked: app.prefs && app.prefs.bridgePrices === true });
+    const prices = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': t('Bridge prices from CoinGecko'), 'data-testid': 'eth-bridge-prices-switch', checked: app.prefs && app.prefs.bridgePrices === true });
     prices.addEventListener('change', async () => {
       await app.setPrefs({ bridgePrices: prices.checked });
-      toast(prices.checked ? 'Bridge prices from CoinGecko are on' : 'Bridge prices are off: only WBEAM → BEAM can move');
+      toast(prices.checked ? t('Bridge prices from CoinGecko are on') : t('Bridge prices are off: only WBEAM → BEAM can move'));
     });
     put(
       body,
-      h('p', { class: 'section-title', text: 'Connection' }),
+      h('p', { class: 'section-title', text: t('Connection') }),
       h(
         'div',
         { class: 'card list' },
-        h('div', { class: 'row field-row' }, h('span', { class: 'ico' }, icon('globe')), h('span', { class: 'main' }, h('div', { class: 't', text: 'Ethereum server' }), h('div', { class: 's wrap', text: 'Sees your IP with your address. Only this one is asked about your address.' })), sel),
+        h('div', { class: 'row field-row' }, h('span', { class: 'ico' }, icon('globe')), h('span', { class: 'main' }, h('div', { class: 't', text: t('Ethereum server') }), h('div', { class: 's wrap', text: t('Sees your IP with your address. Only this one is asked about your address.') })), sel),
         h(
           'label',
           { class: 'row' },
           h('span', { class: 'ico' }, icon('activity')),
-          h('span', { class: 'main' }, h('div', { class: 't', text: 'History from Stack Wallet' }), h('div', { class: 's wrap', text: "Asks Stack Wallet's index for this address's past payments. Off: only what this device sent." })),
+          h('span', { class: 'main' }, h('div', { class: 't', text: t('History from Stack Wallet') }), h('div', { class: 's wrap', text: t("Asks Stack Wallet's index for this address's past payments. Off: only what this device sent.") })),
           hist,
         ),
         h(
           'label',
           { class: 'row' },
           h('span', { class: 'ico' }, icon('bridge')),
-          h('span', { class: 'main' }, h('div', { class: 't', text: 'Bridge prices from CoinGecko' }), h('div', { class: 's wrap', text: 'The bridge fee follows coin prices. CoinGecko sees your IP. Off: only WBEAM → BEAM can move.' })),
+          h('span', { class: 'main' }, h('div', { class: 't', text: t('Bridge prices from CoinGecko') }), h('div', { class: 's wrap', text: t('The bridge fee follows coin prices. CoinGecko sees your IP. Off: only WBEAM → BEAM can move.') })),
           prices,
         ),
-        row('shield', 'Ethereum privacy', 'What Ethereum and its server can see', () => app.go('ethPrivacy'), { 'data-testid': 'eth-privacy-row' }),
+        row('shield', t('Ethereum privacy'), t('What Ethereum and its server can see'), () => app.go('ethPrivacy'), { 'data-testid': 'eth-privacy-row' }),
       ),
-      h('p', { class: 'small', text: 'A server of your own cannot be added: the app may contact only the servers listed here, which protects you from a page that tries to send your data elsewhere.' }),
-      h('p', { class: 'section-title', text: 'Backup' }),
+      h('p', { class: 'small', text: t('A server of your own cannot be added: the app may contact only the servers listed here, which protects you from a page that tries to send your data elsewhere.') }),
+      h('p', { class: 'section-title', text: t('Backup') }),
       ...backup(record),
-      h('p', { class: 'section-title', text: 'Remove' }),
-      h('div', { class: 'card list' }, row('trash', 'Remove Ethereum wallet', 'From this device only. Coins stay on Ethereum.', () => removeSheet(record), { 'data-testid': 'eth-remove' })),
+      h('p', { class: 'section-title', text: t('Remove') }),
+      h('div', { class: 'card list' }, row('trash', t('Remove Ethereum wallet'), t('From this device only. Coins stay on Ethereum.'), () => removeSheet(record), { 'data-testid': 'eth-remove' })),
     );
   }
 
@@ -150,8 +151,8 @@ export default function ethSettings(app) {
         h(
           'div',
           { class: 'card', 'data-testid': 'eth-backup', 'data-kind': 'key' },
-          h('h3', { text: 'Private key' }),
-          notice('warn', h('strong', { text: 'This wallet has no recovery words. ' }), KEY_WARNING),
+          h('h3', { text: t('Private key') }),
+          notice('warn', ...tNodes('{lead} The private key is the only way back to it: keep it somewhere safe and never share it.', { lead: h('strong', { text: t('This wallet has no recovery words.') }) })),
           reveal.el,
         ),
       ];
@@ -159,12 +160,16 @@ export default function ethSettings(app) {
     const words = h(
       'div',
       { class: 'card', 'data-testid': 'eth-backup', 'data-kind': 'words' },
-      h('h3', { text: 'Your Ethereum words are your backup' }),
-      h('p', { text: `This device doesn't keep them, so it cannot show them again. Keep your paper with the ${record.words} words${record.passphrase ? ' and the passphrase' : ''} safe; they are not your BEAM words.` }),
+      h('h3', { text: t('Your Ethereum words are your backup') }),
+      h('p', {
+        text: record.passphrase
+          ? tn({ one: "This device doesn't keep them, so it cannot show them again. Keep your paper with the {n} word and the passphrase safe; they are not your BEAM words.", other: "This device doesn't keep them, so it cannot show them again. Keep your paper with the {n} words and the passphrase safe; they are not your BEAM words." }, record.words)
+          : tn({ one: "This device doesn't keep them, so it cannot show them again. Keep your paper with the {n} word safe; they are not your BEAM words.", other: "This device doesn't keep them, so it cannot show them again. Keep your paper with the {n} words safe; they are not your BEAM words." }, record.words),
+      }),
     );
     const slot = h('div');
     const collapsed = () =>
-      put(slot, h('div', { class: 'card list' }, row('key', 'Show private key', 'To move it to another wallet', open, { 'data-testid': 'eth-show-key' })));
+      put(slot, h('div', { class: 'card list' }, row('key', t('Show private key'), t('To move it to another wallet'), open, { 'data-testid': 'eth-show-key' })));
     async function open() {
       reveal = keyReveal(app, { onHide: () => { reveal = null; collapsed(); } });
       if (!(await reveal.show())) {
@@ -176,8 +181,8 @@ export default function ethSettings(app) {
         h(
           'div',
           { class: 'card', 'data-testid': 'eth-key-card' },
-          h('h3', { text: 'Private key' }),
-          notice('warn', h('strong', { text: 'The same account as your words, in one line. ' }), 'Anyone who has it can take your Ethereum coins: never share it, and paste it only into a wallet you trust.'),
+          h('h3', { text: t('Private key') }),
+          notice('warn', ...tNodes('{lead} Anyone who has it can take your Ethereum coins: never share it, and paste it only into a wallet you trust.', { lead: h('strong', { text: t('The same account as your words, in one line.') }) })),
           reveal.el,
         ),
       );
@@ -189,32 +194,36 @@ export default function ethSettings(app) {
   function removeSheet(record) {
     let message = null;
     const byKey = ethRecordKind(record) === 'key';
-    const onlyWay = byKey ? 'Only its private key can bring it back. ' : `Only your ${record.words} Ethereum words${record.passphrase ? ' and passphrase' : ''} can bring it back. `;
-    const stopIf = byKey ? 'If you have not saved it (Backup, above), stop here: removing it without it loses its coins for good.' : 'If you do not have them written down, stop here: removing it without them loses its coins for good.';
+    const onlyWay = byKey
+      ? t('Only its private key can bring it back.')
+      : record.passphrase
+        ? tn({ one: 'Only your {n} Ethereum word and passphrase can bring it back.', other: 'Only your {n} Ethereum words and passphrase can bring it back.' }, record.words)
+        : tn({ one: 'Only your {n} Ethereum word can bring it back.', other: 'Only your {n} Ethereum words can bring it back.' }, record.words);
+    const stopIf = byKey ? t('If you have not saved it (Backup, above), stop here: removing it without it loses its coins for good.') : t('If you do not have them written down, stop here: removing it without them loses its coins for good.');
     openSheet((close, rerender) => [
-      h('h2', { text: 'Remove the Ethereum wallet?' }),
-      notice('warn', h('strong', { text: onlyWay }), stopIf),
-      h('p', { class: 'lead', text: 'This removes the Ethereum key and what this device sent from this device. Nothing changes on Ethereum, and your BEAM wallet stays as it is.' }),
+      h('h2', { text: t('Remove the Ethereum wallet?') }),
+      notice('warn', h('strong', { text: `${onlyWay} ` }), stopIf),
+      h('p', { class: 'lead', text: t('This removes the Ethereum key and what this device sent from this device. Nothing changes on Ethereum, and your BEAM wallet stays as it is.') }),
       message,
       h('button', {
         class: 'btn btn-danger',
         'data-testid': 'eth-remove-confirm',
         onclick: async () => {
-          const ok = await confirmIdentity(app, { title: 'Remove the Ethereum wallet', detail: 'Confirm it is you to remove it from this device.', cta: 'Remove' });
+          const ok = await confirmIdentity(app, { title: t('Remove the Ethereum wallet'), detail: t('Confirm it is you to remove it from this device.'), cta: t('Remove') });
           if (!ok) return;
           try {
             await removeEthWallet();
             close();
-            toast('Ethereum wallet removed from this device');
+            toast(t('Ethereum wallet removed from this device'));
             app.go('settings');
           } catch (e) {
-            message = notice('error', `It could not be removed: ${e.message}`);
+            message = notice('error', t('It could not be removed: {reason}', { reason: e.message }));
             rerender();
           }
         },
-      }, 'Remove Ethereum wallet'),
-      h('button', { class: 'btn btn-text', onclick: () => close() }, 'Keep it'),
-    ], { label: 'Remove the Ethereum wallet' });
+      }, t('Remove Ethereum wallet')),
+      h('button', { class: 'btn btn-text', onclick: () => close() }, t('Keep it')),
+    ], { label: t('Remove the Ethereum wallet') });
   }
 
   (async () => {
@@ -223,7 +232,7 @@ export default function ethSettings(app) {
     render(record);
   })();
 
-  const el = screen({ title: 'Ethereum wallet', back: () => app.back('settings'), cls: 'settings' }, body);
+  const el = screen({ title: t('Ethereum wallet'), back: () => app.back('settings'), cls: 'settings' }, body);
   return {
     el,
     destroy() {

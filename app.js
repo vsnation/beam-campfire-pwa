@@ -1,5 +1,6 @@
 // BEAM Campfire - app controller: boot, screen routing, lock and auto-lock.
 import { applyLook, readTheme, readSkin } from './lib/theme.js';
+import { t, onLanguageChange } from './lib/i18n.js';
 import { h, clear } from './lib/dom.js';
 import { engineSupport, loadEngine, nodeGuard, walletFiles, onEngineAbort, flushEngine, tabGuard } from './lib/engine.js';
 import { oneTab } from './lib/one_tab.js';
@@ -94,6 +95,16 @@ const NEEDS_WALLET = new Set(['wallets', 'home', 'send', 'review', 'txStatus', '
 
 const root = document.getElementById('app');
 
+// index.html's splash, in the language chosen (lib/i18n.js read its catalog before this module ran;
+// lang-boot.js may have done it already from the texts kept for it).
+function labelSplash() {
+  const p = root && root.querySelector('.splash .hero p');
+  if (p) p.textContent = t('Starting BEAM Campfire…');
+  const bar = root && root.querySelector('.splash [role="progressbar"]');
+  if (bar) bar.setAttribute('aria-label', t('Starting'));
+}
+labelSplash();
+
 export const app = {
   prefs: null,
   // The selected wallet's record (several wallets: lib/wallets.js) and, while it is unlocked, its
@@ -144,7 +155,7 @@ export const app = {
    * opts.replace (move on without it) or opts.reset (forget all before).
    */
   go(name, params = {}, opts = {}) {
-    if (!SCREENS[name]) throw new Error(`no screen ${name}`);
+    if (!SCREENS[name]) throw new Error(`no screen ${name}`); // i18n-ignore: a programming error, never a screen's text
     // After the tripwire nothing else opens in this page: no unlock, no password field.
     if (this.intrusion) {
       name = 'problem';
@@ -190,8 +201,8 @@ export const app = {
 
   /** Back to the screen the person came from, or to `fallback` when there is none (after a reload or an unlock). */
   back(fallback = 'home', fallbackParams = {}) {
-    const t = this.nav.backTarget(fallback, fallbackParams);
-    return this.go(t.name, t.params, t.opts);
+    const target = this.nav.backTarget(fallback, fallbackParams);
+    return this.go(target.name, target.params, target.opts);
   },
 
   /** Saves preferences: the open wallet's own to it, the rest to the app (lib/wallets.js). */
@@ -226,7 +237,7 @@ export const app = {
    */
   async intruded(reason) {
     if (this.intrusion) return;
-    this.intrusion = reason || 'unsigned code';
+    this.intrusion = reason || 'unsigned code'; // i18n-ignore: logged and read by the e2e harness; the tripwire screen does not show it
     console.warn('[campfire] tripwire:', this.intrusion);
     this.dbPass = null;
     this.setup = null;
@@ -383,10 +394,33 @@ app.continueBoot = async function continueBoot() {
 
 installBack(app);
 
+// Another language (Settings -> Appearance -> Language): the screen on show is drawn again in it, at
+// the same place, with the same control focused (its catalog is read by then: lib/i18n.js).
+onLanguageChange(() => {
+  if (!app.currentName || app.intrusion) return;
+  // Only Settings, where a language is chosen, is drawn again: a catalog arriving late must never redraw
+  // another screen (redrawing closes every sheet, one mid-send included; release audit 0.2.17). Any
+  // other screen shows the new language from the next one on.
+  if (app.currentName !== 'settings') return;
+  const y = window.scrollY;
+  const active = document.activeElement;
+  const testid = active && active.dataset ? active.dataset.testid : null;
+  const top = testid ? active.getBoundingClientRect().top : null;
+  app.go(app.currentName, app.params, { replace: true });
+  window.scrollTo(0, y);
+  const again = testid ? root.querySelector(`[data-testid="${CSS.escape(testid)}"]`) : null;
+  if (!again) return;
+  if (typeof again.focus === 'function') again.focus({ preventScroll: true });
+  // The control stays where it was on screen, also once the rows above it that fill in a moment later have.
+  const keep = () => again.isConnected && window.scrollBy(0, again.getBoundingClientRect().top - top);
+  keep();
+  for (const ms of [60, 200, 500]) setTimeout(keep, ms);
+});
+
 boot().catch((e) => {
   console.error(e);
   clear(root);
-  root.appendChild(h('main', { class: 'screen' }, h('div', { class: 'content' }, h('h2', { class: 'title', text: 'BEAM Campfire could not start' }), h('p', { class: 'lead', text: String(e && e.message) }), h('button', { class: 'btn btn-primary', onclick: () => location.reload() }, 'Reload'))));
+  root.appendChild(h('main', { class: 'screen' }, h('div', { class: 'content' }, h('h2', { class: 'title', text: t('BEAM Campfire could not start') }), h('p', { class: 'lead', text: String(e && e.message) }), h('button', { class: 'btn btn-primary', onclick: () => location.reload() }, t('Reload')))));
 });
 
 // Read-only view for the e2e harness and the in-page self-test. No secrets on it.
@@ -398,7 +432,7 @@ window.__campfire = Object.freeze({
   height: () => (wallet.state.status ? wallet.state.status.current_height : null),
   inSync: () => (wallet.state.status ? wallet.state.status.is_in_sync === true : null),
   totals: () => Object.fromEntries([...wallet.state.totals].map(([k, v]) => [k, { available: String(v.available), receiving: String(v.receiving), sending: String(v.sending) }])),
-  txs: () => wallet.state.txs.map((t) => ({ txId: t.txId, status: t.status, income: t.income, value: t.value, fee: t.fee, kernel: t.kernel })),
+  txs: () => wallet.state.txs.map((tx) => ({ txId: tx.txId, status: tx.status, income: tx.income, value: tx.value, fee: tx.fee, kernel: tx.kernel })),
   node: () => wallet.state.node,
   nodeMode: () => wallet.state.nodeMode,
   nodeSwitches: () => wallet.state.switchLog.map((e) => ({ ...e })),

@@ -27,6 +27,7 @@ import { payWithCoinEntry } from './near_intents_entry.js';
 import { intentsFor, openSwaps } from '../lib/intents/wiring.js';
 import { ethBadge, compactAmountText, exactText, serverProblem, activityRow, doubtLine } from './eth_ui.js';
 import { rememberNearSwaps } from '../lib/notify.js';
+import { t, tNodes } from '../lib/i18n.js';
 
 const REFRESH_MS = 30000;
 const FOLLOW_MS = 4000;
@@ -47,33 +48,34 @@ export default function ethHome(app, params = {}) {
     if (dead) return;
     const pref = ethPrefs(app);
     const known = s.eth !== null;
-    const status = s.loading && !known ? { cls: 'wait', text: `Asking ${pref.host.name}…` } : s.error ? { cls: 'bad', text: `${pref.host.name} didn't answer` } : known ? { cls: 'ok', text: `${pref.host.name} · block ${s.block.toLocaleString('en-US')}` } : { cls: 'wait', text: 'Not checked yet' };
+    const server = pref.host.name;
+    const status = s.loading && !known ? { cls: 'wait', text: t('Asking {server}…', { server }) } : s.error ? { cls: 'bad', text: t("{server} didn't answer", { server }) } : known ? { cls: 'ok', text: t('{server} · block {block}', { server, block: s.block.toLocaleString('en-US') }) } : { cls: 'wait', text: t('Not checked yet') };
     put(
       balanceBox,
       h(
         'div',
         { class: 'card balance' },
-        h('div', { class: 'label', text: 'Ethereum · available' }),
-        h('div', { class: 'amount', 'data-testid': 'eth-balance', 'data-wei': known ? String(s.eth) : '' }, known ? formatUnits(s.eth, 18) : '—', h('span', { class: 'unit', text: 'ETH' })),
+        h('div', { class: 'label', text: t('Ethereum · available') }),
+        h('div', { class: 'amount', 'data-testid': 'eth-balance', 'data-wei': known ? String(s.eth) : '' }, known ? formatUnits(s.eth, 18) : '—', h('span', { class: 'unit', text: 'ETH' })), // i18n-ignore: a ticker
         h(
           'button',
-          { class: 'addr-chip', onclick: () => copyText(s.address, 'Address copied'), 'data-testid': 'eth-address', 'data-address': s.address, 'aria-label': 'Copy address' },
+          { class: 'addr-chip', onclick: () => copyText(s.address, t('Address copied')), 'data-testid': 'eth-address', 'data-address': s.address, 'aria-label': t('Copy address') },
           h('span', { class: 'mono', text: shorten(s.address, 6, 4) }),
           icon('copy'),
         ),
         h('div', { class: 'syncline', 'data-testid': 'eth-status', 'data-state': status.cls }, h('span', { class: `dot ${status.cls}` }), h('span', { text: status.text })),
       ),
     );
-    put(problemBox, s.error ? serverProblem(app, s.error, { retry: refresh, switched: (alt) => { toast(`Using ${alt.name}`); refresh(); } }) : null);
+    put(problemBox, s.error ? serverProblem(app, s.error, { retry: refresh, switched: (alt) => { toast(t('Using {server}', { server: alt.name })); refresh(); } }) : null);
 
-    const tokens = TOKENS.map((t) => [t, s.tokens.get(t.symbol)]).filter(([, v]) => v != null && v > 0n);
+    const tokens = TOKENS.map((tok) => [tok, s.tokens.get(tok.symbol)]).filter(([, v]) => v != null && v > 0n);
     const hasFunds = (known && s.eth > 0n) || tokens.length > 0;
     const hasEth = known && s.eth > 0n;
-    const buyBtn = (hasEth ? primary : secondary)(h('span', {}, 'Buy WBEAM'), () => app.go('ethSwap'), { 'data-testid': 'eth-buy-wbeam' });
+    const buyBtn = (hasEth ? primary : secondary)(h('span', {}, t('Buy WBEAM')), () => app.go('ethSwap'), { 'data-testid': 'eth-buy-wbeam' });
     buyBtn.prepend(icon('buy'));
-    const sendBtn = secondary(h('span', {}, 'Send'), () => app.go('ethSend'), { disabled: !hasFunds, 'data-testid': 'eth-send' });
+    const sendBtn = secondary(h('span', {}, t('Send')), () => app.go('ethSend'), { disabled: !hasFunds, 'data-testid': 'eth-send' });
     sendBtn.prepend(icon('send'));
-    const recvBtn = (hasEth ? secondary : primary)(h('span', {}, hasEth ? 'Receive' : 'Receive ETH'), () => app.go('ethReceive'), { 'data-testid': 'eth-receive' });
+    const recvBtn = (hasEth ? secondary : primary)(h('span', {}, hasEth ? t('Receive') : t('Receive ETH')), () => app.go('ethReceive'), { 'data-testid': 'eth-receive' });
     recvBtn.prepend(icon('receive'));
     // A transaction in doubt holds back the next one (lib/eth/doubt.js): said above Send, not after a tap.
     const doubt = w ? w.doubt() : null;
@@ -83,17 +85,17 @@ export default function ethHome(app, params = {}) {
       tokensBox,
       ...(tokens.length
         ? [
-            h('p', { class: 'section-title', text: 'Tokens' }),
+            h('p', { class: 'section-title', text: t('Tokens') }),
             h(
               'div',
               { class: 'card list', 'data-testid': 'eth-tokens' },
-              ...tokens.map(([t, v]) =>
+              ...tokens.map(([tok, v]) =>
                 h(
                   'div',
-                  { class: 'row asset-row', 'data-testid': 'eth-token-row', 'data-symbol': t.symbol },
-                  ethBadge(t),
-                  h('span', { class: 'main' }, h('div', { class: 't', text: t.name }), h('div', { class: 's', text: t.symbol === 'WBEAM' ? 'BEAM on Ethereum' : t.symbol })),
-                  h('span', { class: 'end', 'data-testid': 'eth-token-balance', 'data-units': String(v), title: exactText(v, t), text: compactAmountText(v, t) }),
+                  { class: 'row asset-row', 'data-testid': 'eth-token-row', 'data-symbol': tok.symbol },
+                  ethBadge(tok),
+                  h('span', { class: 'main' }, h('div', { class: 't', text: tok.name }), h('div', { class: 's', text: tok.symbol === 'WBEAM' ? t('BEAM on Ethereum') : tok.symbol })),
+                  h('span', { class: 'end', 'data-testid': 'eth-token-balance', 'data-units': String(v), title: exactText(v, tok), text: compactAmountText(v, tok) }),
                 ),
               ),
             ),
@@ -105,14 +107,14 @@ export default function ethHome(app, params = {}) {
     const hist = s.history;
     put(
       activityBox,
-      h('p', { class: 'section-title', text: 'Recent activity' }),
+      h('p', { class: 'section-title', text: t('Recent activity') }),
       items.length
         ? h('div', { class: 'card list', 'data-testid': 'eth-activity' }, ...items.map((i) => activityRow(i, () => app.go(i.kind ? 'ethSwapTx' : 'ethTx', { hash: i.hash, item: i }))))
-        : h('div', { class: 'card empty', 'data-testid': 'eth-activity-empty' }, icon('activity'), h('p', { text: known ? 'Nothing yet. Payments to and from this address show up here.' : 'Payments show up here once the server has answered.' })),
+        : h('div', { class: 'card empty', 'data-testid': 'eth-activity-empty' }, icon('activity'), h('p', { text: known ? t('Nothing yet. Payments to and from this address show up here.') : t('Payments show up here once the server has answered.') })),
       !pref.history
-        ? h('p', { class: 'small', 'data-testid': 'eth-history-off' }, 'Only what this device sent is shown: History from Stack Wallet is off. ', h('button', { class: 'btn-link', onclick: () => app.go('ethSettings') }, 'Settings'))
+        ? h('p', { class: 'small', 'data-testid': 'eth-history-off' }, ...tNodes('Only what this device sent is shown: History from Stack Wallet is off. {settings}', { settings: h('button', { class: 'btn-link', onclick: () => app.go('ethSettings') }, t('Settings')) }))
         : hist.error
-          ? h('p', { class: 'small', 'data-testid': 'eth-history-error', text: `Older payments could not be loaded: ${hist.error} What this device sent is shown.` })
+          ? h('p', { class: 'small', 'data-testid': 'eth-history-error', text: t('Older payments could not be loaded: {reason} What this device sent is shown.', { reason: hist.error }) })
           : null,
     );
   }
@@ -148,19 +150,19 @@ export default function ethHome(app, params = {}) {
     try {
       w = await ethWallet(app);
     } catch (e) {
-      put(problemBox, notice('error', `The Ethereum wallet could not be opened: ${e.message}`));
+      put(problemBox, notice('error', t('The Ethereum wallet could not be opened: {reason}', { reason: e.message })));
       return;
     }
     if (dead) return;
     if (!w) return app.go('ethStart');
     off = w.onChange(render);
     render(w.state);
-    if (params.created) toast(params.created === 'import' ? 'Ethereum wallet imported' : 'Ethereum wallet ready');
+    if (params.created) toast(params.created === 'import' ? t('Ethereum wallet imported') : t('Ethereum wallet ready'));
     refresh();
   })();
 
   const el = screen(
-    { brand: true, tabs: 'home', app, cls: 'eth-home', right: h('button', { class: 'icon-btn', 'aria-label': 'Lock', onclick: () => app.lock('manual'), 'data-testid': 'lock' }, icon('lock')) },
+    { brand: true, tabs: 'home', app, cls: 'eth-home', right: h('button', { class: 'icon-btn', 'aria-label': t('Lock'), onclick: () => app.lock('manual'), 'data-testid': 'lock' }, icon('lock')) },
     chainSwitch(app, 'eth'),
     balanceBox,
     problemBox,

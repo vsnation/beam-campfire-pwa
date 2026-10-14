@@ -23,9 +23,10 @@ import { screen, primary, textButton, notice, copySecret, focusSoon, onHidden } 
 import { hasPasskey, openWithPasswordFor, openWithPasskeyFor } from '../lib/session.js';
 import { wallet } from '../lib/wallet.js';
 import { OWNER_KEY_TEXT as T, looksLikeOwnerKey } from '../lib/owner_key.js';
+import { t, tk } from '../lib/i18n.js';
 
 // Said when the key left the screen because the app went out of sight.
-export const HIDDEN_AWAY = 'The key was hidden when you left BEAM Campfire. Enter your password to show it again.';
+export const HIDDEN_AWAY = tk('The key was hidden when you left BEAM Campfire. Enter your password to show it again.');
 
 export default function ownerKey(app, params = {}) {
   // Opened from Backup, or from the BEAM node screens, and goes back there (the fallback when Back has no history).
@@ -35,30 +36,30 @@ export default function ownerKey(app, params = {}) {
     return { el: h('div') };
   }
   const passkey = hasPasskey(app);
-  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'aria-label': T.passwordLabel, placeholder: 'Password', 'data-testid': 'okey-pw' });
+  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'aria-label': t(T.passwordLabel), placeholder: t('Password'), 'data-testid': 'okey-pw' });
   const msg = h('div', { class: 'okey-msg', 'aria-live': 'polite', 'data-testid': 'okey-msg' });
   const keyText = h('p', { class: 'mono owner-key', 'data-testid': 'owner-key' });
-  const cta = primary(T.cta, () => show(), { 'data-testid': 'okey-show' });
+  const cta = primary(t(T.cta), () => show(), { 'data-testid': 'okey-show' });
   let busy = false;
   let key = null;
   let gone = false;
 
   const askBody = () => [
-    h('p', { class: 'lead', text: T.lead }),
+    h('p', { class: 'lead', text: t(T.lead) }),
     h(
       'div',
       { class: 'card', 'data-testid': 'okey-what' },
-      h('h3', { text: T.whatTitle }),
-      h('ul', { class: 'steps-list' }, h('li', { text: T.can }), h('li', { text: T.cannot }), h('li', { text: T.copies })),
+      h('h3', { text: t(T.whatTitle) }),
+      h('ul', { class: 'steps-list' }, h('li', { text: t(T.can) }), h('li', { text: t(T.cannot) }), h('li', { text: t(T.copies) })),
     ),
-    notice('warn', T.share),
-    h('label', { class: 'field' }, T.passwordLabel, pw),
-    h('p', { class: 'small', text: passkey ? `${T.passwordHint} ${T.faceIdHint}` : T.passwordHint }),
+    notice('warn', t(T.share)),
+    h('label', { class: 'field' }, t(T.passwordLabel), pw),
+    h('p', { class: 'small', text: passkey ? `${t(T.passwordHint)} ${t(T.faceIdHint)}` : t(T.passwordHint) }),
     msg,
   ];
 
   // Sticky actions: the button stays on screen at 375 x 667 whatever message shows above it.
-  const el = screen({ title: T.title, back: () => app.back(backTo), actions: [cta], cls: 'sticky-actions' }, ...askBody());
+  const el = screen({ title: t(T.title), back: () => app.back(backTo), actions: [cta], cls: 'sticky-actions' }, ...askBody());
   const content = el.querySelector('.content');
   const actions = el.querySelector('.actions');
   pw.addEventListener('keydown', (e) => e.key === 'Enter' && show());
@@ -73,31 +74,31 @@ export default function ownerKey(app, params = {}) {
   const ready = () => {
     busy = false;
     cta.disabled = false;
-    cta.textContent = T.cta;
+    cta.textContent = t(T.cta);
   };
 
   async function show() {
     if (busy) return;
-    if (!pw.value) return say(notice('warn', 'Enter your password.'));
+    if (!pw.value) return say(notice('warn', t('Enter your password.')));
     busy = true;
     cta.disabled = true;
-    cta.textContent = 'Checking…';
+    cta.textContent = t('Checking…');
     const password = pw.value;
     try {
       await openWithPasswordFor(app, password);
     } catch (e) {
       ready();
-      say(notice('error', e.code === 'wrong_secret' ? "That password didn't match. Try again." : e.message));
+      say(notice('error', e.code === 'wrong_secret' ? t("That password didn't match. Try again.") : e.message));
       pw.select();
       return;
     }
     if (passkey) {
-      say(notice('info', 'Confirm with Face ID…'));
+      say(notice('info', t('Confirm with Face ID…')));
       try {
         await openWithPasskeyFor(app);
       } catch (e) {
         ready();
-        say(e.code === 'cancelled' ? notice('info', `Face ID was cancelled. Tap ${T.cta} to try again.`) : notice('warn', "Face ID didn't work. Try again, or turn Face ID off in Settings and use your password alone."));
+        say(e.code === 'cancelled' ? notice('info', t('Face ID was cancelled. Tap {cta} to try again.', { cta: t(T.cta) })) : notice('warn', t("Face ID didn't work. Try again, or turn Face ID off in Settings and use your password alone.")));
         return;
       }
     }
@@ -114,12 +115,12 @@ export default function ownerKey(app, params = {}) {
       // Out of sight meanwhile: not put on a screen the app switcher may be picturing.
       ready();
       pw.value = '';
-      say(notice('info', HIDDEN_AWAY));
+      say(notice('info', t(HIDDEN_AWAY)));
       return;
     }
     if (!looksLikeOwnerKey(k)) {
       ready();
-      say(notice('error', 'The owner key could not be read. Try again.'));
+      say(notice('error', t('The owner key could not be read. Try again.')));
       return;
     }
     key = k;
@@ -131,13 +132,14 @@ export default function ownerKey(app, params = {}) {
     keyText.textContent = key;
     put(
       content,
-      h('p', { class: 'lead', text: T.shownLead }),
+      h('p', { class: 'lead', text: t(T.shownLead) }),
       h('div', { class: 'address-box' }, keyText),
-      notice('warn', T.shownWarn),
+      notice('warn', t(T.shownWarn)),
     );
-    const copyBtn = primary(h('span', { text: T.copyCta }), () => key && copySecret(key, T.copied, { app }), { 'data-testid': 'okey-copy' });
+    const copied = t(T.copied);
+    const copyBtn = primary(h('span', { text: t(T.copyCta) }), () => key && copySecret(key, copied, { app }), { 'data-testid': 'okey-copy' });
     copyBtn.prepend(icon('copy'));
-    put(actions, copyBtn, textButton(T.done, () => app.back(backTo), { 'data-testid': 'okey-done' }));
+    put(actions, copyBtn, textButton(t(T.done), () => app.back(backTo), { 'data-testid': 'okey-done' }));
   }
 
   // Leaving the screen and locking (app.go runs destroy; lock also runs the hooks) take the key off the page.
@@ -156,7 +158,7 @@ export default function ownerKey(app, params = {}) {
     put(content, ...askBody());
     put(actions, cta);
     ready();
-    say(notice('info', HIDDEN_AWAY));
+    say(notice('info', t(HIDDEN_AWAY)));
   });
   return {
     el,

@@ -14,6 +14,7 @@ import { icon } from '../lib/icons.js';
 import { screen, primary, secondary, notice, copyText } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
 import { wallet, txStatusText, contractMoves, spentElsewhere, SPENT_ELSEWHERE } from '../lib/wallet.js';
+import { t } from '../lib/i18n.js';
 
 /**
  * A failed transaction whose coins this wallet had already spent elsewhere (lib/wallet.js
@@ -24,8 +25,8 @@ export function spentElsewhereNotice(app, { onRescan = null } = {}) {
   const rescan = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'tx-spent-rescan', onclick: () => {
     if (onRescan) onRescan();
     app.go('fastStart', { rescan: true });
-  } }, 'Rescan now');
-  return h('div', { 'data-testid': 'tx-spent-elsewhere' }, notice('error', SPENT_ELSEWHERE, h('div', { class: 'btn-row prompt-actions' }, rescan)));
+  } }, t('Rescan now'));
+  return h('div', { 'data-testid': 'tx-spent-elsewhere' }, notice('error', t(SPENT_ELSEWHERE), h('div', { class: 'btn-row prompt-actions' }, rescan)));
 }
 
 export default function txStatus(app, p) {
@@ -40,30 +41,30 @@ export default function txStatus(app, p) {
     const done = s === 3;
     const failed = s === 4 || s === 2;
     const unit = wallet.label(p.assetId || 0).unit;
-    const title = tx ? txStatusText(tx) : 'Sending';
+    const title = tx ? txStatusText(tx) : t('Sending');
     put(body, 
       h('div', { class: `status-icon ${done ? 'ok' : failed ? 'bad' : 'wait'}` }, icon(done ? 'check' : failed ? 'close' : 'clock')),
-      h('h2', { class: 'title center', 'data-testid': 'tx-title', 'data-status': String(s), text: done ? 'Payment sent' : failed ? (s === 2 ? 'Payment cancelled' : 'Payment failed') : title }),
+      h('h2', { class: 'title center', 'data-testid': 'tx-title', 'data-status': String(s), text: done ? t('Payment sent') : failed ? (s === 2 ? t('Payment cancelled') : t('Payment failed')) : title }),
       h('div', { class: 'big-amount', text: `${formatAmount(p.amount)} ${unit}` }),
       h(
         'div',
         { class: 'card' },
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: 'To' }), h('span', { class: 'v mono', text: shorten(p.address, 10, 8) })),
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Network fee' }), h('span', { class: 'v', text: `${formatAmount(p.fee)} BEAM` })),
+        h('div', { class: 'kv' }, h('span', { class: 'k', text: t('To') }), h('span', { class: 'v mono', text: shorten(p.address, 10, 8) })),
+        h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Network fee') }), h('span', { class: 'v', text: `${formatAmount(p.fee)} BEAM` })), // i18n-ignore: an amount and its ticker
         tx && tx.kernel && /[1-9a-f]/.test(tx.kernel)
-          ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Kernel ID' }), h('button', { class: 'v mono btn-text', 'data-testid': 'tx-kernel', onclick: () => copyText(tx.kernel, 'Kernel ID copied'), text: shorten(tx.kernel, 10, 8) }))
+          ? h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Kernel ID') }), h('button', { class: 'v mono btn-text', 'data-testid': 'tx-kernel', onclick: () => copyText(tx.kernel, t('{label} copied', { label: t('Kernel ID') })), text: shorten(tx.kernel, 10, 8) }))
           : null,
       ),
       done
-        ? notice('success', p.name ? `It is on the blockchain, waiting in BEAM's name vault for the owner of ${p.name}.beam to claim.` : 'The receiver accepted the payment and it is on the blockchain.')
+        ? notice('success', p.name ? t("It is on the blockchain, waiting in BEAM's name vault for the owner of {name}.beam to claim.", { name: p.name }) : t('The receiver accepted the payment and it is on the blockchain.'))
         : failed && spentElsewhere(tx)
           ? spentElsewhereNotice(app)
           : failed
-          ? notice(s === 2 ? 'info' : 'error', s === 2 ? 'Nothing was sent. The money stays in your wallet.' : `${tx.failure_reason || 'The payment did not go through.'} The money stays in your wallet.`)
-          : notice('info', p.mustBeOnline === false ? 'The payment is on its way to the blockchain.' : "Waiting for the receiver's wallet to come online and accept. Keep BEAM Campfire open; this can take up to 12 hours."),
+          ? notice(s === 2 ? 'info' : 'error', s === 2 ? t('Nothing was sent. The money stays in your wallet.') : tx.failure_reason ? t('{reason} The money stays in your wallet.', { reason: tx.failure_reason }) : t('The payment did not go through. The money stays in your wallet.'))
+          : notice('info', p.mustBeOnline === false ? t('The payment is on its way to the blockchain.') : t("Waiting for the receiver's wallet to come online and accept. Keep BEAM Campfire open; this can take up to 12 hours.")),
     );
     const canCancel = tx && (s === 0 || s === 1) && !tx.income && !cancelling;
-    put(actions, primary('Done', () => app.go('home'), { 'data-testid': 'tx-done' }), canCancel ? secondary('Cancel payment', cancel, { 'data-testid': 'tx-cancel' }) : null);
+    put(actions, primary(t('Done'), () => app.go('home'), { 'data-testid': 'tx-done' }), canCancel ? secondary(t('Cancel payment'), cancel, { 'data-testid': 'tx-cancel' }) : null);
   }
 
   async function cancel() {
@@ -72,7 +73,7 @@ export default function txStatus(app, p) {
     try {
       await wallet.cancelTx(p.txId);
     } catch (e) {
-      body.appendChild(notice('error', `It could not be cancelled: ${e.message}. It may already be on its way.`));
+      body.appendChild(notice('error', t('It could not be cancelled: {reason}. It may already be on its way.', { reason: e.message })));
     }
     cancelling = false;
     poll();
@@ -89,16 +90,16 @@ export default function txStatus(app, p) {
 
   const timer = setInterval(poll, 3000);
   const off = wallet.onChange(() => {
-    const t = wallet.state.txs.find((x) => x.txId === p.txId);
-    if (t) {
-      tx = { ...tx, ...t };
+    const found = wallet.state.txs.find((x) => x.txId === p.txId);
+    if (found) {
+      tx = { ...tx, ...found };
       render();
     }
   });
   render();
   poll();
 
-  const el = h('main', { class: 'screen' }, h('header', { class: 'topbar' }, h('h1', { text: 'Payment' })), body, actions);
+  const el = h('main', { class: 'screen' }, h('header', { class: 'topbar' }, h('h1', { text: t('Payment') })), body, actions);
   return {
     el,
     destroy() {
@@ -129,33 +130,33 @@ function swapStatus(app, p) {
     put(
       body,
       h('div', { class: `status-icon ${done ? 'ok' : failed ? 'bad' : 'wait'}` }, icon(done ? 'check' : failed ? 'close' : 'swap')),
-      h('h2', { class: 'title center', 'data-testid': 'tx-title', 'data-status': String(s), text: done ? 'Swap complete' : failed ? (s === 2 ? 'Swap cancelled' : 'Swap failed') : 'Swapping' }),
+      h('h2', { class: 'title center', 'data-testid': 'tx-title', 'data-status': String(s), text: done ? t('Swap complete') : failed ? (s === 2 ? t('Swap cancelled') : t('Swap failed')) : t('Swapping') }),
       h('div', { class: 'big-amount swap-amounts' }, h('span', { text: `${formatAmount(payAmt)} ${payU}` }), h('span', { class: 'arrow', text: '→' }), h('span', { text: `${approx}${formatAmount(getAmt)} ${getU}` })),
       h(
         'div',
         { class: 'card' },
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: 'You pay' }), h('span', { class: 'v', text: `${formatAmount(payAmt)} ${payU}` })),
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: done ? 'You got' : 'You get' }), h('span', { class: 'v', 'data-testid': 'tx-receive', text: `${approx}${formatAmount(getAmt)} ${getU}` })),
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Network fee' }), h('span', { class: 'v', text: `${formatAmount(tx && tx.fee != null ? BigInt(tx.fee) : p.fee)} BEAM` })),
+        h('div', { class: 'kv' }, h('span', { class: 'k', text: t('You pay') }), h('span', { class: 'v', text: `${formatAmount(payAmt)} ${payU}` })),
+        h('div', { class: 'kv' }, h('span', { class: 'k', text: done ? t('You got') : t('You get') }), h('span', { class: 'v', 'data-testid': 'tx-receive', text: `${approx}${formatAmount(getAmt)} ${getU}` })),
+        h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Network fee') }), h('span', { class: 'v', text: `${formatAmount(tx && tx.fee != null ? BigInt(tx.fee) : p.fee)} BEAM` })), // i18n-ignore: an amount and its ticker
         tx && tx.kernel && /[1-9a-f]/.test(tx.kernel)
-          ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Kernel ID' }), h('button', { class: 'v mono btn-text', 'data-testid': 'tx-kernel', onclick: () => copyText(tx.kernel, 'Kernel ID copied'), text: shorten(tx.kernel, 10, 8) }))
+          ? h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Kernel ID') }), h('button', { class: 'v mono btn-text', 'data-testid': 'tx-kernel', onclick: () => copyText(tx.kernel, t('{label} copied', { label: t('Kernel ID') })), text: shorten(tx.kernel, 10, 8) }))
           : null,
       ),
       done
-        ? notice('success', 'The swap is on the blockchain. Your new balance is on the Wallet tab.')
+        ? notice('success', t('The swap is on the blockchain. Your new balance is on the Wallet tab.'))
         : failed && spentElsewhere(tx)
           ? spentElsewhereNotice(app)
           : failed
-          ? notice(s === 2 ? 'info' : 'error', `${s === 4 && tx.failure_reason ? tx.failure_reason + '. ' : ''}Nothing was swapped. Your ${payU} stays in your wallet.`)
-          : notice('info', 'On its way to the blockchain. This usually takes a minute or two; keep BEAM Campfire open until it is done.'),
+          ? notice(s === 2 ? 'info' : 'error', s === 4 && tx.failure_reason ? t('{reason}. Nothing was swapped. Your {unit} stays in your wallet.', { reason: tx.failure_reason, unit: payU }) : t('Nothing was swapped. Your {unit} stays in your wallet.', { unit: payU }))
+          : notice('info', t('On its way to the blockchain. This usually takes a minute or two; keep BEAM Campfire open until it is done.')),
     );
-    put(actions, primary('Done', () => app.go('home'), { 'data-testid': 'tx-done' }));
+    put(actions, primary(t('Done'), () => app.go('home'), { 'data-testid': 'tx-done' }));
   }
 
   async function poll() {
     try {
-      const t = await wallet.txStatus(p.txId);
-      tx = { ...(wallet.state.txs.find((x) => x.txId === p.txId) || {}), ...t };
+      const st = await wallet.txStatus(p.txId);
+      tx = { ...(wallet.state.txs.find((x) => x.txId === p.txId) || {}), ...st };
       render();
     } catch {
       /* keep the last state */
@@ -164,15 +165,15 @@ function swapStatus(app, p) {
 
   const timer = setInterval(poll, 3000);
   const off = wallet.onChange(() => {
-    const t = wallet.state.txs.find((x) => x.txId === p.txId);
-    if (t) {
-      tx = { ...tx, ...t };
+    const found = wallet.state.txs.find((x) => x.txId === p.txId);
+    if (found) {
+      tx = { ...tx, ...found };
       render();
     }
   });
   render();
   poll();
-  const el = h('main', { class: 'screen' }, h('header', { class: 'topbar' }, h('h1', { text: 'Swap' })), body, actions);
+  const el = h('main', { class: 'screen' }, h('header', { class: 'topbar' }, h('h1', { text: t('Swap') })), body, actions);
   return {
     el,
     destroy() {

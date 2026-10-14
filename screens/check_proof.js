@@ -16,13 +16,14 @@ import { formatAmount } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
 import { parseProofInput, verifyProof, ownIdentities, proofVerdict, explorerUrl, short, paymentWithKernel, identityOf, PROOF_TEXT, EXPLORER_NOTE } from '../lib/payments.js';
 import { loadContacts } from '../lib/contacts.js';
+import { t } from '../lib/i18n.js';
 
 export default function checkProof(app, params = {}) {
-  const input = h('textarea', { class: 'input mono', rows: 5, autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', placeholder: 'Payment proof', 'aria-label': 'Payment proof', 'data-testid': 'proof-input' });
+  const input = h('textarea', { class: 'input mono', rows: 5, autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', placeholder: t('Payment proof'), 'aria-label': t('Payment proof'), 'data-testid': 'proof-input' });
   if (params.proof) input.value = params.proof;
-  const pasteBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'proof-paste' }, icon('paste'), 'Paste');
+  const pasteBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'proof-paste' }, icon('paste'), t('Paste'));
   const result = h('div', { class: 'stack', 'aria-live': 'polite', 'data-testid': 'proof-result' });
-  const cta = primary('Check proof', check, { 'data-testid': 'proof-check', disabled: !input.value.trim() });
+  const cta = primary(t('Check proof'), check, { 'data-testid': 'proof-check', disabled: !input.value.trim() });
   let busy = false;
 
   input.addEventListener('input', () => {
@@ -42,14 +43,14 @@ export default function checkProof(app, params = {}) {
   async function check() {
     if (busy) return;
     const p = parseProofInput(input.value);
-    if (!p.ok) return put(result, notice('warn', p.problem === 'empty' ? PROOF_TEXT.checkIntro : PROOF_TEXT.notProof));
-    if (!wallet.session) return put(result, notice('info', PROOF_TEXT.notConnected));
+    if (!p.ok) return put(result, notice('warn', p.problem === 'empty' ? t(PROOF_TEXT.checkIntro) : t(PROOF_TEXT.notProof)));
+    if (!wallet.session) return put(result, notice('info', t(PROOF_TEXT.notConnected)));
     busy = true;
     cta.disabled = true;
-    cta.textContent = 'Checking…';
+    cta.textContent = t('Checking…');
     try {
       const info = await verifyProof(wallet.session, p.hex);
-      if (info && info.parseError) return put(result, h('div', { 'data-testid': 'proof-not-a-proof' }, notice('warn', PROOF_TEXT.notProof)));
+      if (info && info.parseError) return put(result, h('div', { 'data-testid': 'proof-not-a-proof' }, notice('warn', t(PROOF_TEXT.notProof))));
       const mine = await ownIdentities(wallet.session, wallet.state.txs).catch(() => []);
       // Contacts saved with an old-style address name the key a proof shows.
       const names = new Map();
@@ -62,36 +63,36 @@ export default function checkProof(app, params = {}) {
       const url = explorerUrl(v.kernel);
       // The same payment in this wallet's list: the proof and the list agree on it.
       const inList = paymentWithKernel(wallet.state.txs, v.kernel);
-      const kv = (k, val, opts = {}) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, `${k} copied`), text: val }) : h('span', { class: 'v', text: val }));
+      const kv = (k, val, opts = {}) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, t('{label} copied', { label: k })), text: val }) : h('span', { class: 'v', text: val }));
       put(
         result,
         h('div', { 'data-testid': 'proof-valid' }, notice('success', v.sentence)),
         h(
           'div',
           { class: 'card' },
-          kv('Amount', `${formatAmount(v.amount)} ${wallet.label(v.assetId).unit}`),
-          kv('Paid by', v.fromYou ? 'You' : v.senderName || short(v.sender, 10, 8), { copy: v.fromYou ? null : v.sender }),
-          kv('Paid to', v.toYou ? 'You (this wallet)' : v.receiverName || short(v.receiver, 10, 8), { copy: v.toYou ? null : v.receiver }),
-          kv('Transaction ID', short(v.kernel, 10, 8), { copy: v.kernel }),
+          kv(t('Amount'), `${formatAmount(v.amount)} ${wallet.label(v.assetId).unit}`),
+          kv(t('Paid by'), v.fromYou ? t('You') : v.senderName || short(v.sender, 10, 8), { copy: v.fromYou ? null : v.sender }),
+          kv(t('Paid to'), v.toYou ? t('You (this wallet)') : v.receiverName || short(v.receiver, 10, 8), { copy: v.toYou ? null : v.receiver }),
+          kv(t('Transaction ID'), short(v.kernel, 10, 8), { copy: v.kernel }),
         ),
-        inList ? h('div', { 'data-testid': 'proof-in-list' }, notice('info', `It is a payment in your list: ${inList.income ? 'received' : 'sent'} ${fmtDate(inList.create_time)}.`)) : null,
-        h('p', { class: 'small', text: PROOF_TEXT.howChecked }),
-        url ? h('a', { class: 'btn btn-text', href: url, target: '_blank', rel: 'noopener noreferrer', 'data-testid': 'proof-explorer' }, icon('external'), 'See it on the BEAM explorer') : null,
-        url ? h('p', { class: 'small center', text: EXPLORER_NOTE }) : null,
+        inList ? h('div', { 'data-testid': 'proof-in-list' }, notice('info', inList.income ? t('It is a payment in your list: received {date}.', { date: fmtDate(inList.create_time) }) : t('It is a payment in your list: sent {date}.', { date: fmtDate(inList.create_time) }))) : null,
+        h('p', { class: 'small', text: t(PROOF_TEXT.howChecked) }),
+        url ? h('a', { class: 'btn btn-text', href: url, target: '_blank', rel: 'noopener noreferrer', 'data-testid': 'proof-explorer' }, icon('external'), t('See it on the BEAM explorer')) : null,
+        url ? h('p', { class: 'small center', text: t(EXPLORER_NOTE) }) : null,
       );
     } catch (e) {
-      put(result, notice('error', `It could not be checked just now: ${e.message} Try again in a moment.`));
+      put(result, notice('error', t('It could not be checked just now: {reason} Try again in a moment.', { reason: e.message })));
     } finally {
       busy = false;
       cta.disabled = !input.value.trim();
-      cta.textContent = 'Check proof';
+      cta.textContent = t('Check proof');
     }
   }
 
   const el = screen(
-    { title: 'Check a payment proof', back: () => app.back('settings'), actions: [cta], cls: 'plain' },
-    h('p', { class: 'lead', text: 'Someone says they paid you? Paste the payment proof they sent. It shows the amount, who paid whom and the transaction ID.' }),
-    h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: 'Payment proof' }), pasteBtn), input),
+    { title: t('Check a payment proof'), back: () => app.back('settings'), actions: [cta], cls: 'plain' },
+    h('p', { class: 'lead', text: t('Someone says they paid you? Paste the payment proof they sent. It shows the amount, who paid whom and the transaction ID.') }),
+    h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: t('Payment proof') }), pasteBtn), input),
     result,
   );
   return { el };

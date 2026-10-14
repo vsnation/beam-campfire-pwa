@@ -13,6 +13,7 @@
 import { h } from '../lib/dom.js';
 import { screen, primary, secondary } from '../lib/ui.js';
 import { chainSwitch } from './eth_screens.js';
+import { t } from '../lib/i18n.js';
 
 // Opened for a task, it is a step of that task with a Back to it; otherwise it is the Ethereum side itself.
 const OPENED_FROM = { settings: 'settings', bridge: 'bridgeMove', buy: 'home' };
@@ -22,21 +23,21 @@ export default function ethStart(app, params = {}) {
   const back = () => app.back(OPENED_FROM[params.from]);
   const el = screen(
     {
-      title: step ? 'Ethereum wallet' : null,
+      title: step ? t('Ethereum wallet') : null,
       brand: !step,
       back: step ? back : null,
       tabs: step ? null : 'home',
       app,
       actions: [
-        primary('Create an Ethereum wallet', () => {
+        primary(t('Create an Ethereum wallet'), () => {
           app.ethSetup = { mode: 'create', from: params.from || 'home' };
           app.go('ethWords');
         }, { 'data-testid': 'eth-create' }),
-        secondary('Import words or private key', () => {
+        secondary(t('Import words or private key'), () => {
           app.ethSetup = { mode: 'import', from: params.from || 'home' };
           app.go('ethImport');
         }, { 'data-testid': 'eth-import' }),
-        h('p', { class: 'small center', text: 'No sign-up. The key stays on this device, locked with your BEAM Campfire password.' }),
+        h('p', { class: 'small center', text: t('No sign-up. The key stays on this device, locked with your BEAM Campfire password.') }),
       ],
     },
     step ? null : chainSwitch(app, 'eth'),
@@ -44,10 +45,10 @@ export default function ethStart(app, params = {}) {
       'div',
       { class: 'hero eth-hero' },
       h('img', { src: 'img/eth.svg', alt: '' }),
-      h('h1', { text: 'Add an Ethereum wallet' }),
-      h('p', { text: 'Hold ETH, WBEAM and other Ethereum tokens next to your BEAM.' }),
+      h('h1', { text: t('Add an Ethereum wallet') }),
+      h('p', { text: t('Hold ETH, WBEAM and other Ethereum tokens next to your BEAM.') }),
     ),
-    h('div', { class: 'card flat' }, h('p', { class: 'small', text: 'It has its own recovery words, separate from your BEAM words, as in BEAM Campfire on desktop. Your BEAM wallet is not changed.' })),
+    h('div', { class: 'card flat' }, h('p', { class: 'small', text: t('It has its own recovery words, separate from your BEAM words, as in BEAM Campfire on desktop. Your BEAM wallet is not changed.') })),
   );
   return { el };
 }

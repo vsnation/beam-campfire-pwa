@@ -7,6 +7,7 @@ import { icon } from '../lib/icons.js';
 import { notice, screen, canAutofocus } from '../lib/ui.js';
 import { store } from '../lib/store.js';
 import { hasEthWallet } from '../lib/eth/record.js';
+import { t } from '../lib/i18n.js';
 
 let lockHookInstalled = false;
 
@@ -27,7 +28,7 @@ async function ensureEthLockHook(app) {
 /** A screen whose module is imported on first use; a spinner until then. */
 function lazyScreen(load) {
   return (app, params) => {
-    const holder = h('main', { class: 'screen splash', 'aria-busy': 'true' }, h('div', { class: 'spinner', role: 'progressbar', 'aria-label': 'Opening' }));
+    const holder = h('main', { class: 'screen splash', 'aria-busy': 'true' }, h('div', { class: 'spinner', role: 'progressbar', 'aria-label': t('Opening') }));
     let inner = null;
     let dead = false;
     load()
@@ -42,7 +43,8 @@ function lazyScreen(load) {
       .catch((e) => {
         if (dead) return;
         console.error(e);
-        holder.replaceWith(screen({ title: 'Ethereum', back: () => app.back('home') }, notice('error', `This screen could not be opened: ${e.message}. Go back and try again.`)));
+        // i18n-ignore: the title is a brand name
+        holder.replaceWith(screen({ title: 'Ethereum', back: () => app.back('home') }, notice('error', t('This screen could not be opened: {reason}. Go back and try again.', { reason: e.message }))));
       });
     return {
       el: holder,
@@ -82,7 +84,7 @@ export function setMoveBadge(state) {
   moveBadge = state || null;
   if (moveButton) {
     moveButton.dataset.badge = moveBadge || '';
-    moveButton.setAttribute('aria-label', moveBadge === 'collect' ? 'Move coins between BEAM and Ethereum (a move is ready to collect)' : moveBadge === 'open' ? 'Move coins between BEAM and Ethereum (a move is on its way)' : 'Move coins between BEAM and Ethereum');
+    moveButton.setAttribute('aria-label', moveBadge === 'collect' ? t('Move coins between BEAM and Ethereum (a move is ready to collect)') : moveBadge === 'open' ? t('Move coins between BEAM and Ethereum (a move is on its way)') : t('Move coins between BEAM and Ethereum'));
   }
 }
 
@@ -108,7 +110,7 @@ export function bridgeEntry(app) {
     'button',
     { class: 'card row bridge-entry', onclick: () => app.go('bridgeMove', { dir: 'toBeam', back: 'ethHome' }), 'data-testid': 'eth-move-to-beam' },
     h('span', { class: 'ico' }, icon('bridge')),
-    h('span', { class: 'main' }, h('div', { class: 't', text: 'Move to BEAM' }), h('div', { class: 's', text: "Through BEAM's official bridge" })),
+    h('span', { class: 'main' }, h('div', { class: 't', text: t('Move to BEAM') }), h('div', { class: 's', text: t("Through BEAM's official bridge") })),
     h('span', { class: 'chev' }, icon('chevron')),
   );
 }
@@ -122,14 +124,14 @@ export function chainSwitch(app, active) {
     h('button', { class: `chain-opt${active === id ? ' on' : ''}`, role: 'tab', 'aria-selected': String(active === id), 'data-testid': `chain-${id}`, onclick: active === id ? null : go }, label);
   moveButton = h(
     'button',
-    { class: 'chain-move', 'data-testid': 'chain-move', title: 'Move coins between BEAM and Ethereum', onclick: () => app.go('bridgeMove', { dir: active === 'eth' ? 'toBeam' : 'toEthereum', back: active === 'eth' ? 'ethHome' : 'home' }) },
+    { class: 'chain-move', 'data-testid': 'chain-move', title: t('Move coins between BEAM and Ethereum'), onclick: () => app.go('bridgeMove', { dir: active === 'eth' ? 'toBeam' : 'toEthereum', back: active === 'eth' ? 'ethHome' : 'home' }) },
     icon('bridge'),
   );
   setMoveBadge(moveBadge);
   return h(
     'div',
     { class: 'chain-row' },
-    h('div', { class: 'chain-switch', role: 'tablist', 'aria-label': 'Wallet' }, opt('beam', 'BEAM', () => app.go('home')), opt('eth', 'Ethereum', () => app.go('ethHome'))),
+    h('div', { class: 'chain-switch', role: 'tablist', 'aria-label': t('Wallet') }, opt('beam', 'BEAM', () => app.go('home')), opt('eth', 'Ethereum', () => app.go('ethHome'))),
     moveButton,
   );
 }

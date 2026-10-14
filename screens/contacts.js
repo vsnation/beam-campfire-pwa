@@ -17,18 +17,19 @@ import { wallet } from '../lib/wallet.js';
 import { vaultFor, loadContacts, searchContacts, checkContact, cleanAddress, cleanName, NAME_MAX } from '../lib/contacts.js';
 import { shortAddress } from '../lib/addresses.js';
 import { scanAddress } from './scan_sheet.js';
+import { t } from '../lib/i18n.js';
 
 /** A problem opening the sealed book, in words. Nothing is ever written over it. */
 export function bookProblem(e) {
   if (e && (e.code === 'wrong_secret' || e.code === 'malformed' || e.code === 'weak'))
-    return 'Your contacts on this device could not be opened, so they were left exactly as they are. Nothing was changed. Lock and unlock the wallet, then try again.';
-  if (e && e.code === 'locked') return 'Unlock the wallet to see your contacts.';
-  return `Your contacts could not be read just now (${(e && e.message) || 'storage error'}). Try again.`;
+    return t('Your contacts on this device could not be opened, so they were left exactly as they are. Nothing was changed. Lock and unlock the wallet, then try again.');
+  if (e && e.code === 'locked') return t('Unlock the wallet to see your contacts.');
+  return t('Your contacts could not be read just now ({reason}). Try again.', { reason: (e && e.message) || t('storage error') });
 }
 
 export default function contacts(app) {
   const listBox = h('div', { 'data-testid': 'contacts-list-box' });
-  const search = h('input', { class: 'input', type: 'search', placeholder: 'Search by name or address', 'aria-label': 'Search contacts', autocomplete: 'off', 'data-testid': 'contacts-search' });
+  const search = h('input', { class: 'input', type: 'search', placeholder: t('Search by name or address'), 'aria-label': t('Search contacts'), autocomplete: 'off', 'data-testid': 'contacts-search' });
   const searchBox = h('div', { class: 'hidden' }, search);
   let all = null;
   let problem = null;
@@ -45,24 +46,24 @@ export default function contacts(app) {
   }
 
   function render() {
-    if (problem) return put(listBox, notice('error', bookProblem(problem)), secondary('Try again', load));
-    if (!all) return put(listBox, h('div', { class: 'card empty' }, h('div', { class: 'spinner' }), h('p', { text: 'Opening your contacts…' })));
+    if (problem) return put(listBox, notice('error', bookProblem(problem)), secondary(t('Try again'), load));
+    if (!all) return put(listBox, h('div', { class: 'card empty' }, h('div', { class: 'spinner' }), h('p', { text: t('Opening your contacts…') })));
     searchBox.classList.toggle('hidden', all.length < 8);
     if (!all.length)
       return put(
         listBox,
-        h('div', { class: 'card empty', 'data-testid': 'contacts-empty' }, icon('person'), h('p', { text: 'No contacts yet.' }), h('p', { class: 'small', text: 'Save the people you pay with their BEAM address. Then pick them in Send instead of pasting.' })),
+        h('div', { class: 'card empty', 'data-testid': 'contacts-empty' }, icon('person'), h('p', { text: t('No contacts yet.') }), h('p', { class: 'small', text: t('Save the people you pay with their BEAM address. Then pick them in Send instead of pasting.') })),
       );
     const shown = searchContacts(all, search.value);
-    put(listBox, shown.length ? h('div', { class: 'card list', 'data-testid': 'contacts-list' }, ...shown.map((c) => contactRow(c, () => openContact(app, c, load)))) : h('p', { class: 'small center', text: 'No contact matches that.' }));
+    put(listBox, shown.length ? h('div', { class: 'card list', 'data-testid': 'contacts-list' }, ...shown.map((c) => contactRow(c, () => openContact(app, c, load)))) : h('p', { class: 'small center', text: t('No contact matches that.') }));
   }
 
   search.addEventListener('input', render);
   render();
   load();
-  const add = primary(h('span', {}, 'Add a contact'), () => contactForm(app, { onSaved: load }), { 'data-testid': 'contact-add' });
+  const add = primary(h('span', {}, t('Add a contact')), () => contactForm(app, { onSaved: load }), { 'data-testid': 'contact-add' });
   add.prepend(icon('buy'));
-  const el = screen({ title: 'Contacts', back: () => app.back('settings'), actions: [add], cls: 'plain' }, h('p', { class: 'small', text: 'Kept on this phone with your wallet, locked with it, deleted with it.' }), searchBox, listBox);
+  const el = screen({ title: t('Contacts'), back: () => app.back('settings'), actions: [add], cls: 'plain' }, h('p', { class: 'small', text: t('Kept on this phone with your wallet, locked with it, deleted with it.') }), searchBox, listBox);
   return { el };
 }
 
@@ -87,8 +88,8 @@ export function openContact(app, c, onChanged = () => {}) {
   openSheet(
     (close) => [
       h('h2', { 'data-testid': 'contact-title', text: c.name }),
-      h('div', { class: 'address-box' }, h('p', { class: 'small', text: 'BEAM address' }), h('p', { class: 'mono', 'data-testid': 'contact-address', text: c.address })),
-      primary(`Pay ${c.name}`, () => {
+      h('div', { class: 'address-box' }, h('p', { class: 'small', text: t('BEAM address') }), h('p', { class: 'mono', 'data-testid': 'contact-address', text: c.address })),
+      primary(t('Pay {name}', { name: c.name }), () => {
         app.sendDraft = { address: c.address, amount: '', assetId: 0 };
         close();
         app.go('send');
@@ -96,13 +97,13 @@ export function openContact(app, c, onChanged = () => {}) {
       h(
         'div',
         { class: 'btn-row' },
-        secondary(h('span', {}, 'Copy'), () => copyText(c.address, 'Address copied'), { 'data-testid': 'contact-copy' }),
-        secondary(h('span', {}, 'Edit'), () => {
+        secondary(h('span', {}, t('Copy')), () => copyText(c.address, t('Address copied')), { 'data-testid': 'contact-copy' }),
+        secondary(h('span', {}, t('Edit')), () => {
           close();
           contactForm(app, { contact: c, onSaved: onChanged });
         }, { 'data-testid': 'contact-edit' }),
       ),
-      textButton('Delete contact', () => {
+      textButton(t('Delete contact'), () => {
         close();
         confirmDelete(app, c, onChanged);
       }, { class: 'btn btn-text danger', 'data-testid': 'contact-delete' }),
@@ -116,8 +117,8 @@ function confirmDelete(app, c, onChanged) {
     (close, rerender) => {
       const msg = h('div', { class: 'pay-msg' });
       return [
-        h('h2', { text: `Delete ${c.name}?` }),
-        h('p', { class: 'lead', text: 'Only the contact goes. Payments to this address in your list stay, and nothing changes on the blockchain.' }),
+        h('h2', { text: t('Delete {name}?', { name: c.name }) }),
+        h('p', { class: 'lead', text: t('Only the contact goes. Payments to this address in your list stay, and nothing changes on the blockchain.') }),
         msg,
         h('button', {
           class: 'btn btn-danger',
@@ -127,17 +128,17 @@ function confirmDelete(app, c, onChanged) {
               await (await vaultFor(app)).remove(c.id);
               await loadContacts(app).catch(() => {});
               close();
-              toast(`${c.name} deleted`);
+              toast(t('{name} deleted', { name: c.name }));
               onChanged();
             } catch (e) {
               put(msg, notice('error', bookProblem(e)));
             }
           },
-        }, 'Delete contact'),
-        textButton('Keep it', () => close()),
+        }, t('Delete contact')),
+        textButton(t('Keep it'), () => close()),
       ];
     },
-    { label: 'Delete contact' },
+    { label: t('Delete contact') },
   );
 }
 
@@ -148,21 +149,21 @@ function confirmDelete(app, c, onChanged) {
 export function contactForm(app, { contact = null, address = '', name = '', from = null, onSaved = () => {} } = {}) {
   return new Promise((resolve) => {
     const editing = Boolean(contact);
-    const nameIn = h('input', { class: 'input', type: 'text', maxlength: String(NAME_MAX), autocomplete: 'off', autocapitalize: 'words', placeholder: 'e.g. Alex', 'aria-label': 'Name', 'data-testid': 'contact-name' });
+    const nameIn = h('input', { class: 'input', type: 'text', maxlength: String(NAME_MAX), autocomplete: 'off', autocapitalize: 'words', placeholder: t('e.g. Alex'), 'aria-label': t('Name'), 'data-testid': 'contact-name' });
     nameIn.value = editing ? contact.name : name;
-    const addrIn = h('textarea', { class: 'input mono', rows: 3, autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', placeholder: 'Paste their BEAM address', 'aria-label': 'BEAM address', 'data-testid': 'contact-address-input' });
+    const addrIn = h('textarea', { class: 'input mono', rows: 3, autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', placeholder: t('Paste their BEAM address'), 'aria-label': t('BEAM address'), 'data-testid': 'contact-address-input' });
     addrIn.value = editing ? contact.address : address;
     const hint = h('p', { class: 'hint', 'data-testid': 'contact-hint' });
     const change = h('div', { 'data-testid': 'contact-change' });
     const msg = h('div', { class: 'pay-msg', 'aria-live': 'polite' });
-    const save = primary(editing ? 'Save changes' : 'Save contact', submit, { 'data-testid': 'contact-save' });
-    const pasteBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'contact-paste' }, icon('paste'), 'Paste');
-    const scanBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'contact-scan' }, icon('scan'), 'Scan');
+    const save = primary(editing ? t('Save changes') : t('Save contact'), submit, { 'data-testid': 'contact-save' });
+    const pasteBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'contact-paste' }, icon('paste'), t('Paste'));
+    const scanBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'contact-scan' }, icon('scan'), t('Scan'));
     let busy = false;
 
     function showChange() {
       const a = cleanAddress(addrIn.value);
-      put(change, editing && a && a !== contact.address ? notice('warn', h('strong', { text: 'The address changes. ' }), `From ${shortAddress(contact.address, 10)} to ${shortAddress(a, 10)}. Payments to ${cleanName(nameIn.value) || contact.name} will go to the new one.`) : null);
+      put(change, editing && a && a !== contact.address ? notice('warn', h('strong', { text: `${t('The address changes.')} ` }), t('From {from} to {to}. Payments to {name} will go to the new one.', { from: shortAddress(contact.address, 10), to: shortAddress(a, 10), name: cleanName(nameIn.value) || contact.name })) : null);
     }
     addrIn.addEventListener('input', () => {
       hint.textContent = '';
@@ -175,12 +176,12 @@ export function contactForm(app, { contact = null, address = '', name = '', from
         addrIn.value = cleanAddress(await navigator.clipboard.readText());
         showChange();
       } catch {
-        hint.textContent = 'Press and hold in the box, then tap Paste.';
+        hint.textContent = t('Press and hold in the box, then tap Paste.');
         addrIn.focus();
       }
     });
     scanBtn.addEventListener('click', async () => {
-      const r = await scanAddress({ title: 'Scan their address' });
+      const r = await scanAddress({ title: t('Scan their address') });
       if (r && r.paste) return pasteBtn.click();
       if (r && r.address) {
         addrIn.value = r.address;
@@ -203,12 +204,12 @@ export function contactForm(app, { contact = null, address = '', name = '', from
         }
         // The wallet's own check: a real BEAM address, and not one of this wallet's.
         const check = await wallet.validateAddress(r.address).catch(() => null);
-        if (check && !check.is_valid) return put(msg, notice('warn', "This isn't a BEAM address. Copy it again from the person."));
-        if (check && check.is_mine) return put(msg, notice('warn', "This is one of your own addresses. Save the other person's address."));
+        if (check && !check.is_valid) return put(msg, notice('warn', t("This isn't a BEAM address. Copy it again from the person.")));
+        if (check && check.is_mine) return put(msg, notice('warn', t("This is one of your own addresses. Save the other person's address.")));
         const saved = editing ? await v.update(contact.id, r) : await v.add(r);
         await loadContacts(app).catch(() => {});
         sheet.close(saved);
-        toast(editing ? 'Contact saved' : `${saved.name} saved to contacts`);
+        toast(editing ? t('Contact saved') : t('{name} saved to contacts', { name: saved.name }));
         onSaved(saved);
       } catch (e) {
         put(msg, notice('error', e.code === 'duplicate' || e.code === 'invalid' ? e.message : bookProblem(e)));
@@ -220,17 +221,17 @@ export function contactForm(app, { contact = null, address = '', name = '', from
 
     const sheet = openSheet(
       () => [
-        h('h2', { text: editing ? 'Edit contact' : 'Save a contact' }),
+        h('h2', { text: editing ? t('Edit contact') : t('Save a contact') }),
         from ? h('p', { class: 'small', 'data-testid': 'contact-from', text: from }) : null,
-        h('label', { class: 'field' }, 'Name', nameIn),
-        h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: 'BEAM address' }), scanBtn, pasteBtn), addrIn),
+        h('label', { class: 'field' }, t('Name'), nameIn),
+        h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: t('BEAM address') }), scanBtn, pasteBtn), addrIn),
         hint,
         change,
         msg,
         save,
-        textButton('Cancel', () => sheet.close(null), { 'data-testid': 'contact-cancel' }),
+        textButton(t('Cancel'), () => sheet.close(null), { 'data-testid': 'contact-cancel' }),
       ],
-      { label: editing ? 'Edit contact' : 'Save a contact' },
+      { label: editing ? t('Edit contact') : t('Save a contact') },
     );
     sheet.then((v) => resolve(v || null));
     showChange();
@@ -246,13 +247,13 @@ export function pickContact(app) {
   return new Promise((resolve) => {
     let all = null;
     let problem = null;
-    const search = h('input', { class: 'input', type: 'search', placeholder: 'Search', 'aria-label': 'Search contacts', autocomplete: 'off', 'data-testid': 'pick-search' });
+    const search = h('input', { class: 'input', type: 'search', placeholder: t('Search'), 'aria-label': t('Search contacts'), autocomplete: 'off', 'data-testid': 'pick-search' });
     const box = h('div');
     const render = () => {
       if (problem) return put(box, notice('error', bookProblem(problem)));
       if (!all) return put(box, h('div', { class: 'spinner' }));
       if (!all.length)
-        return put(box, h('div', { 'data-testid': 'pick-empty' }, h('p', { class: 'lead', text: 'No contacts yet. After you paste an address here, "Save as a contact" keeps it for next time.' })));
+        return put(box, h('div', { 'data-testid': 'pick-empty' }, h('p', { class: 'lead', text: t('No contacts yet. After you paste an address here, "Save as a contact" keeps it for next time.') })));
       search.classList.toggle('hidden', all.length < 8);
       const shown = searchContacts(all, search.value);
       put(
@@ -270,10 +271,10 @@ export function pickContact(app) {
       );
     };
     search.addEventListener('input', render);
-    const sheet = openSheet(() => [h('h2', { text: 'Pay a contact' }), search, box, textButton('Manage contacts', () => {
+    const sheet = openSheet(() => [h('h2', { text: t('Pay a contact') }), search, box, textButton(t('Manage contacts'), () => {
       sheet.close(null);
       app.go('contacts');
-    }, { 'data-testid': 'pick-manage' }), textButton('Cancel', () => sheet.close(null))], { label: 'Pay a contact' });
+    }, { 'data-testid': 'pick-manage' }), textButton(t('Cancel'), () => sheet.close(null))], { label: t('Pay a contact') });
     sheet.then((v) => resolve(v || null));
     render();
     loadContacts(app).then(

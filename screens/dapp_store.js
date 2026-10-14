@@ -36,6 +36,7 @@ import { readStore, visibleDapps, listedPublishers, CATEGORIES, categoryName, fl
 import { installFromStore, storeState, storeInstallErrorText, StoreInstallError } from '../lib/dapps/store_install.js';
 import { installed } from '../lib/dapps/installed.js';
 import { installErrorText, InstallError } from '../lib/dapps/file_package.js';
+import { t, tn } from '../lib/i18n.js';
 
 // ---------------------------------------------------------------- the store, read once a session
 
@@ -44,7 +45,7 @@ let cache = null; // {session, promise}
 export function storeData({ force = false } = {}) {
   if (!force && cache && cache.session === wallet.session) return cache.promise;
   const promise = (async () => {
-    if (!wallet.session) throw new Error('The wallet is still starting.');
+    if (!wallet.session) throw new Error(t('The wallet is still starting.'));
     const [app, shader] = await Promise.all([nativeApp(), loadShader('dappsStore')]);
     return readStore((args) => app.view(args, shader, { timeoutMs: 60000 }));
   })();
@@ -69,10 +70,10 @@ function storeIcon(d, cls = 'dapp-icon') {
   return h('span', { class: `${cls} file none letter`, 'aria-hidden': 'true', text: letter });
 }
 
-const dateText = (ts) => (ts ? fmtDate(ts) : 'unknown date');
+const dateText = (ts) => (ts ? fmtDate(ts) : t('unknown date'));
 const loading = (text) => h('div', { class: 'card dapp-loading', 'data-testid': 'store-loading' }, h('div', { class: 'spinner small' }), h('span', { class: 'small', text }));
 const failed = (e, retry) =>
-  h('div', { 'data-testid': 'store-failed' }, notice('error', `BEAM's DApp Store couldn't be read just now (${(e && e.message) || e}). Your installed dApps are under dApps as before.`), secondary('Try again', retry, { 'data-testid': 'store-retry' }));
+  h('div', { 'data-testid': 'store-failed' }, notice('error', t("BEAM's DApp Store couldn't be read just now ({reason}). Your installed dApps are under dApps as before.", { reason: (e && e.message) || e })), secondary(t('Try again'), retry, { 'data-testid': 'store-retry' }));
 
 // ---------------------------------------------------------------- dappStore
 
@@ -84,16 +85,16 @@ export function dappStore(app, params = {}) {
   let installedById = new Map();
   let alive = true;
 
-  const search = h('input', { class: 'input', type: 'search', placeholder: 'Search dApps and publishers', 'aria-label': 'Search the DApp Store', autocomplete: 'off', 'data-testid': 'store-search' });
+  const search = h('input', { class: 'input', type: 'search', placeholder: t('Search dApps and publishers'), 'aria-label': t('Search the DApp Store'), autocomplete: 'off', 'data-testid': 'store-search' });
   search.value = query;
   search.addEventListener('input', () => {
     query = search.value;
     render();
   });
-  const chips = h('div', { class: 'store-chips', role: 'radiogroup', 'aria-label': 'Category' });
+  const chips = h('div', { class: 'store-chips', role: 'radiogroup', 'aria-label': t('Category') });
 
   function renderChips() {
-    const all = [{ id: 'all', name: 'All' }, ...CATEGORIES];
+    const all = [{ id: 'all', name: t('All') }, ...CATEGORIES.map((c) => ({ id: c.id, name: t(c.name) }))];
     put(
       chips,
       ...all.map((c) =>
@@ -115,10 +116,10 @@ export function dappStore(app, params = {}) {
         'span',
         { class: 'main' },
         h('div', { class: 't', text: d.name }),
-        h('div', { class: 's', text: `by ${p ? p.name : shortKey(d.publisher)}` }),
-        flags.length ? h('div', { class: 's meta warn-text', 'data-testid': 'store-row-flag', text: flags.some((f) => f.code === 'bundledName' || f.code === 'bundledId') ? 'Name or id like a dApp of BEAM Campfire’s' : 'Another publisher uses this name' }) : null,
+        h('div', { class: 's', text: t('by {publisher}', { publisher: p ? p.name : shortKey(d.publisher) }) }),
+        flags.length ? h('div', { class: 's meta warn-text', 'data-testid': 'store-row-flag', text: flags.some((f) => f.code === 'bundledName' || f.code === 'bundledId') ? t('Name or id like a dApp of BEAM Campfire’s') : t('Another publisher uses this name') }) : null,
       ),
-      h('span', { class: 'pill', text: st.action === 'open' ? 'Installed' : st.action === 'update' ? 'Update' : 'View' }),
+      h('span', { class: 'pill', text: st.action === 'open' ? t('Installed') : st.action === 'update' ? t('Update') : t('View') }),
     );
   }
 
@@ -135,22 +136,22 @@ export function dappStore(app, params = {}) {
         : h(
             'div',
             { class: 'card empty', 'data-testid': 'store-empty' },
-            h('p', { text: query || category !== 'all' ? 'No dApp matches.' : 'Nothing to show.' }),
-            query || category !== 'all' ? textButton('Show every dApp', () => ((query = ''), (search.value = ''), (category = 'all'), renderChips(), render()), { 'data-testid': 'store-clear' }) : null,
+            h('p', { text: query || category !== 'all' ? t('No dApp matches.') : t('Nothing to show.') }),
+            query || category !== 'all' ? textButton(t('Show every dApp'), () => ((query = ''), (search.value = ''), (category = 'all'), renderChips(), render()), { 'data-testid': 'store-clear' }) : null,
           ),
       h(
         'button',
         { class: 'card row', type: 'button', onclick: () => app.go('dappPublishers'), 'data-testid': 'store-publishers' },
         h('span', { class: 'ico' }, icon('person')),
-        h('span', { class: 'main' }, h('div', { class: 't', text: 'Publishers' }), h('div', { class: 's', text: hiddenCount ? `${listedPublishers(store).length} · ${hiddenCount} hidden` : `${listedPublishers(store).length}, all shown` })),
+        h('span', { class: 'main' }, h('div', { class: 't', text: t('Publishers') }), h('div', { class: 's', text: hiddenCount ? tn({ one: '{count} · {n} hidden', other: '{count} · {n} hidden' }, hiddenCount, { count: listedPublishers(store).length }) : t('{count}, all shown', { count: listedPublishers(store).length }) })),
         h('span', { class: 'chev' }, icon('chevron')),
       ),
-      h('p', { class: 'small settings-note', text: "Anyone can publish in BEAM's DApp Store: BEAM Campfire shows who published each dApp, checks every download against the publisher's record on the chain, and runs it walled off from your wallet." }),
+      h('p', { class: 'small settings-note', text: t("Anyone can publish in BEAM's DApp Store: BEAM Campfire shows who published each dApp, checks every download against the publisher's record on the chain, and runs it walled off from your wallet.") }),
     );
   }
 
   async function load(force = false) {
-    put(box, loading("Reading BEAM's DApp Store from the chain…"));
+    put(box, loading(t("Reading BEAM's DApp Store from the chain…")));
     try {
       const [s, list] = await Promise.all([storeData({ force }), installed.list().catch(() => [])]);
       if (!alive) return;
@@ -164,7 +165,7 @@ export function dappStore(app, params = {}) {
 
   renderChips();
   load();
-  const el = screen({ title: "BEAM's DApp Store", back: () => app.back('dapps') }, search, chips, box);
+  const el = screen({ title: t("BEAM's DApp Store"), back: () => app.back('dapps') }, search, chips, box);
   return { el, destroy: () => (alive = false) };
 }
 
@@ -180,11 +181,11 @@ export function dappStoreItem(app, params = {}) {
     try {
       store = await storeData();
     } catch (e) {
-      return alive && put(box, failed(e, () => (put(box, loading('Reading the store…')), storeData({ force: true }).then(render, render))));
+      return alive && put(box, failed(e, () => (put(box, loading(t('Reading the store…'))), storeData({ force: true }).then(render, render))));
     }
     if (!alive) return;
     const d = store.dapps.find((x) => x.id === params.id);
-    if (!d) return put(box, notice('warn', 'This dApp is no longer in the store.'), secondary('Back to the store', () => app.go('dappStore')));
+    if (!d) return put(box, notice('warn', t('This dApp is no longer in the store.')), secondary(t('Back to the store'), () => app.go('dappStore')));
     const p = store.publishers.get(d.publisher);
     const flags = store.flags.dapp.get(d.id) || [];
     const pubFlags = store.flags.publisher.get(d.publisher) || [];
@@ -198,21 +199,21 @@ export function dappStoreItem(app, params = {}) {
       if (busy) return;
       busy = new AbortController();
       btn.disabled = true;
-      btn.textContent = st.action === 'update' ? 'Updating…' : 'Installing…';
+      btn.textContent = st.action === 'update' ? t('Updating…') : t('Installing…');
       put(msg);
       bar.classList.remove('hidden');
       put(bar, progressBar(null));
       try {
         await installFromStore(d, p, {
           signal: busy.signal,
-          onProgress: (n, total) => put(bar, progressBar(total ? n / total : null), h('p', { class: 'small', text: `${(n / 1e6).toFixed(1)} MB${total ? ` of ${(total / 1e6).toFixed(1)} MB` : ''}` })),
+          onProgress: (n, total) => put(bar, progressBar(total ? n / total : null), h('p', { class: 'small', text: total ? t('{done} MB of {total} MB', { done: (n / 1e6).toFixed(1), total: (total / 1e6).toFixed(1) }) : t('{done} MB', { done: (n / 1e6).toFixed(1) }) })),
         });
-        toast(st.action === 'update' ? `${d.name} is updated` : `${d.name} is installed`, 3000);
+        toast(st.action === 'update' ? t('{name} is updated', { name: d.name }) : t('{name} is installed', { name: d.name }), 3000);
         if (alive) app.go('dapps', { open: d.id });
       } catch (e) {
-        const text = storeInstallErrorText(e, d.name) || (e instanceof InstallError ? installErrorText(e, d.name) : `${d.name} wasn't installed: ${(e && e.message) || e}. Nothing on your device changed.`);
+        const text = storeInstallErrorText(e, d.name) || (e instanceof InstallError ? installErrorText(e, d.name) : t("{name} wasn't installed: {reason}. Nothing on your device changed.", { name: d.name, reason: (e && e.message) || e }));
         if (alive) {
-          put(msg, notice(e && e.code === 'notMirrored' ? 'info' : 'error', text), e && e.code === 'notMirrored' ? secondary('Install from a file', () => app.go('dapps'), { 'data-testid': 'store-item-from-file' }) : null);
+          put(msg, notice(e && e.code === 'notMirrored' ? 'info' : 'error', text), e && e.code === 'notMirrored' ? secondary(t('Install from a file'), () => app.go('dapps'), { 'data-testid': 'store-item-from-file' }) : null);
           btn.disabled = false;
           btn.textContent = label;
         }
@@ -223,36 +224,36 @@ export function dappStoreItem(app, params = {}) {
     }
 
     const blocked = st.action === 'blocked' || !d.servedApi || flags.some((f) => f.code === 'bundledId');
-    const label = st.action === 'open' ? 'Open' : st.action === 'update' ? `Update to ${d.versionText}` : `Install ${d.name}`;
+    const label = st.action === 'open' ? t('Open') : st.action === 'update' ? t('Update to {version}', { version: d.versionText }) : t('Install {name}', { name: d.name });
     const btn = primary(label, act, { 'data-testid': 'store-item-cta', disabled: blocked });
     const why = blocked
-      ? h('p', { class: 'small', 'data-testid': 'store-item-blocked', text: st.action === 'blocked' ? storeInstallErrorText(new StoreInstallError(st.code, ''), d.name) || '' : !d.servedApi ? `${d.name} needs a newer wallet than this version of BEAM Campfire.` : flagText(flags.find((f) => f.code === 'bundledId')) })
+      ? h('p', { class: 'small', 'data-testid': 'store-item-blocked', text: st.action === 'blocked' ? storeInstallErrorText(new StoreInstallError(st.code, ''), d.name) || '' : !d.servedApi ? t('{name} needs a newer wallet than this version of BEAM Campfire.', { name: d.name }) : flagText(flags.find((f) => f.code === 'bundledId')) })
       : null;
     put(
       box,
-      h('div', { class: 'store-head' }, storeIcon(d, 'dapp-icon big'), h('div', {}, h('h2', { 'data-testid': 'store-item-name', text: d.name }), h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'store-item-publisher', onclick: () => app.go('dappPublisher', { key: d.publisher }) }, `by ${p ? p.name : shortKey(d.publisher)}`))),
+      h('div', { class: 'store-head' }, storeIcon(d, 'dapp-icon big'), h('div', {}, h('h2', { 'data-testid': 'store-item-name', text: d.name }), h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'store-item-publisher', onclick: () => app.go('dappPublisher', { key: d.publisher }) }, t('by {publisher}', { publisher: p ? p.name : shortKey(d.publisher) })))),
       ...flags.map((f) => h('div', { 'data-testid': 'store-item-flag', 'data-code': f.code }, notice('warn', flagText(f)))),
       ...pubFlags.map((f) => h('div', { 'data-testid': 'store-item-pubflag' }, notice('warn', flagText(f)))),
       h(
         'div',
         { class: 'card' },
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Version' }), h('span', { class: 'v', 'data-testid': 'store-item-version', text: d.versionText })),
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Published' }), h('span', { class: 'v', text: dateText(d.timestamp) })),
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Category' }), h('span', { class: 'v', text: categoryName(d.category) })),
-        rec ? h('div', { class: 'kv' }, h('span', { class: 'k', text: 'On this device' }), h('span', { class: 'v', 'data-testid': 'store-item-installed', text: rec.store ? `Version ${rec.version || '?'}` : 'Another dApp with this id, from a file' })) : null,
+        h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Version') }), h('span', { class: 'v', 'data-testid': 'store-item-version', text: d.versionText })),
+        h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Published') }), h('span', { class: 'v', text: dateText(d.timestamp) })),
+        h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Category') }), h('span', { class: 'v', text: t(categoryName(d.category)) })),
+        rec ? h('div', { class: 'kv' }, h('span', { class: 'k', text: t('On this device') }), h('span', { class: 'v', 'data-testid': 'store-item-installed', text: rec.store ? t('Version {version}', { version: rec.version || '?' }) : t('Another dApp with this id, from a file') })) : null,
       ),
       d.description ? h('p', { class: 'store-desc', 'data-testid': 'store-item-desc', text: d.description }) : null,
       msg,
       bar,
       btn,
       why,
-      h('p', { class: 'small settings-note', 'data-testid': 'store-item-note', text: `Downloaded from BEAM Campfire's copy of the store at this app's address, and installed only if it is exactly the file ${p ? p.name : 'its publisher'} recorded on the chain (IPFS ${d.cid.slice(0, 10)}…). It runs walled off from your wallet: it can see your balance, and asks before anything leaves it.` }),
+      h('p', { class: 'small settings-note', 'data-testid': 'store-item-note', text: p ? t("Downloaded from BEAM Campfire's copy of the store at this app's address, and installed only if it is exactly the file {publisher} recorded on the chain (IPFS {cid}…). It runs walled off from your wallet: it can see your balance, and asks before anything leaves it.", { publisher: p.name, cid: d.cid.slice(0, 10) }) : t("Downloaded from BEAM Campfire's copy of the store at this app's address, and installed only if it is exactly the file its publisher recorded on the chain (IPFS {cid}…). It runs walled off from your wallet: it can see your balance, and asks before anything leaves it.", { cid: d.cid.slice(0, 10) }) }),
     );
   }
 
-  put(box, loading('Reading the store…'));
+  put(box, loading(t('Reading the store…')));
   render();
-  const el = screen({ title: 'DApp Store', back: () => app.back('dappStore') }, box);
+  const el = screen({ title: t('DApp Store'), back: () => app.back('dappStore') }, box);
   return {
     el,
     destroy: () => {
@@ -277,7 +278,7 @@ export function dappPublisher(app, params = {}) {
     }
     if (!alive) return;
     const p = store.publishers.get(params.key);
-    if (!p) return put(box, notice('warn', 'This publisher is not in the store.'), secondary('Back to the store', () => app.go('dappStore')));
+    if (!p) return put(box, notice('warn', t('This publisher is not in the store.')), secondary(t('Back to the store'), () => app.go('dappStore')));
     const flags = store.flags.publisher.get(p.key) || [];
     const hidden = hiddenSet(app).has(p.key);
     const link = (url, text, testid) => h('a', { class: 'row', href: url, target: '_blank', rel: 'noopener noreferrer', 'data-testid': testid }, h('span', { class: 'ico' }, icon('external')), h('span', { class: 'main' }, h('div', { class: 't', text })), null);
@@ -295,28 +296,28 @@ export function dappPublisher(app, params = {}) {
             ...p.socials.map((s) => (s.url ? link(s.url, `${s.label}: ${s.text}`, `publisher-${s.kind}`) : h('div', { class: 'row', 'data-testid': `publisher-${s.kind}` }, h('span', { class: 'main' }, h('div', { class: 't', text: `${s.label}: ${s.text}` }))))),
           )
         : null,
-      p.website || p.socials.some((s) => s.url) ? h('p', { class: 'small', text: 'Links open outside BEAM Campfire; the site sees your IP address.' }) : null,
-      h('p', { class: 'section-title', text: `dApps (${p.dapps.length})` }),
+      p.website || p.socials.some((s) => s.url) ? h('p', { class: 'small', text: t('Links open outside BEAM Campfire; the site sees your IP address.') }) : null,
+      h('p', { class: 'section-title', text: t('dApps ({count})', { count: p.dapps.length }) }),
       p.dapps.length
         ? h(
             'div',
             { class: 'card list dapp-list', 'data-testid': 'publisher-dapps' },
-            ...p.dapps.map((d) => h('button', { class: 'row dapp-row', type: 'button', onclick: () => app.go('dappStoreItem', { id: d.id }), 'data-testid': 'publisher-dapp' }, storeIcon(d), h('span', { class: 'main' }, h('div', { class: 't', text: d.name }), h('div', { class: 's', text: `Version ${d.versionText} · ${categoryName(d.category)}` })), h('span', { class: 'chev' }, icon('chevron')))),
+            ...p.dapps.map((d) => h('button', { class: 'row dapp-row', type: 'button', onclick: () => app.go('dappStoreItem', { id: d.id }), 'data-testid': 'publisher-dapp' }, storeIcon(d), h('span', { class: 'main' }, h('div', { class: 't', text: d.name }), h('div', { class: 's', text: t('Version {version} · {category}', { version: d.versionText, category: t(categoryName(d.category)) }) })), h('span', { class: 'chev' }, icon('chevron')))),
           )
-        : h('p', { class: 'small', text: 'None listed.' }),
-      h('div', { class: 'card' }, h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Publisher key' }), h('button', { class: 'v mono btn-text', type: 'button', 'data-testid': 'publisher-key', onclick: () => copyText(p.key, 'Publisher key copied'), text: shortKey(p.key) }))),
-      h('p', { class: 'small', text: 'The key is what identifies a publisher: names are not unique. Only the holder of this key can publish under it.' }),
-      secondary(hidden ? 'Show this publisher' : 'Hide this publisher', async () => {
+        : h('p', { class: 'small', text: t('None listed.') }),
+      h('div', { class: 'card' }, h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Publisher key') }), h('button', { class: 'v mono btn-text', type: 'button', 'data-testid': 'publisher-key', onclick: () => copyText(p.key, t('Publisher key copied')), text: shortKey(p.key) }))),
+      h('p', { class: 'small', text: t('The key is what identifies a publisher: names are not unique. Only the holder of this key can publish under it.') }),
+      secondary(hidden ? t('Show this publisher') : t('Hide this publisher'), async () => {
         await setHidden(app, p.key, !hidden);
-        toast(hidden ? `${p.name} is shown in the store` : `${p.name} is hidden from the store`, 3000);
+        toast(hidden ? t('{name} is shown in the store', { name: p.name }) : t('{name} is hidden from the store', { name: p.name }), 3000);
         render();
       }, { 'data-testid': 'publisher-hide' }),
     );
   }
 
-  put(box, loading('Reading the store…'));
+  put(box, loading(t('Reading the store…')));
   render();
-  const el = screen({ title: 'Publisher', back: () => app.back('dappStore') }, box);
+  const el = screen({ title: t('Publisher'), back: () => app.back('dappStore') }, box);
   return { el, destroy: () => (alive = false) };
 }
 
@@ -335,20 +336,20 @@ export function dappPublishers(app) {
     if (!alive) return;
     const hidden = hiddenSet(app);
     const row = (p) => {
-      const sw = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': `Show ${p.name}`, 'data-testid': 'publishers-switch', 'data-key': p.key, checked: !hidden.has(p.key) });
+      const sw = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': t('Show {name}', { name: p.name }), 'data-testid': 'publishers-switch', 'data-key': p.key, checked: !hidden.has(p.key) });
       sw.addEventListener('change', () => setHidden(app, p.key, !sw.checked));
       return h(
         'div',
         { class: 'row' },
-        h('button', { class: 'main row-link', type: 'button', 'data-testid': 'publishers-open', onclick: () => app.go('dappPublisher', { key: p.key }) }, h('div', { class: 't', text: p.name }), h('div', { class: 's', text: `${p.dapps.length === 1 ? '1 dApp' : `${p.dapps.length} dApps`} · ${shortKey(p.key)}` })),
+        h('button', { class: 'main row-link', type: 'button', 'data-testid': 'publishers-open', onclick: () => app.go('dappPublisher', { key: p.key }) }, h('div', { class: 't', text: p.name }), h('div', { class: 's', text: tn({ one: '{n} dApp · {key}', other: '{n} dApps · {key}' }, p.dapps.length, { key: shortKey(p.key) }) })),
         sw,
       );
     };
-    put(box, h('p', { class: 'lead', text: 'Publishers with dApps in the store. Turn one off to hide its dApps from the store on this device.' }), h('div', { class: 'card list', 'data-testid': 'publishers-list' }, ...listedPublishers(store).map(row)));
+    put(box, h('p', { class: 'lead', text: t('Publishers with dApps in the store. Turn one off to hide its dApps from the store on this device.') }), h('div', { class: 'card list', 'data-testid': 'publishers-list' }, ...listedPublishers(store).map(row)));
   }
-  put(box, loading('Reading the store…'));
+  put(box, loading(t('Reading the store…')));
   render();
-  const el = screen({ title: 'Publishers', back: () => app.back('dappStore') }, box);
+  const el = screen({ title: t('Publishers'), back: () => app.back('dappStore') }, box);
   return { el, destroy: () => (alive = false) };
 }
 

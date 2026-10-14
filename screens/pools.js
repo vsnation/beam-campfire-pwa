@@ -21,6 +21,7 @@ import { loadPools } from '../lib/dex_pools.js';
 import { lpVersion } from '../lib/lp_tokens.js';
 import { arrangePools, poolMatches, poolSize, isEmptyPool, shareOf, percentText, compact, beamWorth, poolKey } from '../lib/dex_liquidity.js';
 import { isVerified, unit, pairName, feeText, pairBadge, sideWarnings, flipButton, poolParams, readProblemText } from './pool_parts.js';
+import { t, tNodes } from '../lib/i18n.js';
 
 export default function pools(app) {
   let list = null;
@@ -29,11 +30,11 @@ export default function pools(app) {
   let lastShape = '';
   const flipped = new Set();
 
-  const search = h('input', { class: 'input', type: 'search', placeholder: 'Search by name, ticker or #id', 'aria-label': 'Search pools', autocomplete: 'off', 'data-testid': 'pools-search' });
+  const search = h('input', { class: 'input', type: 'search', placeholder: t('Search by name, ticker or #id'), 'aria-label': t('Search pools'), autocomplete: 'off', 'data-testid': 'pools-search' });
   const searchBox = h('div', { class: 'hidden' }, search);
   const status = h('div', { 'data-testid': 'pools-status' });
   const body = h('div', { class: 'pool-list', 'data-testid': 'pools-list' });
-  const createBtn = secondary('Create a pool', () => app.go('poolCreate'), { 'data-testid': 'pools-create' });
+  const createBtn = secondary(t('Create a pool'), () => app.go('poolCreate'), { 'data-testid': 'pools-create' });
 
   const held = (lp) => wallet.available(lp);
 
@@ -47,16 +48,16 @@ export default function pools(app) {
       { class: 'card pool-card', 'data-testid': 'pool-card', 'data-pool': poolKey(p), 'data-lp': String(p.lpToken) },
       h(
         'button',
-        { class: 'pool-open', type: 'button', 'data-testid': 'pool-open', 'aria-label': `${pairName(p)} pool, ${feeText(p.kind)}`, onclick: () => app.go('pool', poolParams(p)) },
+        { class: 'pool-open', type: 'button', 'data-testid': 'pool-open', 'aria-label': t('{pair} pool, {fee}', { pair: pairName(p), fee: feeText(p.kind) }), onclick: () => app.go('pool', poolParams(p)) },
         pairBadge(p),
         h(
           'span',
           { class: 'main' },
           h('span', { class: 'pool-title' }, h('span', { class: 'name', 'data-testid': 'pool-name', text: pairName(p) }), h('span', { class: 'fee-chip', text: feeText(p.kind) })),
-          h('span', { class: 'line', 'data-testid': 'pool-reserves', text: empty ? 'Empty: nobody has added coins yet' : `${compact(p.tok1)} ${unit(p.aid1)} · ${compact(p.tok2)} ${unit(p.aid2)}` }),
-          empty ? null : h('span', { class: 'line', 'data-testid': 'pool-size', text: size == null ? 'Pool size: no price' : `Pool size ${beamWorth(size)}` }),
+          h('span', { class: 'line', 'data-testid': 'pool-reserves', text: empty ? t('Empty: nobody has added coins yet') : `${compact(p.tok1)} ${unit(p.aid1)} · ${compact(p.tok2)} ${unit(p.aid2)}` }),
+          empty ? null : h('span', { class: 'line', 'data-testid': 'pool-size', text: size == null ? t('Pool size: no price') : t('Pool size {worth}', { worth: beamWorth(size) }) }),
           ...sideWarnings(p),
-          share ? h('span', { class: 'mine', 'data-testid': 'pool-share', text: `Your share of the pool: ${percentText(share.num, share.den)}` }) : null,
+          share ? h('span', { class: 'mine', 'data-testid': 'pool-share', text: t('Your share of the pool: {share}', { share: percentText(share.num, share.den) }) }) : null,
         ),
         h('span', { class: 'chev' }, icon('chevron')),
       ),
@@ -74,9 +75,9 @@ export default function pools(app) {
           ? h(
               'div',
               { 'data-testid': 'pools-error' },
-              notice('error', h('strong', { text: "Couldn't load the pools. " }), readProblemText(error, 'reach the DEX').replace(/^Couldn't reach the DEX: /, ''), ' ', h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'pools-retry', onclick: () => load(true) }, 'Try again')),
+              notice('error', h('strong', { text: `${t("Couldn't load the pools.")} ` }), readProblemText(error, 'pools'), ' ', h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'pools-retry', onclick: () => load(true) }, t('Try again'))),
             )
-          : h('div', { class: 'loading-line', 'data-testid': 'pools-loading' }, h('span', { class: 'spinner small' }), h('span', { text: 'Loading pools from the BEAM network…' })),
+          : h('div', { class: 'loading-line', 'data-testid': 'pools-loading' }, h('span', { class: 'spinner small' }), h('span', { text: t('Loading pools from the BEAM network…') })),
       );
       put(body);
       return;
@@ -85,13 +86,13 @@ export default function pools(app) {
     const { mine, rest } = arrangePools(list, { held, isVerified, matches: (p) => poolMatches(p, q, (id) => wallet.label(id)) });
     const anyLive = list.some((p) => !isEmptyPool(p));
     const st = [];
-    if (error) st.push(h('p', { class: 'small', 'data-testid': 'pools-stale', text: 'Showing the pools loaded a moment ago; the latest could not be fetched.' }));
+    if (error) st.push(h('p', { class: 'small', 'data-testid': 'pools-stale', text: t('Showing the pools loaded a moment ago; the latest could not be fetched.') }));
     if (!anyLive && !mine.length) {
       // Nothing to search: the way forward is to make the first pool.
       searchBox.classList.add('hidden');
-      st.push(h('div', { 'data-testid': 'pools-empty' }, notice('info', h('strong', { text: 'No pools have coins yet. ' }), 'Create the first pool and earn the fee on every swap it makes.')));
+      st.push(h('div', { 'data-testid': 'pools-empty' }, notice('info', h('strong', { text: `${t('No pools have coins yet.')} ` }), t('Create the first pool and earn the fee on every swap it makes.'))));
       put(status, ...st);
-      put(body, primary('Create a pool', () => app.go('poolCreate'), { 'data-testid': 'pools-empty-create' }));
+      put(body, primary(t('Create a pool'), () => app.go('poolCreate'), { 'data-testid': 'pools-empty-create' }));
       createBtn.classList.add('hidden');
       return;
     }
@@ -102,7 +103,7 @@ export default function pools(app) {
         h(
           'div',
           { 'data-testid': 'pools-no-match' },
-          notice('info', h('strong', { text: `No pool matches "${q.trim()}". ` }), 'Search by name, ticker or #id, or ', h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: () => app.go('poolCreate') }, 'create the pool'), '.'),
+          notice('info', h('strong', { text: `${t('No pool matches "{query}".', { query: q.trim() })} ` }), ...tNodes('Search by name, ticker or #id, or {create}.', { create: h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: () => app.go('poolCreate') }, t('create the pool')) })),
         ),
       );
     }
@@ -113,8 +114,8 @@ export default function pools(app) {
     lastShape = shape;
     put(
       body,
-      ...(mine.length ? [h('p', { class: 'section-title', 'data-testid': 'pools-mine-title', text: 'Your pools' }), ...mine.map(card)] : []),
-      ...(rest.length ? [h('p', { class: 'section-title', 'data-testid': 'pools-all-title', text: `All pools · ${rest.length}` }), ...rest.map(card)] : []),
+      ...(mine.length ? [h('p', { class: 'section-title', 'data-testid': 'pools-mine-title', text: t('Your pools') }), ...mine.map(card)] : []),
+      ...(rest.length ? [h('p', { class: 'section-title', 'data-testid': 'pools-all-title', text: t('All pools · {count}', { count: rest.length }) }), ...rest.map(card)] : []),
     );
   }
 
@@ -141,8 +142,8 @@ export default function pools(app) {
   load(false);
 
   const el = screen(
-    { title: 'Pools', back: () => app.back('swap'), actions: [createBtn], cls: 'pools sticky-actions' },
-    h('p', { class: 'lead small', text: 'Add your coins to a pool and earn a share of the fee on every swap it makes. Take them out whenever you like.' }),
+    { title: t('Pools'), back: () => app.back('swap'), actions: [createBtn], cls: 'pools sticky-actions' },
+    h('p', { class: 'lead small', text: t('Add your coins to a pool and earn a share of the fee on every swap it makes. Take them out whenever you like.') }),
     searchBox,
     status,
     body,
