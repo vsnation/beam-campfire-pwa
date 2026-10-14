@@ -16,6 +16,7 @@ import { formatAmount } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
 import { CANCEL_FEE, TX_STATUS, batchTotal } from '../lib/airdrop.js';
 import { airdrop, amountText, dropProblemText } from './airdrop.js';
+import { syncReason } from '../lib/sync.js';
 
 export default function airdropBatches(app) {
   let state = 'loading'; // loading | done | error
@@ -111,7 +112,7 @@ export default function airdropBatches(app) {
       feeShort != null
         ? h('p', { class: 'hint', 'data-testid': 'batch-fee-short' }, `Taking back needs ${formatAmount(feeShort)} BEAM for the network fee; this wallet has ${formatAmount(wallet.available(0))} BEAM. `, h('button', { class: 'btn btn-text btn-small inline', type: 'button', onclick: () => app.go('receive') }, 'Receive BEAM'))
         : b.unclaimedCount > 0 && !wallet.state.sync.canSend
-          ? h('p', { class: 'hint', text: `Taking back is paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.` })
+          ? h('p', { class: 'hint', text: `Taking back is paused: ${syncReason(wallet.state.sync.title)}.` })
           : null,
     );
   }

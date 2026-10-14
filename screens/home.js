@@ -50,6 +50,7 @@ import { namesHomeLine } from './names_claim.js';
 import { awayNow, dismissAway } from '../lib/notify.js';
 import { evictionNotice } from './storage_warning.js';
 import { evictionRisk } from '../lib/storage.js';
+import { syncReason } from '../lib/sync.js';
 
 export function syncLine(sync) {
   const cls = sync.state === 'synced' ? 'ok' : sync.state === 'offline' || sync.state === 'stalled' || sync.state === 'behind' ? 'bad' : 'wait';
@@ -183,7 +184,7 @@ export default function home(app) {
     swapBtn.prepend(icon('swap'));
     const buyBtn = secondary(h('span', {}, 'Buy'), () => openBuyChooser(app), { 'data-testid': 'buy' });
     buyBtn.prepend(icon('buy'));
-    const why = !canSend && s.sync.state !== 'synced' ? h('p', { class: 'small center', text: `${hasFunds ? 'Sending and swaps are' : 'Swaps are'} paused: ${s.sync.title.toLowerCase().replace(/[.…]+$/, '')}.` }) : null;
+    const why = !canSend && s.sync.state !== 'synced' ? h('p', { class: 'small center', text: `${hasFunds ? 'Sending and swaps are' : 'Swaps are'} paused: ${syncReason(s.sync.title)}.` }) : null;
     put(actionsBox, h('div', { class: 'btn-row three four' }, ...(hasFunds ? [sendBtn, recvBtn, swapBtn, buyBtn] : [recvBtn, sendBtn, swapBtn, buyBtn])), why);
   }
 

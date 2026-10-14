@@ -28,6 +28,7 @@ import { priceNow } from './token_ui.js';
 import { txRow } from './home.js';
 import activity from './activity.js';
 import { privateLine } from './coins_ui.js';
+import { syncReason } from '../lib/sync.js';
 
 const ZERO = { available: 0n, receiving: 0n, sending: 0n, maturing: 0n };
 
@@ -175,7 +176,7 @@ export default function token(app, params = {}) {
     }
     const buttons = has ? [sendBtn, recvBtn, third] : [recvBtn, sendBtn, third];
     let why = null;
-    if (!canSend && s.sync.state !== 'synced') why = `Sending is paused: ${s.sync.title.toLowerCase().replace(/[.…]+$/, '')}.`;
+    if (!canSend && s.sync.state !== 'synced') why = `Sending is paused: ${syncReason(s.sync.title)}.`;
     else if (!has && (t.receiving > 0n || t.maturing > 0n)) why = `Nothing to send yet: ${formatAmount(t.receiving + t.maturing)} ${unit} is still on its way to you.`;
     else if (!has) why = `This wallet has no ${l.label} to send.`;
     put(actions, h('div', { class: `btn-row three${third ? '' : ' two'}` }, ...buttons.filter(Boolean)), why ? h('p', { class: 'small center', 'data-testid': 'token-why', text: why }) : null);

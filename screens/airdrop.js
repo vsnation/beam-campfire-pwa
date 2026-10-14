@@ -18,6 +18,7 @@ import { wallet } from '../lib/wallet.js';
 import { walletStore } from '../lib/wallet_scope.js';
 import { airdropFor, codeVault, resealCodeVault, normaliseCode, formatCode, isWellFormedCode, CALL_FEE, CODE_LENGTH } from '../lib/airdrop.js';
 import { scanCode } from './scan_sheet.js';
+import { syncReason } from '../lib/sync.js';
 
 const CHECK_DEBOUNCE_MS = 300;
 
@@ -133,7 +134,7 @@ export default function airdropClaim(app) {
     if (check.state === 'error') return { off: null, label: 'Check again' };
     if (check.state === 'notFound' || check.state === 'claimed') return { off: 'Check the code above, or paste another one.' };
     const { info } = check;
-    if (!wallet.state.sync.canSend) return { off: `Claiming is paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.` };
+    if (!wallet.state.sync.canSend) return { off: `Claiming is paused: ${syncReason(wallet.state.sync.title)}.` };
     // A BEAM voucher pays its own fee when it is worth more than it.
     const need = info.assetId === 0 ? (CALL_FEE > info.value ? CALL_FEE - info.value : 0n) : CALL_FEE;
     if (need > 0n && wallet.available(0) < need) return { off: `Claiming needs ${formatAmount(need)} BEAM for the network fee and this wallet has ${formatAmount(wallet.available(0))} BEAM. Add BEAM, then claim.`, receive: true };

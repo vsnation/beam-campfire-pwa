@@ -17,6 +17,7 @@ import { wallet } from '../lib/wallet.js';
 import { STATUS, usdPerPeriod, priceEstimate, maxExtendPeriods, expiryAfterExtend, holdEndHeight, dateOf, display, NAME_CALL_FEE } from '../lib/bans.js';
 import { bans, usd, years, day, yearsStepper, nameProblemText } from './names.js';
 import { statusWords, priceText, pendingOf, pendingWords } from './name_parts.js';
+import { syncReason } from '../lib/sync.js';
 
 const beamAbout = (g) => formatAmount(g, { maxDecimals: g >= 100000000n ? 0 : 4 });
 const midpoint = (e) => (e.minGroth + e.maxGroth) / 2n;
@@ -72,7 +73,7 @@ export default function nameDetail(app, params = {}) {
     if (busy === 'renew') return { off: 'Building the renewal…', label };
     if (d.status === STATUS.availableAgain) return { off: `Its 90 days of grace are over, so it can no longer be renewed. Register it again under BEAM names before someone else does.`, label };
     if (max === 0) return { off: `Nothing to renew: ${name} is paid up to the 50-year limit.`, label: `Renew ${name}` };
-    if (!wallet.state.sync.canSend) return { off: `Renewing is paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.`, label };
+    if (!wallet.state.sync.canSend) return { off: `Renewing is paused: ${syncReason(wallet.state.sync.title)}.`, label };
     if (!params0) return { off: 'Getting the BEAM price…', label };
     if (!params0.usdPerBeamText) return { off: 'The BEAM price feed is not updating right now, so names cannot be priced. Try again in a few minutes.', label };
     const e = priceEstimate({ usdPerPeriod: usdPerPeriod(name.length), periods: y, medianText: params0.usdPerBeamText });
@@ -186,7 +187,7 @@ export default function nameDetail(app, params = {}) {
   async function unlist() {
     if (busy || state.phase !== 'ready') return;
     if (!wallet.state.sync.canSend) {
-      msg = { kind: 'info', code: 'paused', text: `Changing the sale is paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.` };
+      msg = { kind: 'info', code: 'paused', text: `Changing the sale is paused: ${syncReason(wallet.state.sync.title)}.` };
       return render();
     }
     busy = 'unlist';

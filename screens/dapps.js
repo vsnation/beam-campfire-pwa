@@ -34,6 +34,7 @@ import { InstallError, readFilePackage, catalogueEntryFor, catalogueNameCopiedBy
 import { installed, iconDataUrl } from '../lib/dapps/installed.js';
 import { remoteOriginFor } from '../lib/dapps/frame_policy.js';
 import { openApp, readsAsWallet } from '../lib/contracts.js';
+import { syncReason } from '../lib/sync.js';
 
 export { runnerStats };
 
@@ -179,7 +180,7 @@ export default function dapps(app, params = {}) {
   function renderNote(s) {
     const parts = [];
     if (!canRun) parts.push(notice('warn', 'dApps run only in the installed BEAM Campfire (the copy checked against its release signature). Open BEAM Campfire from its home screen icon or its web address and try again.'));
-    else if (s.sync.state !== 'synced') parts.push(notice('info', `The wallet is ${s.sync.title.toLowerCase().replace(/[.…]+$/, '')}. dApps can open now; what they read from the network waits until it has caught up.`));
+    else if (s.sync.state !== 'synced') parts.push(notice('info', `The wallet is ${syncReason(s.sync.title)}. dApps can open now; what they read from the network waits until it has caught up.`));
     put(topNote, ...parts);
   }
 

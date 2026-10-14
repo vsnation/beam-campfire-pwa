@@ -29,6 +29,7 @@ import { isEmpty, VISIBILITY, amountsText, balanceChange } from '../lib/bans_inb
 import { nameInbox, runClaim, setNamesHint } from './names_claim.js';
 import { statusWords, pendingWords, pendingDone, priceText, needsRenewal, daysBetween, inDays } from './name_parts.js';
 import { rememberNames } from '../lib/notify.js';
+import { syncReason } from '../lib/sync.js';
 
 const PENDING_FORGET_MS = 30 * 60000;
 
@@ -124,7 +125,7 @@ export default function names(app) {
       if (price) {
         const label = `Buy ${n} for ${priceText(price)}`;
         if (preparing) return { off: 'Building the purchase…', label };
-        if (!wallet.state.sync.canSend) return { off: `Buying is paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.`, label };
+        if (!wallet.state.sync.canSend) return { off: `Buying is paused: ${syncReason(wallet.state.sync.title)}.`, label };
         const need = price.assetId === 0 ? price.amount + NAME_CALL_FEE : price.amount;
         const have = wallet.available(price.assetId);
         if (have < need) return { off: `Not enough ${wallet.label(price.assetId).unit}. ${display(n)} costs ${priceText(price)}${price.assetId === 0 ? ', plus the 0.011 BEAM network fee' : ''}. You have ${formatAmount(have)} ${wallet.label(price.assetId).unit}.`, receive: true, label };
@@ -133,7 +134,7 @@ export default function names(app) {
       }
       return { off: `${display(n)} is taken. Try another name.` };
     }
-    if (!wallet.state.sync.canSend) return { off: `Registering is paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.` };
+    if (!wallet.state.sync.canSend) return { off: `Registering is paused: ${syncReason(wallet.state.sync.title)}.` };
     if (paramsError || !params) return { off: paramsError ? 'The BEAM price could not be read. Try again in a minute.' : 'Getting the BEAM price…' };
     if (!params.usdPerBeamText) return { off: 'The BEAM price feed is not updating right now, so names cannot be priced. Try again in a few minutes.' };
     const e = estimateFor(n, draft.years);
@@ -603,7 +604,7 @@ export default function names(app) {
         const need = e ? e.minGroth + NAME_CALL_FEE : null;
         const short = need != null && wallet.available(0) < need;
         const paused = !wallet.state.sync.canSend;
-        const off = busy ? 'Building the renewal…' : paused ? `Renewing is paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.` : !e ? 'Getting the BEAM price…' : short ? `Not enough BEAM. This costs about ${beamAbout(midpoint(e) + NAME_CALL_FEE)} BEAM, network fee included. You have ${formatAmount(wallet.available(0))} BEAM.` : null;
+        const off = busy ? 'Building the renewal…' : paused ? `Renewing is paused: ${syncReason(wallet.state.sync.title)}.` : !e ? 'Getting the BEAM price…' : short ? `Not enough BEAM. This costs about ${beamAbout(midpoint(e) + NAME_CALL_FEE)} BEAM, network fee included. You have ${formatAmount(wallet.available(0))} BEAM.` : null;
         const go = async () => {
           if (off) return;
           busy = true;

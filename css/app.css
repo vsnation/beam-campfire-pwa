@@ -516,7 +516,9 @@ label.btn.disabled { pointer-events: none; opacity: 0.5; }
 .asset-pick { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 7px 8px 7px 7px; border-radius: 22px; border: 0; background: var(--surface-2); color: var(--text); font-weight: 600; font-size: 16px; cursor: pointer; max-width: 50%; }
 .asset-pick span:not(.asset-badge) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .asset-pick svg { width: 16px; height: 16px; flex: none; color: var(--muted); }
-.swap-flip { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 38px; height: 38px; border-radius: 50%; border: 3px solid var(--bg); background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1; box-shadow: var(--shadow); }
+/* In the pair's flow, between the two cards: the 6px gaps and -22px margins put its centre on the seam
+   whatever each card's height (the share chips made "You pay" taller, and top: 50% then fell inside it). */
+.swap-flip { position: relative; align-self: center; flex: none; margin: -22px 0; width: 38px; height: 38px; border-radius: 50%; border: 3px solid var(--bg); background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1; box-shadow: var(--shadow); }
 .swap-flip svg { width: 18px; height: 18px; }
 .swap-details { padding: 4px 14px; }
 .swap-details .kv { padding: 8px 0; }

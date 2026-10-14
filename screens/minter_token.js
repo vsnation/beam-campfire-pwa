@@ -14,6 +14,7 @@ import { unlimited, metadataFields } from '../lib/minter.js';
 import { cleanText } from '../lib/meta.js';
 import { minter, tokenAmount, limitText, rememberMetadata, problemNotice, tokenTitle, forgetOnLock } from './minter.js';
 import { mintedShare } from './minter_tokens.js';
+import { syncReason } from '../lib/sync.js';
 
 export default function minterToken(app, p = {}) {
   forgetOnLock(app);
@@ -77,7 +78,7 @@ export default function minterToken(app, p = {}) {
       h('p', { class: 'small', text: 'Created with BEAM’s Minter. These details are on the chain for good.' }),
     );
     const canMint = t.isOwner && t.mintable > 0n;
-    const why = canMint && !wallet.state.sync.canSend ? h('p', { class: 'hint center', text: `Minting is paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.` }) : null;
+    const why = canMint && !wallet.state.sync.canSend ? h('p', { class: 'hint center', text: `Minting is paused: ${syncReason(wallet.state.sync.title)}.` }) : null;
     put(
       actions,
       why,

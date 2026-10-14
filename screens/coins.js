@@ -23,6 +23,7 @@ import { wallet } from '../lib/wallet.js';
 import { hiddenIds } from '../lib/hidden_tokens.js';
 import { loadCoins, emptySummary, splitAdvice, countsFor, chosenCount, planEqual, SPLIT_TEXT as T } from '../lib/coins.js';
 import { coinList } from './coins_ui.js';
+import { syncReason } from '../lib/sync.js';
 
 export default function coins(app, params = {}) {
   let assetId = Number(params.assetId) > 0 ? Number(params.assetId) : 0;
@@ -84,7 +85,7 @@ export default function coins(app, params = {}) {
 
   function stateIssue(s) {
     if (s.importing) return 'Splitting turns on once the wallet has finished getting ready.';
-    if (!s.sync.canSend) return `Splitting is paused: ${s.sync.title.toLowerCase().replace(/[.…]+$/, '')}.`;
+    if (!s.sync.canSend) return `Splitting is paused: ${syncReason(s.sync.title)}.`;
     return null;
   }
 

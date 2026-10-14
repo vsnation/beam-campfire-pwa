@@ -15,6 +15,7 @@ import { formatAmount } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
 import { unlimited, MINTER_CID } from '../lib/minter.js';
 import { minter, tokenAmount, limitText, rememberMetadata, problemNotice, tokenTitle, pendingTokens, forgetOnLock } from './minter.js';
+import { syncReason } from '../lib/sync.js';
 
 /** Minted as a share of the ceiling, 0..1, for the bar (no maximum: no bar). */
 export function mintedShare(t) {
@@ -105,7 +106,7 @@ export default function minterTokens(app, p = {}) {
           )
         : null,
       ...list.map(card),
-      list.length && !wallet.state.sync.canSend ? h('p', { class: 'small center', text: `Minting is paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.` }) : null,
+      list.length && !wallet.state.sync.canSend ? h('p', { class: 'small center', text: `Minting is paused: ${syncReason(wallet.state.sync.title)}.` }) : null,
     );
   }
 

@@ -19,6 +19,7 @@ import { wallet } from '../lib/wallet.js';
 import { creationFee, CALL_FEE, CANCEL_FEE, MAX_VOUCHERS, MAX_TOTAL } from '../lib/airdrop.js';
 import { airdrop, amountText, dropProblemText, forgetOnLock, BEARER_TEXT } from './airdrop.js';
 import { confirmKeptHere } from './storage_warning.js';
+import { syncReason } from '../lib/sync.js';
 
 export default function airdropCreate(app) {
   forgetOnLock(app);
@@ -85,7 +86,7 @@ export default function airdropCreate(app) {
     if (p.error) return { off: p.error };
     if (p.value == null) return { off: `Enter how much ${u} each code gives.` };
     if (!p.n) return { off: 'Enter how many codes to create.' };
-    if (!wallet.state.sync.canSend) return { off: `Creating codes is paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.` };
+    if (!wallet.state.sync.canSend) return { off: `Creating codes is paused: ${syncReason(wallet.state.sync.title)}.` };
     const lock = p.total + p.fee;
     if (id === 0) {
       const need = lock + CALL_FEE;

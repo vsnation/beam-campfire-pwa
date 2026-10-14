@@ -18,6 +18,7 @@ import { tokenSubtitle } from '../lib/meta.js';
 import { wallet } from '../lib/wallet.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
 import { loadCoins, emptySummary, planSized, splitCoins, SplitError, SPLIT_TEXT as T } from '../lib/coins.js';
+import { syncReason } from '../lib/sync.js';
 
 export default function splitReview(app, p = {}) {
   const assetId = Number(p.assetId) || 0;
@@ -135,7 +136,7 @@ export default function splitReview(app, p = {}) {
     const sync = wallet.state.sync;
     put(
       actions,
-      !sync.canSend ? h('p', { class: 'hint center', 'data-testid': 'split-review-paused', text: `Splitting is paused: ${sync.title.toLowerCase().replace(/[.…]+$/, '')}.` }) : null,
+      !sync.canSend ? h('p', { class: 'hint center', 'data-testid': 'split-review-paused', text: `Splitting is paused: ${syncReason(sync.title)}.` }) : null,
       primary(busy ? 'Splitting…' : T.cta(plan.count), confirm, { disabled: busy || authing || !sync.canSend, 'data-testid': 'split-confirm-cta' }),
       textButton('Change', () => app.back('coins'), { 'data-testid': 'split-review-change-btn' }),
     );

@@ -55,6 +55,7 @@ import {
   ABOUT_TO_BEAM_MS,
 } from './bridge_text.js';
 import { confirmKeptHere } from './storage_warning.js';
+import { syncReason } from '../lib/sync.js';
 
 const QUOTE_DELAY_MS = 400;
 /** A quote older than this is worked out again when the button is tapped. */
@@ -137,7 +138,7 @@ export default function bridgeMove(app, params = {}) {
     if (openError) return { off: "The bridge couldn't open. Try again above." };
     if (!s) return { off: 'Opening the bridge…' };
     if (busy) return { off: 'Getting it ready…' };
-    if (toEth() && !wallet.state.sync.canSend) return { off: `Moving to Ethereum is paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.` };
+    if (toEth() && !wallet.state.sync.canSend) return { off: `Moving to Ethereum is paused: ${syncReason(wallet.state.sync.title)}.` };
     if (!toEth() && s.w.doubt()) return { off: 'Paused until your last Ethereum transaction is settled (above).' };
     const gate = priceGate();
     if (gate === 'ask') return { off: 'Allow prices above to see the bridge fee.' };

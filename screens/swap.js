@@ -22,6 +22,7 @@ import { dexApp, loadPools } from '../lib/dex_pools.js';
 import { DEX_CALL_FEE, DEFAULT_RECEIVE, KINDS, PROTECTION_BPS, PROTECTIONS, receivable, tradable, bestQuote, tradeArgs, swapExpectation, leastReceive, priceImpactBps, IMPACT_WARN_BPS, feeIsLarge, swapValue, feeShareBps, bpsText, DexError } from '../lib/dex.js';
 import { shortAmount } from './consent.js';
 import { hiddenIds } from '../lib/hidden_tokens.js';
+import { syncReason } from '../lib/sync.js';
 
 /** Plain words for whatever stopped a quote or a swap. */
 function problemText(e, payUnit, getUnit) {
@@ -90,7 +91,7 @@ export default function swap(app) {
   function ctaState() {
     const payU = unit(draft.pay);
     if (preparing) return { off: 'Building your swap…' };
-    if (!wallet.state.sync.canSend) return { off: `Swaps are paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.` };
+    if (!wallet.state.sync.canSend) return { off: `Swaps are paused: ${syncReason(wallet.state.sync.title)}.` };
     if (poolsError) return { off: 'Prices could not be loaded. Try again above.' };
     if (!pools) return { off: 'Loading prices…' };
     if (draft.receive == null) return { off: `Nothing can be bought with ${payU} right now. Pick another asset to pay with.` };

@@ -18,6 +18,7 @@ import { wallet } from '../lib/wallet.js';
 import { assetLabel, tokenSubtitle, copyWarning } from '../lib/meta.js';
 import { minterFor, minterProblem, unlimited } from '../lib/minter.js';
 import { burnFor } from '../lib/burn.js';
+import { syncReason } from '../lib/sync.js';
 
 /** The Minter for the running wallet (one per session). */
 export const minter = () => minterFor(wallet.session);
@@ -68,7 +69,7 @@ export function tokenTitle(assetId, sub = null) {
 /** "Creating a token is paused: syncing." when the wallet cannot spend right now, else null. */
 export function pausedReason(what) {
   const s = wallet.state.sync;
-  return s.canSend ? null : `${what} is paused: ${s.title.toLowerCase().replace(/[.…]+$/, '')}.`;
+  return s.canSend ? null : `${what} is paused: ${syncReason(s.title)}.`;
 }
 
 let hooked = false;

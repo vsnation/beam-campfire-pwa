@@ -24,6 +24,7 @@ import { loadPools } from '../lib/dex_pools.js';
 import { POOL_CREATE_DEPOSIT, POOL_CREATE_FEE, KIND_CHOICES, findPool, creatableAssets, isEmptyPool } from '../lib/dex_liquidity.js';
 import { tokenSubtitle, copyWarning } from '../lib/meta.js';
 import { unit, sideName, feeText, poolParams, liquidity, problemText, readProblemText } from './pool_parts.js';
+import { syncReason } from '../lib/sync.js';
 
 export default function poolCreate(app, params = {}) {
   if (!app.poolCreateDraft) app.poolCreateDraft = { a: 0, b: null, kind: 2 };
@@ -53,7 +54,7 @@ export default function poolCreate(app, params = {}) {
 
   function ctaState() {
     if (preparing) return { off: 'Building the pool…' };
-    if (!wallet.state.sync.canSend) return { off: `Creating a pool is paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.` };
+    if (!wallet.state.sync.canSend) return { off: `Creating a pool is paused: ${syncReason(wallet.state.sync.title)}.` };
     if (loadError && !pools) return { off: 'The pools could not be loaded. Try again above.' };
     if (!pools) return { off: 'Checking which pools exist…' };
     if (draft.b == null) return { off: 'Choose the second asset.' };

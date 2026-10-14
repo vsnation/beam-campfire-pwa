@@ -28,6 +28,7 @@ import {
 import { bpsText, PROTECTION_BPS } from '../lib/dex.js';
 import { shortAmount } from './consent.js';
 import { isVerified, unit, pairName, feeText, pairBadge, sideWarnings, flipButton, poolParams, liquidity, problemText, readProblemText } from './pool_parts.js';
+import { syncReason } from '../lib/sync.js';
 
 /** An amount on the button: as the swap writes it, but a tiny one in four significant digits. */
 const btn = (g) => (BigInt(g) >= 1000000n ? shortAmount(g) : compact(g));
@@ -209,7 +210,7 @@ export default function pool(app, params = {}) {
   // ------------------------------------------------------------ the button and its reason
   function ctaState() {
     if (preparing) return { off: mode() === 'add' ? 'Building your deposit…' : 'Building your withdrawal…' };
-    if (!wallet.state.sync.canSend) return { off: `Pool moves are paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.` };
+    if (!wallet.state.sync.canSend) return { off: `Pool moves are paused: ${syncReason(wallet.state.sync.title)}.` };
     if (loadError && !pl) return { off: 'The pool could not be loaded. Try again above.' };
     if (!pools) return { off: 'Loading the pool…' };
     if (!pl) return { off: 'This pool is not on the DEX yet.' };

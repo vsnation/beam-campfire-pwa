@@ -20,6 +20,7 @@ import { wallet } from '../lib/wallet.js';
 import { requireKey, checkCode, display, dateOf, STATUS, NAME_CALL_FEE } from '../lib/bans.js';
 import { bans, day, nameProblemText } from './names.js';
 import { pendingOf } from './name_parts.js';
+import { syncReason } from '../lib/sync.js';
 
 export default function nameTransfer(app, params = {}) {
   const name = String(params.name || '');
@@ -61,7 +62,7 @@ export default function nameTransfer(app, params = {}) {
     if (res && (!res.domain || res.ownerKey !== myKey)) return `${display(name)} is not in this wallet.`;
     if (res && res.status === STATUS.availableAgain) return 'An expired name cannot be transferred until it is registered again.';
     if (!key) return `Paste the key of the wallet that should get ${name}.`;
-    if (!wallet.state.sync.canSend) return `Transferring is paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.`;
+    if (!wallet.state.sync.canSend) return `Transferring is paused: ${syncReason(wallet.state.sync.title)}.`;
     if (wallet.available(0) < NAME_CALL_FEE) return `You need ${formatAmount(NAME_CALL_FEE)} BEAM for the network fee. You have ${formatAmount(wallet.available(0))} BEAM.`;
     return null;
   }

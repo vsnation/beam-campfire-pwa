@@ -16,6 +16,7 @@ import { wallet } from '../lib/wallet.js';
 import { display, dateOf, STATUS, NAME_CALL_FEE } from '../lib/bans.js';
 import { bans, day, nameProblemText } from './names.js';
 import { pendingOf } from './name_parts.js';
+import { syncReason } from '../lib/sync.js';
 
 export default function nameSell(app, params = {}) {
   const name = String(params.name || '');
@@ -68,7 +69,7 @@ export default function nameSell(app, params = {}) {
     if (res && res.status === STATUS.availableAgain) return 'An expired name cannot be sold until it is registered again.';
     if (amount == null) return amountError || `Enter the price you want for ${name}.`;
     if (res && res.domain.salePrice && res.domain.salePrice.assetId === assetId && res.domain.salePrice.amount === amount) return 'That is already the price. Nothing to change.';
-    if (!wallet.state.sync.canSend) return `Listing is paused: ${wallet.state.sync.title.toLowerCase().replace(/[.…]+$/, '')}.`;
+    if (!wallet.state.sync.canSend) return `Listing is paused: ${syncReason(wallet.state.sync.title)}.`;
     if (wallet.available(0) < NAME_CALL_FEE) return `You need ${formatAmount(NAME_CALL_FEE)} BEAM for the network fee. You have ${formatAmount(wallet.available(0))} BEAM.`;
     return null;
   }

@@ -1,6 +1,6 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.2.14",
+ "version": "0.2.15",
  "files": [
   {
    "path": "app.js",
@@ -9,8 +9,8 @@
   },
   {
    "path": "css/app.css",
-   "sha256": "f853c8b26cf2464d942445a55f07f0223d5a9ecadfb6edc0bf3025d2e222fc7f",
-   "size": 67699
+   "sha256": "de8120c3b62929417aa7bb5eba1f77068355288d9fa3901f59cb80b11db1fb3c",
+   "size": 67906
   },
   {
    "path": "css/payments.css",
@@ -534,8 +534,8 @@
   },
   {
    "path": "lib/dex_pools.js",
-   "sha256": "b26b1e87027325bd65295190afdf01edadb3c689ccc632bf3a23d4205559bdfc",
-   "size": 3540
+   "sha256": "34674a8691925c6b67be444c3aad27404e3735589d4abc4277412011c95419c9",
+   "size": 4086
   },
   {
    "path": "lib/dom.js",
@@ -919,8 +919,8 @@
   },
   {
    "path": "lib/sync.js",
-   "sha256": "73d9f2a6dcfc855a456f3994992a47b18f73c8ff96bb6d453aeafb6de9cacb87",
-   "size": 7074
+   "sha256": "c385688d00a8385e5f9ab1b07ddf9da5536c2084ec709ec1fc90fa6931290d55",
+   "size": 9104
   },
   {
    "path": "lib/theme.js",
@@ -964,13 +964,13 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "716a37e5735a878da22b66de8ace358b6a32f14a2453af9fb0617b1592760291",
+   "sha256": "0559bc9d15380615ae79b9013cf2b4264636a6ffaadd359a1154fa5df5548176",
    "size": 1276
   },
   {
    "path": "lib/wallet.js",
-   "sha256": "32dc4c9dca8eeb266d43a4d240c702c59567d543104b57085003b3141467d76d",
-   "size": 32310
+   "sha256": "2326cbb67dea5c847c9a307857a0c129d1208a78630e581c881c13148939daaf",
+   "size": 32817
   },
   {
    "path": "lib/wallet_data.js",
@@ -1039,13 +1039,13 @@
   },
   {
    "path": "screens/airdrop.js",
-   "sha256": "e882e4f46da2e787f7749f7e0445c80bab1b26ae67d0b4dbc7d0788e6c431dde",
-   "size": 16312
+   "sha256": "0dbbc5fb201045ffceda7dbf1d346b6219be596477f077ef5c1f4b6be94cd5d8",
+   "size": 16331
   },
   {
    "path": "screens/airdrop_batches.js",
-   "sha256": "1a21b6422631c53c5648c36611e9d73c6196c46a088241059e28011f3a5fd5a1",
-   "size": 8474
+   "sha256": "51a91ddc3b7f3042b7a6513adfa1de00012574de3f7c6b5b6f08b7c97757fc48",
+   "size": 8493
   },
   {
    "path": "screens/airdrop_codes.js",
@@ -1054,8 +1054,8 @@
   },
   {
    "path": "screens/airdrop_create.js",
-   "sha256": "80efa4588dcd18aaf117c703bae38af39f1c72a64edf7d8282cfcc9164a627cd",
-   "size": 10078
+   "sha256": "6d252bdef813258c6efb7e9723a1ba3699a361ff6e2c9b2fff0bd546fa209e3c",
+   "size": 10097
   },
   {
    "path": "screens/backup.js",
@@ -1074,8 +1074,8 @@
   },
   {
    "path": "screens/bridge_move.js",
-   "sha256": "8e0ec08b49e7cd7ece457d63c3b824ebd5b8d1d67c9bf4c9115cbc90ad26aafd",
-   "size": 23716
+   "sha256": "deb5a8c78299ba1956eda6667a90e8fc83692c7772f5e9c4c6327693a8f98122",
+   "size": 23735
   },
   {
    "path": "screens/bridge_review.js",
@@ -1134,8 +1134,8 @@
   },
   {
    "path": "screens/coins.js",
-   "sha256": "04a6475064912a0a2768bb8dfb5a03a6e35ea1bbbdbc5ace9c0494daa4934c43",
-   "size": 9779
+   "sha256": "bc4468ae868e35273a85c8f2d2c88ffc2456f13372b398b5227c0c287fedfee9",
+   "size": 9798
   },
   {
    "path": "screens/coins_screens.js",
@@ -1169,8 +1169,8 @@
   },
   {
    "path": "screens/dapps.js",
-   "sha256": "f8b05f74efca3c20e55b3a648a11768f9b270bb5b59dc98858d96de47a87fdbd",
-   "size": 41629
+   "sha256": "98f801332637dbb3646c818c1001e2945093bdbb01b2ec21bb38a73b889d361a",
+   "size": 41648
   },
   {
    "path": "screens/delete_wallet.js",
@@ -1274,8 +1274,8 @@
   },
   {
    "path": "screens/home.js",
-   "sha256": "749038aaae52771281cc9a8a1b95bc89ccc4dbcc5bf618b356379ece53220988",
-   "size": 18367
+   "sha256": "b2a611fe4edeee212b5d4700247eb07bfde751e413f30daa31a3808ca39a1de9",
+   "size": 18386
   },
   {
    "path": "screens/import_wallet.js",
@@ -1294,8 +1294,8 @@
   },
   {
    "path": "screens/minter.js",
-   "sha256": "ef37e7233802efaabb31629928f099ae6141afd657192cdf986cbfdc74d96564",
-   "size": 5724
+   "sha256": "e69d53a959fffedf73b8322cf44cd835a65cacc11ddb93c6758d34ddae551ce6",
+   "size": 5743
   },
   {
    "path": "screens/minter_create.js",
@@ -1314,18 +1314,18 @@
   },
   {
    "path": "screens/minter_token.js",
-   "sha256": "6aa54a5e584007c6f3e99688d2d7ee49708d8a8545edbae80ae35ee6f48d9730",
-   "size": 5892
+   "sha256": "2a05035483e043c93007d4c574561e8d7232181282b4d1ace6f6667813dc9c10",
+   "size": 5911
   },
   {
    "path": "screens/minter_tokens.js",
-   "sha256": "fd9a108d70fec66c1aec819cb483f81bf9d3cff4e3657ec0bf4a2c6dc40b02da",
-   "size": 6897
+   "sha256": "d6fa6d12bda3e5ed8aeedfb66d32ab2b22f84f4f738a35d7312780451d0df7f7",
+   "size": 6916
   },
   {
    "path": "screens/name_detail.js",
-   "sha256": "30e6bf9b2184caa3ea85cdc3be2820c7170f9309999586ecd41d7fed9f76db19",
-   "size": 12852
+   "sha256": "a5194a17198241ee9497b51c0a190f37d6165d2754312321fcac252190dd8272",
+   "size": 12845
   },
   {
    "path": "screens/name_key.js",
@@ -1344,18 +1344,18 @@
   },
   {
    "path": "screens/name_sell.js",
-   "sha256": "c64f1acca06012289a5cf35629964fe8cd7e4d2192c9c03359c949051431fe20",
-   "size": 7468
+   "sha256": "2b06d9b42692eb883e43fb7c480a4d6db5330545ca1b34f7cf55a17d8c19a06e",
+   "size": 7487
   },
   {
    "path": "screens/name_transfer.js",
-   "sha256": "fec049bb9f59cec0b7dbcbe17b68018d429ca1e7f1856d040ba73ed1f43407e6",
-   "size": 7652
+   "sha256": "8faaf2742b88fbc6e2891750d33b17b9f74160b8bc38d2aa52bec170ac220b71",
+   "size": 7671
   },
   {
    "path": "screens/names.js",
-   "sha256": "3800d92f624b74dd32e70b4d5da34a171cb421ed27dbc332c0a7f6f736c32c96",
-   "size": 35323
+   "sha256": "4bf7ab07142df3b71019a0f9eb468cbd0262c268b7000b3f4d4c9885ee7e7272",
+   "size": 35290
   },
   {
    "path": "screens/names_claim.js",
@@ -1419,13 +1419,13 @@
   },
   {
    "path": "screens/pool.js",
-   "sha256": "5695d04c40856a5fe3e5403417eb1c9dd67beda0e125dce61afc93eeaa62d590",
-   "size": 25027
+   "sha256": "b2938371d47b74aa1e421074e86f0cfd91d189757ea3e030f4764d4edbbc066c",
+   "size": 25046
   },
   {
    "path": "screens/pool_create.js",
-   "sha256": "b436e8b2b801aef65e2e8aad56a7440c0ad43b0ca814309a7c241ec40712e9a0",
-   "size": 13197
+   "sha256": "fb228a7a0eb587e2c5b7f99b24dedeeff990c259f51dbd7a935d483f1cc7c662",
+   "size": 13216
   },
   {
    "path": "screens/pool_parts.js",
@@ -1499,8 +1499,8 @@
   },
   {
    "path": "screens/split_review.js",
-   "sha256": "4225799c5b80e7fdcf119cc3cd125d2489975df166524e09afda25012e564490",
-   "size": 7735
+   "sha256": "da796b15909af29fd1614d12b0ed9fbde80b5ae45caba9b9b6da54dba5ed3b7a",
+   "size": 7754
   },
   {
    "path": "screens/storage_warning.js",
@@ -1514,13 +1514,13 @@
   },
   {
    "path": "screens/swap.js",
-   "sha256": "8f637edb9bb3ef22e64b51052dcc44acbbd30d24b0cfa82984189e9de8678c04",
-   "size": 23355
+   "sha256": "f8fb715998d794199204660ffc831cb395161c28a6be68d9d28bb6ed1f67c7c1",
+   "size": 23374
   },
   {
    "path": "screens/token.js",
-   "sha256": "61f73ace929438bca29b3ffc6c1d2554a110e35b4eff811ec565b21791877bd7",
-   "size": 12998
+   "sha256": "bb9f48e47f9b8e85acf0628f105702f2301e4a8e3cfb7ca9342e6d2dded5589d",
+   "size": 13017
   },
   {
    "path": "screens/token_screens.js",
