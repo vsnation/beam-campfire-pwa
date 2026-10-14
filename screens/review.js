@@ -16,7 +16,7 @@ import { screen, primary, notice, textButton } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
 import { wallet, sendModeFor } from '../lib/wallet.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
-import { checkCode, display } from '../lib/bans.js';
+import { checkCode, display, pinAfterTimeout } from '../lib/bans.js';
 import { bans, nameProblemText } from './names.js';
 import { contactNameFor, readNamePin, pinNamePayment, NAME_PIN_UNREAD } from '../lib/contacts.js';
 import { cleanNote } from '../lib/payments.js';
@@ -109,11 +109,14 @@ function nameReview(app, p) {
     cta.disabled = true;
     cta.textContent = t('Checking the name…');
     put(msg);
+    // What this wallet remembers about the name's owner, once read here (null: not read, or unreadable).
+    let known = null;
     try {
       // A name this wallet paid before must still have that owner, unless the person chose the new one on Send.
       // Unreadable now: what Send read (Review already says when Send could not read it either).
       const pin = await readNamePin(app, p.name);
       const pinnedKey = pin.unread ? p.pinnedKey || null : pin.key;
+      if (!pin.unread) known = { pinned: pin.key };
       // The approve sheet that follows shows the wallet's own figures and asks for Face ID / password.
       const r = await bans().pay(p.name, Number(p.assetId), p.amount, { expectedOwnerKey: p.ownerKey, pinnedKey, acceptedKey: p.acceptedKey || null });
       // Paid: the owner the name is expected to have next time.
@@ -121,6 +124,12 @@ function nameReview(app, p) {
       app.sendDraft = null;
       app.go('txStatus', { txId: r.txId, amount: p.amount, fee: r.fee, assetId: p.assetId, address: display(p.name), name: p.name, mustBeOnline: false }, { replace: true });
     } catch (e) {
+      // No answer in time: the payment may have gone out. Keep the owner Send checked, as if it had, so a
+      // changed owner is still flagged next time instead of reading as a first payment (audit 1.3.0, S3) -
+      // but only when what this wallet remembers was read and does not say otherwise: a different
+      // remembered owner is never replaced without the person's choice (release audit 0.2.18, S1).
+      const keep = pinAfterTimeout({ known, checked: p.acceptedKey || p.ownerKey || null, accepted: p.acceptedKey || null });
+      if (e.code === 'timeout' && keep) await pinNamePayment(app, p.name, keep).catch((err) => console.warn('[campfire] name pin', err && err.message));
       cta.disabled = false;
       cta.textContent = label;
       put(msg, notice(e.code === 'rejected' ? 'info' : 'error', nameProblemText(e, 'payment')));

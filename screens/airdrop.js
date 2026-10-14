@@ -16,7 +16,7 @@
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, primary, secondary, notice } from '../lib/ui.js';
+import { screen, primary, secondary, textButton, notice, sheetPromise } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
 import { walletStore } from '../lib/wallet_scope.js';
@@ -358,16 +358,35 @@ export default function airdropClaim(app) {
     render();
   }
 
+  /**
+   * Before an old-contract claim: that claim shows the code to the network, and only codes made before
+   * 13 October 2026 need it (release audit 1.3.0, B2). Not claiming is the main button.
+   */
+  function askOldClaim() {
+    return sheetPromise(
+      (close) => [
+        h('h2', { text: t('Claim with the old airdrop contract?') }),
+        notice('warn', t('This code is from the old airdrop contract. Claiming it there shows the code to the network, so someone watching could claim it first.')),
+        h('p', { text: t('Codes made since 13 October 2026 never need this. If you got this code recently, stop and ask whoever gave it to you.') }),
+        primary(t("Don't claim"), () => close(false), { 'data-testid': 'airdrop-old-stop' }),
+        textButton(t('Claim on the old contract anyway'), () => close(true), { 'data-testid': 'airdrop-old-go' }),
+      ],
+      { label: t('Claim with the old airdrop contract?') },
+    ).then((v) => v === true);
+  }
+
   async function claim() {
     const st = ctaState();
     if (st.off) return;
     if (check.state !== 'found') return checkNow();
     const code = input.value;
+    const oldConsent = check.info.contract === 'v3' ? false : await askOldClaim();
+    if (check.info.contract !== 'v3' && !oldConsent) return;
     claiming = true;
     result = null;
     render();
     try {
-      const r = await airdrop(app).redeem(code);
+      const r = await airdrop(app).redeem(code, { oldConsent });
       if (!alive) return;
       app.dropDraft = null;
       done = { info: r.info, txId: r.txId, code: normaliseCode(code), status: 'sent' };

@@ -35,6 +35,7 @@ import { installed, iconDataUrl } from '../lib/dapps/installed.js';
 import { remoteOriginFor } from '../lib/dapps/frame_policy.js';
 import { openApp, readsAsWallet } from '../lib/contracts.js';
 import { syncReason } from '../lib/sync.js';
+import { fuddleLive } from '../lib/fuddle_id.js';
 import { t } from '../lib/i18n.js';
 
 export { runnerStats };
@@ -141,6 +142,26 @@ export default function dapps(app, params = {}) {
     );
   }
 
+  /**
+   * Fuddle, the word game built into BEAM Campfire (screens/fuddle.js): no download, no frame, no
+   * approval of its own beyond each payment's. Listed first; "Opens soon" until its contract is live.
+   */
+  function fuddleRow() {
+    return h(
+      'button',
+      { class: 'row dapp-row', type: 'button', onclick: () => app.go('fuddle'), 'data-testid': 'dapp-fuddle', 'data-name': 'Fuddle' }, // i18n-ignore: the game's name, a test hook
+      h('span', { class: 'dapp-icon fuddle-icon' }, h('span', { class: 'fuddle-mark', 'aria-hidden': 'true' }, h('span', { class: 'm correct' }), h('span', { class: 'm present' }), h('span', { class: 'm absent' }))),
+      h(
+        'span',
+        { class: 'main' },
+        h('div', { class: 't', text: t('Fuddle') }), // the game's name, from the catalog like its screen title (equal in every language)
+        h('div', { class: 's wrap', text: t('Guess the hidden word in six tries, win a share of the prize pool') }),
+        h('div', { class: 's meta', 'data-testid': 'dapp-fuddle-state', text: fuddleLive() ? t('Built into BEAM Campfire · tournaments on BEAM') : t('Opens soon') }),
+      ),
+      h('span', { class: 'pill', text: fuddleLive() ? t('Play') : t('Soon') }),
+    );
+  }
+
   /** An installed row with its Remove button beside it (a button cannot hold another). */
   const withRemove = (row, name, onRemove, guid) =>
     h('div', { class: 'dapp-item' }, row, h('button', { class: 'icon-btn dapp-remove', 'aria-label': t('Remove {name}', { name }), 'data-testid': `dapp-remove-${guid}`, onclick: onRemove }, icon('trash')));
@@ -162,6 +183,9 @@ export default function dapps(app, params = {}) {
     const available = CATALOGUE.filter((e) => !cached.get(e.guid));
     put(
       listBox,
+      // Fuddle is paused (owner, 2026-10-14): nothing shows until its contract id is set (lib/fuddle_id.js).
+      fuddleLive() ? h('p', { class: 'section-title', text: t('Built into BEAM Campfire') }) : null,
+      fuddleLive() ? h('div', { class: 'card list dapp-list', 'data-testid': 'dapp-builtin' }, fuddleRow()) : null,
       items.length ? h('p', { class: 'section-title', text: t('Installed') }) : null,
       items.length ? h('div', { class: 'card list dapp-list', 'data-testid': 'dapp-installed' }, ...items.map((i) => i.el)) : null,
       h('p', { class: 'section-title', text: t('Available') }),

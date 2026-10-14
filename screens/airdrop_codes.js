@@ -92,7 +92,7 @@ export default function airdropCodes(app, p = {}) {
     const st = v3 ? v3.state : 'waiting';
     if (st === 'failed') {
       const why = CHECK_PROBLEM_TEXT[v3.problem] ? t(CHECK_PROBLEM_TEXT[v3.problem]) : t('A code did not check out.');
-      const safe = v3.mined ? t('Your funds are safe: take this batch back in My batches to get them back, and make new codes.') : t('Your funds are safe: nothing more was locked, and make new codes.');
+      const safe = v3.mined ? t('Your funds are safe: take this batch back in My batches to get them back, and make new codes.') : t('Your funds are safe: nothing was locked. Make new codes.');
       const el = notice('error', h('strong', { text: `${t('Do not share these codes.')} ` }), `${why} ${t('Someone may have copied this batch while it was on its way, so the codes could point to empty vouchers.')} ${safe}`);
       el.dataset.testid = 'codes-check-failed';
       put(body, summaryLine(), el);

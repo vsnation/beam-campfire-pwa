@@ -18,6 +18,9 @@
  *   in which wallet, about an hour, and that it is public on both chains - with the button
  *   "Move 300 BEAM to Ethereum"; collecting on BEAM is "Collect 0.5 bETH". The rows are used only
  *   when the engine's report agrees with the request to the groth.
+ * Fuddle (screens/fuddle.js) reads as its game: "Pay 1.12 BEAM and play" (the entry and answering fee
+ *   as rows), "Guess CRANE and pay 0.02 BEAM for letters", "End the game", "Take back 1.68 BEAM",
+ *   "Collect 6.50 BEAM".
  */
 import { h, shorten } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
@@ -100,13 +103,30 @@ function intentLabel(intent, pay, get, req = null) {
       return one(pay) && !get.length ? t('Pay {amount} and buy {name}', { amount: pay[0], name: intent.name }) : null;
     case 'nameClaim':
       return !pay.length && get.length ? (one(get) ? t('Claim {amount}', { amount: get[0] }) : t('Claim all')) : null;
+    // Fuddle (lib/fuddle.js): the entry and answering fee, a guess (with the letters it buys), letters
+    // bought ahead, ending a game whose clock ran out, a refund, settling a tournament, the final claim.
+    case 'fuddleEnter':
+      return pay.length >= 1 && pay.length <= 2 && !get.length ? t('Pay {amount} and play', { amount: beamLast(pay, req && req.spends).join(' + ') }) : null;
+    case 'fuddleGuess':
+      if (get.length || pay.length > 1) return null;
+      return pay.length ? t('Guess {word} and pay {amount} for letters', { word: intent.word, amount: pay[0] }) : t('Guess {word}', { word: intent.word });
+    case 'fuddleLetters':
+      return one(pay) && !get.length ? tn({ one: 'Buy {n} letter for {amount}', other: 'Buy {n} letters for {amount}' }, intent.count, { amount: pay[0] }) : null;
+    case 'fuddleEnd':
+      return !pay.length && !get.length ? t('End the game') : null;
+    case 'fuddleRefund':
+      return !pay.length && get.length >= 1 && get.length <= 2 ? t('Take back {amount}', { amount: beamLast(get, req && req.receives).join(' + ') }) : null;
+    case 'fuddleSettle':
+      return !pay.length && !get.length ? t('Settle the tournament') : null;
+    case 'fuddleClaim':
+      return !pay.length && get.length >= 1 && get.length <= 2 ? t('Collect {amount}', { amount: beamLast(get, req && req.receives).join(' + ') }) : null;
     default:
       return null;
   }
 }
 
 // The sheet's title for the wallet's own features (tk: shown with t()).
-const TITLES = { nameRegister: tk('Confirm your name'), nameRenew: tk('Confirm the renewal'), namePay: tk('Approve this payment'), airdropCreate: tk('Confirm your codes'), airdropClaim: tk('Confirm your claim'), airdropCancel: tk('Take back unclaimed codes'), poolAdd: tk('Confirm your deposit'), poolWithdraw: tk('Confirm your withdrawal'), poolCreate: tk('Confirm the new pool'), tokenCreate: tk('Confirm your new token'), tokenMint: tk('Confirm the mint'), burn: tk('Burn for good'), nameTransfer: tk('Confirm the transfer'), nameSell: tk('Confirm the listing'), nameUnlist: tk('Stop selling'), nameBuy: tk('Confirm your purchase'), nameClaim: tk('Confirm your claim') };
+const TITLES = { nameRegister: tk('Confirm your name'), nameRenew: tk('Confirm the renewal'), namePay: tk('Approve this payment'), airdropCreate: tk('Confirm your codes'), airdropClaim: tk('Confirm your claim'), airdropCancel: tk('Take back unclaimed codes'), poolAdd: tk('Confirm your deposit'), poolWithdraw: tk('Confirm your withdrawal'), poolCreate: tk('Confirm the new pool'), tokenCreate: tk('Confirm your new token'), tokenMint: tk('Confirm the mint'), burn: tk('Burn for good'), nameTransfer: tk('Confirm the transfer'), nameSell: tk('Confirm the listing'), nameUnlist: tk('Stop selling'), nameBuy: tk('Confirm your purchase'), nameClaim: tk('Confirm your claim'), fuddleEnter: tk('Confirm your game'), fuddleGuess: tk('Confirm your guess'), fuddleLetters: tk('Confirm your letters'), fuddleEnd: tk('End this game'), fuddleRefund: tk('Confirm your refund'), fuddleSettle: tk('Settle the tournament'), fuddleClaim: tk('Collect your payout') };
 
 /** What the rows call what leaves and what arrives, for the wallet's own DEX pool moves (tk: shown with t()). */
 const ROW_WORDS = { poolAdd: [tk('You add'), tk('You get')], poolWithdraw: [tk('You return'), tk('You get back')], poolCreate: [tk('Deposit (locked)'), tk('You receive')] };
