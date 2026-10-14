@@ -17,7 +17,7 @@
  *   - "Can several payments go at once? Will I hear when money arrives?" -> Coins (Split coins) and Payment
  *     notifications, in the Payments group; under it, that notices come only while the app is open.
  *   - "Can it look like BEAM?" -> Appearance: Theme (light or dark) and Colours (Campfire red, the
- *     default, or BEAM blue; issue #80).
+ *     default, or BEAM's own colours; issue #80).
  *   - "My balance is wrong / coins are missing" -> Rescan, for every wallet (restored, new or
  *     imported): it rebuilds the coins from BEAM's snapshot and keeps history and addresses.
  */
@@ -25,6 +25,7 @@ import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, toast } from '../lib/ui.js';
 import { isOwnNode } from '../lib/own_node.js';
+import { isPoolNode, nodeName } from '../lib/nodes.js';
 import { hasPasskey, removePasskey, isImported } from '../lib/session.js';
 import { passkeyAvailable } from '../lib/passkey.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
@@ -50,7 +51,7 @@ export default function settings(app) {
   const themeSel = h('select', { class: 'inline', 'aria-label': 'Theme', 'data-testid': 'theme-select' }, ...THEMES.map((t) => h('option', { value: t, text: THEME_WORDS[t] })));
   themeSel.value = readTheme();
   themeSel.addEventListener('change', () => setTheme(themeSel.value));
-  // Campfire red (the default) or BEAM blue (issue #80). It changes at once; the logo stays.
+  // Campfire red (the default) or BEAM's colours (issue #80). It changes at once; the logo stays.
   const skinSel = h('select', { class: 'inline', 'aria-label': 'Colours', 'data-testid': 'skin-select' }, ...SKINS.map((k) => h('option', { value: k, text: SKIN_WORDS[k] })));
   skinSel.value = readSkin();
   skinSel.addEventListener('change', () => setSkin(skinSel.value));
@@ -124,7 +125,7 @@ export default function settings(app) {
     h(
       'div',
       { class: 'card list' },
-      row('globe', 'BEAM node', isOwnNode(app.prefs.node) ? `Your own node: ${app.prefs.node}` : 'Random BEAM nodes', () => app.go('nodeSettings'), { 'data-testid': 'node-row' }),
+      row('globe', 'BEAM node', isOwnNode(app.prefs.node) ? `Your own node: ${app.prefs.node}` : isPoolNode(app.prefs.poolNode) ? `BEAM's public nodes, ${nodeName(app.prefs.poolNode)} first` : "BEAM's public nodes", () => app.go('nodeSettings'), { 'data-testid': 'node-row' }),
       row('shield', 'IP privacy', 'Who can see your IP address', () => app.go('ipNotice'), { 'data-testid': 'ip-privacy' }),
       row('eth', 'Ethereum wallet', 'Server, privacy, backup', () => app.go('ethSettings'), { 'data-testid': 'eth-settings-row' }),
     ),
@@ -135,7 +136,7 @@ export default function settings(app) {
       'div',
       { class: 'card list' },
       h('div', { class: 'row', 'data-testid': 'theme-row' }, h('span', { class: 'ico' }, icon('moon')), h('span', { class: 'main' }, h('div', { class: 't', text: 'Theme' }), h('div', { class: 's', text: 'Light or dark' })), themeSel),
-      h('div', { class: 'row', 'data-testid': 'skin-row' }, h('span', { class: 'ico' }, icon('palette')), h('span', { class: 'main' }, h('div', { class: 't', text: 'Colours' }), h('div', { class: 's', text: 'Red or blue' })), skinSel),
+      h('div', { class: 'row', 'data-testid': 'skin-row' }, h('span', { class: 'ico' }, icon('palette')), h('span', { class: 'main' }, h('div', { class: 't', text: 'Colours' }), h('div', { class: 's', text: 'Campfire or BEAM' })), skinSel),
     ),
     h('p', { class: 'section-title', text: 'App' }),
     h(

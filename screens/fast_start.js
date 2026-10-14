@@ -32,6 +32,7 @@ import { downloadRecovery, recoverySource, readRecoveryFile, RECOVERY_APPROX_MB,
 import { markSetupDone, scanEnabled, setScan, isImported } from '../lib/session.js';
 import { wallet } from '../lib/wallet.js';
 import { onMobileData } from '../lib/network.js';
+import { walletNode } from '../lib/nodes.js';
 
 const MB = (n) => Math.round(n / 1e6);
 
@@ -165,7 +166,7 @@ export default function fastStart(app, params = {}) {
   async function leave() {
     if (rescan && !wallet.session) {
       try {
-        await wallet.start({ dbPass: app.dbPass, node: app.prefs.node, bodyRequests: scanEnabled(app) });
+        await wallet.start({ dbPass: app.dbPass, node: walletNode(app.prefs), bodyRequests: scanEnabled(app) });
       } catch {
         /* Home says the wallet is not connected and offers the way on */
       }
@@ -254,7 +255,7 @@ export default function fastStart(app, params = {}) {
     });
     try {
       if (wallet.session) await wallet.stop();
-      await wallet.start({ dbPass: app.dbPass, node: app.prefs.node, recovery: buf, bodyRequests: scan, rescan: rescan && Boolean(buf) });
+      await wallet.start({ dbPass: app.dbPass, node: walletNode(app.prefs), recovery: buf, bodyRequests: scan, rescan: rescan && Boolean(buf) });
       buf = null;
       off();
       if (scan !== scanEnabled(app)) await setScan(app, scan);

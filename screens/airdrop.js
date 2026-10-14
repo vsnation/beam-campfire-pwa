@@ -1,14 +1,18 @@
 /* Airdrop codes: claim a code
  * Spec: ONE job: turn an airdrop code into tokens in this wallet.
- *       Primary CTA: "Claim 5 FOMO" (the approve sheet that follows shows the amount and the fee).
+ *       Primary CTA: "Claim 5 bETH" (the approve sheet that follows shows the amount and the fee).
  *       Taps from app open: 1 (Home -> Airdrop codes), paste the code (2), 3 ("Claim ..."), then approve.
  * Exit-intent reasons and answers:
  *   - "What will I get, and what does it cost?" -> the code is checked as soon as it is complete:
  *     what it gives, the network fee, and what the balance really gains, before any button.
+ *   - "I have no BEAM for the fee" -> a code whose maker paid its fee says so ("No BEAM needed") and
+ *     claims from an empty wallet; any other says exactly how much BEAM it needs, with Receive BEAM.
  *   - "The code doesn't work" -> says why (not found, already claimed) and what to check.
  *   - "It costs more than it gives" -> said in plain numbers before claiming.
+ *   - "Did I get it?" -> after approving: sent, then received once the network confirms it (only
+ *     then); if it does not go through, what happened and that nothing left the wallet.
  *   - "I want to give codes away" -> Create codes and My batches sit right under the button.
- *   - "Can someone take my code?" -> said with the code it found (BEARER_TEXT.claimMessage, #17).
+ *   - "Can someone take my code?" -> said with the code it found, in the words of its contract.
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
@@ -16,15 +20,17 @@ import { screen, primary, secondary, notice } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
 import { walletStore } from '../lib/wallet_scope.js';
-import { airdropFor, codeVault, resealCodeVault, normaliseCode, formatCode, isWellFormedCode, CALL_FEE, CODE_LENGTH } from '../lib/airdrop.js';
+import { codeVault, resealCodeVault, normaliseCode, formatCode, isWellFormedCode, CODE_LENGTH } from '../lib/airdrop.js';
+import { airdropFor, claimCost, createFee } from '../lib/airdrop_v3.js';
 import { scanCode } from './scan_sheet.js';
 import { syncReason } from '../lib/sync.js';
 
 const CHECK_DEBOUNCE_MS = 300;
+const CLAIM_POLL_MS = 5000;
 
 /**
- * What a voucher code is, said where codes are made and claimed (issue #17), in the app's words
- * (lib/widgets/beam/airdrop/airdrop_text.dart AirdropBearerText). The live airdrop contract redeems
+ * What a code on the old airdrop contract is, said where its codes are claimed (issue #17), in the
+ * app's words (lib/widgets/beam/airdrop/airdrop_text.dart AirdropBearerText). That contract redeems
  * with the code itself, so a claim carries the code in a transaction the network sees before it is
  * in a block; BEAM Campfire cannot change that contract, so it says so.
  */
@@ -36,6 +42,19 @@ export const BEARER_TEXT = Object.freeze({
     'Claiming shows this code to the network before it is confirmed, so someone watching could claim it first. That is how this airdrop contract works; codes are meant for small amounts.',
 });
 
+/**
+ * The same for Airdrop v3, where every new code is made. A claim there is signed with a key made
+ * from the code, so the code never reaches the network and a copied claim pays only its claimer.
+ * The code itself still works like cash, and its maker can take it back until a claim is confirmed.
+ */
+export const BEARER_TEXT_V3 = Object.freeze({
+  createTitle: 'Codes work like cash',
+  createMessage:
+    'Anyone who has a code can claim it, so give each code only to its person. Claiming never shows the code to the network, so nobody watching can take it. Codes nobody has claimed can be taken back.',
+  claimMessage:
+    'The network never sees this code, so nobody watching can take your claim. Until the claim is confirmed, anyone else who has the code could still claim it first, and whoever made it could still take it back.',
+});
+
 /** The airdrop for the running wallet (one per session). Codes are kept encrypted in this wallet's storage. */
 export function airdrop(app) {
   return airdropFor(wallet.session, {
@@ -45,6 +64,8 @@ export function airdrop(app) {
       // wallet's secret is its password: its codes are sealed with PBKDF2 (lib/airdrop.js codeVault).
       return codeVault({ kv: walletStore(app.record), walletId: app.record.id, secret: app.dbPass, imported: Boolean(app.record.imported) });
     },
+    txStatus: (txId) => wallet.txStatus(txId),
+    tipHeight: async () => Number(wallet.state.status && wallet.state.status.current_height) || 0,
   });
 }
 
@@ -61,7 +82,7 @@ export function resealAirdropCodes(app) {
   });
 }
 
-/** "5 FOMO" with every digit. */
+/** "5 bETH" with every digit. */
 export const amountText = (assetId, amount) => `${formatAmount(amount)} ${wallet.label(assetId).unit}`;
 
 /** Plain words for whatever stopped an airdrop transaction. */
@@ -76,13 +97,13 @@ export function dropProblemText(e, what) {
   return `The ${what} was not sent: ${m}${/\.$/.test(m) ? '' : '.'} Nothing left your wallet.`;
 }
 
-/** What the balance really gains, one line per asset: ["+5 FOMO", "−0.121 BEAM"], or for a BEAM voucher the net. */
-export function balanceChange(assetId, value, fee = CALL_FEE) {
-  if (assetId === 0) {
-    const net = value - fee;
-    return [`${net < 0n ? '−' : '+'}${formatAmount(net < 0n ? -net : net)} BEAM`];
-  }
-  return [`+${amountText(assetId, value)}`, `−${formatAmount(fee)} BEAM`];
+const beamLine = (v) => `${v < 0n ? '−' : '+'}${formatAmount(v < 0n ? -v : v)} BEAM`;
+
+/** What the balance really gains, one line per asset: ["+5 bETH", "+0.001 BEAM"], or for a BEAM voucher the net. */
+export function balanceChange(info) {
+  const c = claimCost(info);
+  if (info.assetId === 0) return [beamLine(c.beamChange)];
+  return [`+${amountText(info.assetId, info.value)}`, ...(c.beamChange !== 0n ? [beamLine(c.beamChange)] : [])];
 }
 
 let hooked = false;
@@ -101,10 +122,11 @@ export default function airdropClaim(app) {
   const draft = (app.dropDraft = app.dropDraft || { code: '' });
   let check = { state: 'idle' }; // idle | checking | found | notFound | claimed | error
   let claiming = false;
-  let done = null; // { assetId, value }
+  let done = null; // { info, txId, code, status: sent | received | failed }
   let result = null;
   let seq = 0;
   let timer = null;
+  let pollTimer = null;
   let alive = true;
 
   const input = h('input', { class: 'input code-input', type: 'text', autocomplete: 'off', autocapitalize: 'characters', autocorrect: 'off', spellcheck: 'false', placeholder: 'XXXX-XXXX-XXXX-XXXX', 'aria-label': 'Code', 'data-testid': 'airdrop-code' });
@@ -135,10 +157,10 @@ export default function airdropClaim(app) {
     if (check.state === 'notFound' || check.state === 'claimed') return { off: 'Check the code above, or paste another one.' };
     const { info } = check;
     if (!wallet.state.sync.canSend) return { off: `Claiming is paused: ${syncReason(wallet.state.sync.title)}.` };
-    // A BEAM voucher pays its own fee when it is worth more than it.
-    const need = info.assetId === 0 ? (CALL_FEE > info.value ? CALL_FEE - info.value : 0n) : CALL_FEE;
-    if (need > 0n && wallet.available(0) < need) return { off: `Claiming needs ${formatAmount(need)} BEAM for the network fee and this wallet has ${formatAmount(wallet.available(0))} BEAM. Add BEAM, then claim.`, receive: true };
-    const worthLess = info.assetId === 0 && info.value <= CALL_FEE;
+    // What the claim brings in of BEAM (a prepaid fee, a BEAM voucher) pays the fee first.
+    const c = claimCost(info);
+    if (c.need > 0n && wallet.available(0) < c.need) return { off: `Claiming needs ${formatAmount(c.need)} BEAM for the network fee and this wallet has ${formatAmount(wallet.available(0))} BEAM. Add BEAM, then claim.`, receive: true };
+    const worthLess = info.assetId === 0 && c.beamChange <= 0n;
     return { off: null, label: worthLess ? 'Claim anyway' : `Claim ${amountText(info.assetId, info.value)}` };
   }
 
@@ -164,21 +186,28 @@ export default function airdropClaim(app) {
     }
     if (check.state !== 'found') return null;
     const { info } = check;
-    const worthLess = info.assetId === 0 && info.value <= CALL_FEE;
+    const c = claimCost(info);
+    const worthLess = info.assetId === 0 && c.beamChange <= 0n;
+    // A token code whose maker paid its fee: claimable with no BEAM at all.
+    const free = info.assetId !== 0 && c.need === 0n;
     const l = wallet.label(info.assetId);
+    const row = (k, sub, v, testid) => h('div', { class: 'kv' }, h('span', { class: 'k' }, k, sub ? h('div', { class: 'small', text: sub }) : null), h('span', { class: 'v', 'data-testid': testid }, ...(Array.isArray(v) ? v.map((t) => h('div', { text: t })) : [v])));
+    const gasless = free ? notice('success', h('strong', { text: 'No BEAM needed. ' }), 'Whoever made this code paid its network fee, so you can claim it even with an empty wallet.') : null;
+    if (gasless) gasless.dataset.testid = 'airdrop-gasless';
     return h(
       'div',
-      { 'data-testid': 'airdrop-result', 'data-state': 'found', class: 'drop-found' },
+      { 'data-testid': 'airdrop-result', 'data-state': 'found', 'data-contract': info.contract, class: 'drop-found' },
+      gasless,
       h(
         'div',
         { class: 'card flat swap-details' },
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: 'You get' }), h('span', { class: 'v', 'data-testid': 'airdrop-gets', text: amountText(info.assetId, info.value) })),
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Network fee' }), h('span', { class: 'v', 'data-testid': 'airdrop-fee', text: `${formatAmount(CALL_FEE)} BEAM` })),
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: 'Balance change' }), h('span', { class: 'v', 'data-testid': 'airdrop-net' }, ...balanceChange(info.assetId, info.value).map((t) => h('div', { text: t })))),
+        row('You get', null, amountText(info.assetId, info.value), 'airdrop-gets'),
+        row('Network fee', c.codePaysFee ? 'Paid by the code' : null, `${formatAmount(c.fee)} BEAM`, 'airdrop-fee'),
+        row('Balance change', null, balanceChange(info), 'airdrop-net'),
       ),
       info.assetId !== 0 && !l.verified ? h('p', { class: 'small', text: `${l.symbol} is asset #${info.assetId}: not on BEAM Campfire's list of known assets.` }) : null,
-      worthLess ? notice('warn', `This code gives ${amountText(0, info.value)} and claiming it costs ${formatAmount(CALL_FEE)} BEAM, so your balance goes down. Claim only if you want it anyway.`) : null,
-      h('p', { class: 'small', 'data-testid': 'airdrop-bearer', text: BEARER_TEXT.claimMessage }),
+      worthLess ? notice('warn', `This code gives ${amountText(0, info.value)} and claiming it costs ${formatAmount(c.fee)} BEAM, so your balance goes down. Claim only if you want it anyway.`) : null,
+      h('p', { class: 'small', 'data-testid': 'airdrop-bearer', text: info.contract === 'v3' ? BEARER_TEXT_V3.claimMessage : BEARER_TEXT.claimMessage }),
     );
   }
 
@@ -201,17 +230,71 @@ export default function airdropClaim(app) {
     reason.classList.toggle('hidden', !st.off);
   }
 
+  /** Sent, then received only once the network confirms it; or what happened when it did not go through. */
   function renderDone() {
+    const what = amountText(done.info.assetId, done.info.value);
+    const again = () => {
+      const code = done.code;
+      done = null;
+      clearTimeout(pollTimer);
+      input.value = formatCode(code);
+      draft.code = input.value;
+      check = { state: 'idle' };
+      put(body, ...formParts());
+      onInput();
+    };
+    const another = h('button', { class: 'btn btn-text', 'data-testid': 'airdrop-done-another', onclick: () => {
+      done = null;
+      app.go('airdrop');
+    } }, 'Claim another code');
+    if (done.status === 'received') {
+      put(
+        body,
+        h('div', { class: 'status-icon ok' }, icon('check')),
+        h('h2', { class: 'title center', 'data-testid': 'airdrop-done', 'data-status': 'received', text: `${what} received` }),
+        h('p', { class: 'center small', text: 'The network confirmed your claim. It is in your balance now.' }),
+        h('div', { class: 'actions' }, primary('Done', () => app.go('home'), { 'data-testid': 'airdrop-done-home' }), another),
+      );
+      return;
+    }
+    if (done.status === 'failed') {
+      put(
+        body,
+        h('div', { class: 'status-icon bad' }, icon('close')),
+        h('h2', { class: 'title center', 'data-testid': 'airdrop-done', 'data-status': 'failed', text: 'The claim did not go through' }),
+        h('p', { class: 'center small', text: 'Nothing left your wallet. Someone else may have claimed the code first, or whoever made it took it back. Check the code again to see.' }),
+        h('div', { class: 'actions' }, primary('Check the code again', again, { 'data-testid': 'airdrop-done-again' }), h('button', { class: 'btn btn-text', onclick: () => app.go('home') }, 'Done')),
+      );
+      return;
+    }
     put(
       body,
-      h('div', { class: 'status-icon ok' }, icon('check')),
-      h('h2', { class: 'title center', 'data-testid': 'airdrop-done', text: `${amountText(done.assetId, done.value)} is on its way` }),
-      h('p', { class: 'center small', text: 'It shows in your balance once the network confirms the claim, usually within 2 minutes.' }),
-      h('div', { class: 'actions' }, primary('Done', () => app.go('home'), { 'data-testid': 'airdrop-done-home' }), h('button', { class: 'btn btn-text', onclick: () => {
-        done = null;
-        app.go('airdrop');
-      } }, 'Claim another code')),
+      h('div', { class: 'status-icon wait' }, icon('clock')),
+      h('h2', { class: 'title center', 'data-testid': 'airdrop-done', 'data-status': 'sent', text: 'Claim sent' }),
+      h('p', { class: 'center small', text: `${what} is yours once the network confirms the claim, usually within 2 minutes. You can leave this screen; it shows in your balance then.` }),
+      h('div', { class: 'actions' }, primary('Done', () => app.go('home'), { 'data-testid': 'airdrop-done-home' }), another),
     );
+  }
+
+  async function pollClaim() {
+    clearTimeout(pollTimer);
+    if (!alive || !done || done.status !== 'sent' || !done.txId) return;
+    try {
+      const t = await wallet.txStatus(done.txId);
+      const s = Number(t && t.status);
+      if (!alive || !done) return;
+      if (s === 3) done.status = 'received';
+      else if (s === 4 || s === 2) done.status = 'failed';
+      if (done.status !== 'sent') {
+        wallet.refreshTxs();
+        wallet.refreshStatus();
+        render();
+        return;
+      }
+    } catch {
+      /* asked again shortly */
+    }
+    pollTimer = setTimeout(pollClaim, CLAIM_POLL_MS);
   }
 
   function onInput() {
@@ -239,7 +322,8 @@ export default function airdropClaim(app) {
     check = { state: 'checking' };
     render();
     try {
-      const info = await airdrop(app).checkVoucher(n);
+      // Airdrop v3 first, then the old contract.
+      const info = await airdrop(app).checkVoucher(input.value);
       if (!alive || mine !== seq) return;
       if (info && info.assetId !== 0 && !wallet.assetNamed.has(info.assetId)) wallet.loadAsset(info.assetId);
       check = !info ? { state: 'notFound' } : info.redeemed ? { state: 'claimed' } : { state: 'found', info };
@@ -254,17 +338,18 @@ export default function airdropClaim(app) {
     const st = ctaState();
     if (st.off) return;
     if (check.state !== 'found') return checkNow();
-    const info = check.info;
+    const code = input.value;
     claiming = true;
     result = null;
     render();
     try {
-      await airdrop(app).redeem(normalised());
+      const r = await airdrop(app).redeem(code);
       if (!alive) return;
       app.dropDraft = null;
-      done = { assetId: info.assetId, value: info.value };
+      done = { info: r.info, txId: r.txId, code: normaliseCode(code), status: 'sent' };
       wallet.refreshTxs();
       wallet.refreshStatus();
+      pollTimer = setTimeout(pollClaim, CLAIM_POLL_MS);
     } catch (e) {
       if (!alive) return;
       if (e.code === 'alreadyRedeemed') check = { state: 'claimed' };
@@ -298,17 +383,17 @@ export default function airdropClaim(app) {
   });
   const off = wallet.onChange(() => render());
 
-  put(
-    body,
+  const formParts = () => [
     h('p', { class: 'lead', text: 'Got a code? Paste it to see what it gives, then claim it into this wallet.' }),
     h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: 'Code' }), scanBtn, pasteBtn), input),
     hint,
     card,
     h('div', { class: 'actions inline-actions' }, reason, cta),
     h('p', { class: 'section-title', text: 'Give tokens away' }),
-    h('p', { class: 'small', text: 'Lock tokens into one-time codes and hand them out. Creating costs a 1% airdrop fee and a 0.121 BEAM network fee.' }),
+    h('p', { class: 'small', 'data-testid': 'airdrop-give-note', text: `Lock tokens into one-time codes and hand them out. Creating costs a 1% airdrop fee and a network fee that grows with the number of codes (${formatAmount(createFee(10))} BEAM for 10).` }),
     more,
-  );
+  ];
+  put(body, ...formParts());
   render();
   if (isWellFormedCode(input.value)) checkNow();
 
@@ -328,6 +413,7 @@ export default function airdropClaim(app) {
     destroy() {
       alive = false;
       clearTimeout(timer);
+      clearTimeout(pollTimer);
       off();
     },
   };

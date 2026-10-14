@@ -36,6 +36,20 @@
   --green: #00a578;
   --yellow: #c79a00;
   --red: #c00205;
+  /* What BEAM's skin colours differently (Campfire's own values here, so Campfire red looks as it did):
+     the accent on controls (progress, radio, focus), received, sent and swapped in the history, the
+     ink on the green and red step marks, and the top of the page. */
+  --accent: #b62039;
+  --in: #006c4d;
+  --in-bg: #b9e9d4;
+  --out: #b62039;
+  --out-bg: #ffd9d9;
+  --out-text: #20263d;
+  --swap: #002a78;
+  --swap-bg: #dae2ff;
+  --on-green: #ffffff;
+  --on-red: #ffffff;
+  --bg-top: #fff1f1;
   --shadow: 0 1px 4px 1px rgba(45, 49, 50, 0.06);
   --radius: 12px;
   --gutter: 16px;
@@ -76,6 +90,17 @@
     --green: #4cc0a0;
     --yellow: #f7d65d;
     --red: #f37475;
+    --accent: #d63a52;
+    --in: #8ef5c3;
+    --in-bg: #1f4d3e;
+    --out: #ffb3be;
+    --out-bg: #4a2a31;
+    --out-text: #f3f3f3;
+    --swap: #c7d5ff;
+    --swap-bg: #1e2a4d;
+    --on-green: #ffffff;
+    --on-red: #ffffff;
+    --bg-top: #1c1d22;
     --shadow: 0 1px 4px 1px rgba(0, 0, 0, 0.25);
   }
 }
@@ -106,110 +131,163 @@
   --green: #4cc0a0;
   --yellow: #f7d65d;
   --red: #f37475;
+  --accent: #d63a52;
+  --in: #8ef5c3;
+  --in-bg: #1f4d3e;
+  --out: #ffb3be;
+  --out-bg: #4a2a31;
+  --out-text: #f3f3f3;
+  --swap: #c7d5ff;
+  --swap-bg: #1e2a4d;
+  --on-green: #ffffff;
+  --on-red: #ffffff;
+  --bg-top: #1c1d22;
   --shadow: 0 1px 4px 1px rgba(0, 0, 0, 0.25);
 }
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
 
-/* BEAM blue (Settings -> Appearance -> Colours, issue #80): BEAM's own colours (navy #042548, blue
-   #035b8f, turquoise #00f6d2) in place of Campfire red, light and dark. Campfire red stays the
-   default; the logo and the app icon stay Campfire's. Every text colour reads at 4.5:1 or more on
-   what it sits on, in both skins (test/unit/theme.test.mjs measures it). The dark blocks are one
-   palette, like Campfire's. */
+/* BEAM (Settings -> Appearance -> Colours, issue #80): BEAM's own colours in place of Campfire red.
+   Campfire red stays the default; the logo and the app icon stay Campfire's. Every value is BEAM's,
+   with its source, in docs/beam-brand-palette.json, and test/unit/theme.test.mjs checks them against it.
+   Dark is BEAM's own wallet (desktop beam-ui Mainnet.qml, the same palette in the browser extension,
+   Android and iOS): navy #042548 under a #035b8f band at the top, cards #103051, turquoise #00f6d2
+   with marine #032e49 on it, bluey-grey #8da1ad secondary text, received #0bccf7, sent #da68f5,
+   swaps #39fdf2, failed #ff746b, error #ff625c, warning #f4ce4a. BEAM has no light theme, so light is derived: the
+   navy becomes the ink, the backgrounds are its hue nearly white, the turquoise button keeps its
+   marine label, and every accent used as text keeps BEAM's hue and saturation, darkened until it
+   reads at 4.5:1 (BEAM's accents are made for navy: on white they read 1.4:1 to 2.9:1). Where one of
+   BEAM's dark values would read under 4.5:1 here it is lightened or kept off that surface: the band
+   is 25% of #035b8f, and error text is BEAM's failed #ff746b (its error red #ff625c reads 4.2:1 on
+   the input colour). The two dark blocks are one palette, like Campfire's. */
 :root[data-skin="beam"] {
-  --bg: #eef5fa;
+  --bg: #eef4fa;
   --surface: #ffffff;
-  --surface-2: #e4eef5;
+  --surface-2: #e2ebf3;
   --text: #042548;
   --text-2: #23405e;
-  --muted: #4f6479;
-  --subtle: #8296a8;
-  --primary: #035b8f;
-  --primary-text: #035b8f;
-  --on-primary: #ffffff;
-  --primary-disabled: #c3d6e4;
-  --on-primary-disabled: #f3f7fa;
-  --secondary: #d6ecf8;
-  --on-secondary: #03507f;
+  --muted: #566a76;
+  --subtle: #8da1ad;
+  --primary: #00f6d2;
+  --primary-text: #007564;
+  --on-primary: #032e49;
+  --primary-disabled: #d3e4e1;
+  --on-primary-disabled: #7c918e;
+  --secondary: #d9f7f2;
+  --on-secondary: #00665a;
   --border: #d3e0ea;
-  --success-bg: #b9e9d4;
-  --success: #006c4d;
-  --error-bg: #ffdad4;
-  --error: #930006;
-  --info-bg: #dae2ff;
-  --info: #002a78;
-  --warn-bg: #ffeccc;
-  --warn: #3d2c00;
-  --green: #00a578;
-  --yellow: #c79a00;
-  --red: #c00205;
+  --success-bg: #d9f7f2;
+  --success: #00665a;
+  --error-bg: #ffe7e7;
+  --error: #b80f0a;
+  --info-bg: #dcf5fc;
+  --info: #035e73;
+  --warn-bg: #fdf3d6;
+  --warn: #5c4700;
+  --green: #007564;
+  --yellow: #7d6407;
+  --red: #d10700;
+  --accent: #007564;
+  --in: #04728b;
+  --in-bg: #dcf5fc;
+  --out: #ab0dce;
+  --out-bg: #f7e5fd;
+  --out-text: #ab0dce;
+  --swap: #017972;
+  --swap-bg: #d6f7f5;
+  --on-green: #ffffff;
+  --on-red: #ffffff;
+  --bg-top: #e0ebf4;
   --shadow: 0 1px 4px 1px rgba(4, 37, 72, 0.08);
 }
 @media (prefers-color-scheme: dark) {
   :root[data-skin="beam"]:not([data-theme="light"]) {
     --bg: #042548;
-    --surface: #0b335c;
-    --surface-2: #134070;
+    --surface: #103051;
+    --surface-2: #183657;
     --text: #ffffff;
-    --text-2: #d3e2f0;
-    --muted: #a3b9ce;
-    --subtle: #7f9ab4;
+    --text-2: #d6d9e0;
+    --muted: #8da1ad;
+    --subtle: #889da9;
     --primary: #00f6d2;
     --primary-text: #00f6d2;
-    --on-primary: #042548;
-    --primary-disabled: #1d4870;
-    --on-primary-disabled: #7d97b0;
-    --secondary: #0a4566;
-    --on-secondary: #4ff5dc;
-    --border: #1f4c7a;
-    --success-bg: #0f4a45;
-    --success: #8ef5c3;
-    --error-bg: #5c1f2a;
-    --error: #ffb4a9;
-    --info-bg: #11406e;
-    --info: #c7e3ff;
-    --warn-bg: #4d3a1a;
-    --warn: #ffe3a8;
-    --green: #4cc0a0;
-    --yellow: #f7d65d;
-    --red: #f37475;
+    --on-primary: #032e49;
+    --primary-disabled: #2c5066;
+    --on-primary-disabled: #889da9;
+    --secondary: #03445d;
+    --on-secondary: #00f6d2;
+    --border: #33566b;
+    --success-bg: #03445d;
+    --success: #00f6d2;
+    --error-bg: #2a2e4b;
+    --error: #ff746b;
+    --info-bg: #053e62;
+    --info: #0bccf7;
+    --warn-bg: #283e48;
+    --warn: #f4ce4a;
+    --green: #00f6d2;
+    --yellow: #f4ce4a;
+    --red: #ff625c;
+    --accent: #00f6d2;
+    --in: #0bccf7;
+    --in-bg: #0f476a;
+    --out: #da68f5;
+    --out-bg: #2e386a;
+    --out-text: #da68f5;
+    --swap: #39fdf2;
+    --swap-bg: #164f69;
+    --on-green: #032e49;
+    --on-red: #032e49;
+    --bg-top: #04325a;
     --shadow: 0 1px 4px 1px rgba(0, 0, 0, 0.3);
   }
 }
 :root[data-skin="beam"][data-theme="dark"] {
   --bg: #042548;
-  --surface: #0b335c;
-  --surface-2: #134070;
+  --surface: #103051;
+  --surface-2: #183657;
   --text: #ffffff;
-  --text-2: #d3e2f0;
-  --muted: #a3b9ce;
-  --subtle: #7f9ab4;
+  --text-2: #d6d9e0;
+  --muted: #8da1ad;
+  --subtle: #889da9;
   --primary: #00f6d2;
   --primary-text: #00f6d2;
-  --on-primary: #042548;
-  --primary-disabled: #1d4870;
-  --on-primary-disabled: #7d97b0;
-  --secondary: #0a4566;
-  --on-secondary: #4ff5dc;
-  --border: #1f4c7a;
-  --success-bg: #0f4a45;
-  --success: #8ef5c3;
-  --error-bg: #5c1f2a;
-  --error: #ffb4a9;
-  --info-bg: #11406e;
-  --info: #c7e3ff;
-  --warn-bg: #4d3a1a;
-  --warn: #ffe3a8;
-  --green: #4cc0a0;
-  --yellow: #f7d65d;
-  --red: #f37475;
+  --on-primary: #032e49;
+  --primary-disabled: #2c5066;
+  --on-primary-disabled: #889da9;
+  --secondary: #03445d;
+  --on-secondary: #00f6d2;
+  --border: #33566b;
+  --success-bg: #03445d;
+  --success: #00f6d2;
+  --error-bg: #2a2e4b;
+  --error: #ff746b;
+  --info-bg: #053e62;
+  --info: #0bccf7;
+  --warn-bg: #283e48;
+  --warn: #f4ce4a;
+  --green: #00f6d2;
+  --yellow: #f4ce4a;
+  --red: #ff625c;
+  --accent: #00f6d2;
+  --in: #0bccf7;
+  --in-bg: #0f476a;
+  --out: #da68f5;
+  --out-bg: #2e386a;
+  --out-text: #da68f5;
+  --swap: #39fdf2;
+  --swap-bg: #164f69;
+  --on-green: #032e49;
+  --on-red: #032e49;
+  --bg-top: #04325a;
   --shadow: 0 1px 4px 1px rgba(0, 0, 0, 0.3);
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; height: 100%; }
 body {
-  background: var(--bg);
+  /* A band of --bg-top fading into the page, as BEAM's wallets draw theirs (Campfire's is its own --bg). */
+  background: linear-gradient(var(--bg-top), var(--bg) 230px) no-repeat, var(--bg);
   color: var(--text);
   font-family: 'Inter', -apple-system, system-ui, sans-serif;
   font-size: 16px;
@@ -322,7 +400,7 @@ textarea.input { resize: none; min-height: 84px; }
 
 .choices { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .choice { min-height: 46px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--surface); font-weight: 600; cursor: pointer; }
-.choice.on { border-color: var(--primary); background: var(--secondary); color: var(--on-secondary); }
+.choice.on { border-color: var(--accent); background: var(--secondary); color: var(--on-secondary); }
 
 .balance { padding: 20px 16px; }
 .balance .label { font-size: 14px; color: var(--muted); font-weight: 500; }
@@ -340,14 +418,17 @@ textarea.input { resize: none; min-height: 84px; }
 .row:last-child { border-bottom: 0; }
 .row .ico { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface-2); flex: none; }
 .row .ico svg { width: 18px; height: 18px; }
-.row .ico.in { background: var(--success-bg); color: var(--success); }
-.row .ico.out { background: var(--secondary); color: var(--on-secondary); }
+/* Received and sent: an arrow each, a + or − on the amount, and in BEAM's skin BEAM's own blue and violet. */
+.row .ico.in { background: var(--in-bg); color: var(--in); }
+.row .ico.out { background: var(--out-bg); color: var(--out); }
+.row .ico.ok { background: var(--success-bg); color: var(--success); }
 .row .ico.fail { background: var(--error-bg); color: var(--error); }
 .row .main { flex: 1; min-width: 0; }
 .row .main .t { font-weight: 600; }
 .row .main .s { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row .end { text-align: right; font-weight: 600; white-space: nowrap; }
-.row .end.in { color: var(--success); }
+.row .end.in { color: var(--in); }
+.row .end.out { color: var(--out-text); }
 .row .chev svg { width: 18px; height: 18px; color: var(--subtle); }
 .section-title { font-size: 14px; font-weight: 600; color: var(--muted); margin: 6px 4px 0; text-transform: none; }
 .asset-badge { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; background: var(--surface-2); color: var(--text); flex: none; }
@@ -373,10 +454,10 @@ textarea.input { resize: none; min-height: 84px; }
 .big-amount { font-size: 32px; font-weight: 700; text-align: center; margin: 8px 0; word-break: break-all; }
 
 .progress { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
-.progress > div { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; }
+.progress > div { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
 .progress.indeterminate > div { width: 35%; animation: indet 1.4s infinite ease-in-out; }
 @keyframes indet { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
-.spinner { width: 22px; height: 22px; border: 3px solid var(--surface-2); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.9s linear infinite; }
+.spinner { width: 22px; height: 22px; border: 3px solid var(--surface-2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .tabbar {
@@ -492,8 +573,8 @@ label.btn.disabled { pointer-events: none; opacity: 0.5; }
 .asset-badge.pair .asset-badge.pair { --ring: 1.2px; }
 .row.on, .asset-pick { --coin-gap: var(--surface-2); }
 .row .main .warn-line { font-size: 13px; color: var(--error); margin-top: 2px; }
-.row .ico.swap { background: var(--info-bg); color: var(--info); }
-.row .end .in { color: var(--success); }
+.row .ico.swap { background: var(--swap-bg); color: var(--swap); }
+.row .end .in { color: var(--in); }
 .row.on { background: var(--surface-2); border-radius: 8px; }
 .btn.wrap { white-space: normal; text-align: center; line-height: 1.25; }
 
@@ -554,7 +635,7 @@ label.btn.disabled { pointer-events: none; opacity: 0.5; }
 .dapp-sheet-head { display: flex; align-items: center; gap: 12px; }
 .dapp-sheet-head h2 { flex: 1; }
 .check-row { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; color: var(--text-2); background: var(--surface); border-radius: var(--radius); padding: 12px 14px; cursor: pointer; }
-.check-row input { width: 20px; height: 20px; margin: 1px 0 0; flex: none; accent-color: var(--primary); }
+.check-row input { width: 20px; height: 20px; margin: 1px 0 0; flex: none; accent-color: var(--accent); }
 .dapp-progress { display: flex; flex-direction: column; gap: 10px; }
 .dapp-message { white-space: pre-wrap; max-height: 40vh; overflow: auto; }
 /* dApps from a file: an installed row with its Remove beside it, the file block, the servers a dApp may reach. */
@@ -642,7 +723,7 @@ input.switch { appearance: none; -webkit-appearance: none; width: 46px; height: 
 input.switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); transition: transform 0.2s; }
 input.switch:checked { background: var(--green); }
 input.switch:checked::after { transform: translateX(18px); }
-input.switch:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn-link { background: none; border: 0; padding: 0; color: var(--on-secondary); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
 a.btn { text-decoration: none; }
 details.more.card { padding: 12px 16px; }
@@ -676,6 +757,8 @@ details.more.card { padding: 12px 16px; }
 .kv .k .small { font-size: 12px; }
 .code-input { font-family: ui-monospace, 'SF Mono', Menlo, monospace; letter-spacing: 1px; text-transform: uppercase; }
 .drop-fields { display: flex; gap: 10px; }
+/* A code that was found: the no-BEAM-needed note, its figures and what a claim shows, apart from each other. */
+.drop-found { display: flex; flex-direction: column; gap: 10px; }
 .drop-fields .field.grow { flex: 1; min-width: 0; }
 .drop-fields .count-field { width: 92px; flex: none; }
 .batch { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; }
@@ -712,7 +795,7 @@ details.more.card { padding: 12px 16px; }
 .key-card .mono.small { font-size: 12px; word-break: break-all; }
 .names-money .btn { align-self: flex-start; width: auto; }
 .name-row { cursor: pointer; }
-.name-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: 8px; }
+.name-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
 .name-row .main .s.sale { color: var(--info); }
 .names-receive-link { align-self: flex-start; width: auto; padding-left: 4px; }
 .paste-btn { align-self: flex-start; width: auto; }
@@ -725,7 +808,7 @@ details.more.card { padding: 12px 16px; }
 .btn-row.four .btn { padding: 8px 2px; font-size: 14px; }
 .overline { font-size: 13px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: var(--muted); margin-bottom: -8px; }
 .choice-card { display: flex; flex-direction: column; align-items: stretch; gap: 8px; width: 100%; text-align: left; border: 1.5px solid transparent; cursor: pointer; color: var(--text); font: inherit; }
-.choice-card:active { border-color: var(--primary); }
+.choice-card:active { border-color: var(--accent); }
 .choice-head { display: flex; align-items: center; gap: 10px; }
 .choice-title { flex: 1; font-size: 18px; font-weight: 700; }
 .choice-text { font-size: 15px; color: var(--text-2); }
@@ -753,9 +836,9 @@ details.more.card { padding: 12px 16px; }
 .step-row.waiting { color: var(--muted); font-weight: 400; }
 .step-mark { width: 22px; height: 22px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; border: 2px solid var(--border); }
 .step-mark svg { width: 14px; height: 14px; stroke-width: 3; }
-.step-row.done .step-mark { background: var(--green); border-color: var(--green); color: #fff; }
+.step-row.done .step-mark { background: var(--green); border-color: var(--green); color: var(--on-green); }
 .step-row.active .step-mark { border-color: var(--yellow); color: var(--yellow); }
-.step-row.failed .step-mark { background: var(--red); border-color: var(--red); color: #fff; }
+.step-row.failed .step-mark { background: var(--red); border-color: var(--red); color: var(--on-red); }
 .exact-amount { padding: 12px 14px; }
 .exact-amount .big { font-size: 20px; font-weight: 700; }
 .address-box .banner { margin-bottom: 6px; }
@@ -782,7 +865,7 @@ details.more.card { padding: 12px 16px; }
 .review-line { display: flex; gap: 12px; align-items: flex-start; }
 .review-line .big { font-size: 20px; font-weight: 700; word-break: break-all; }
 .radio { width: 20px; height: 20px; flex: none; border-radius: 50%; border: 2px solid var(--border); }
-.radio.on { border: 6px solid var(--primary); }
+.radio.on { border: 6px solid var(--accent); }
 .panel-title { margin: 0; font-size: 18px; }
 @media (min-width: 900px) {
   #app[data-screen="ethSwap"] { max-width: 1040px; }
@@ -806,7 +889,7 @@ details.more.card { padding: 12px 16px; }
 .chain-move { position: relative; flex: none; width: 48px; border: 0; border-radius: 10px; background: var(--secondary); color: var(--on-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .chain-move svg { width: 22px; height: 22px; }
 .chain-move[data-badge="open"]::after, .chain-move[data-badge="collect"]::after { content: ''; position: absolute; top: 5px; right: 5px; width: 10px; height: 10px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 0 2px var(--bg); }
-.chain-move[data-badge="collect"]::after { background: var(--primary); }
+.chain-move[data-badge="collect"]::after { background: var(--accent); }
 .bridge-chips { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .bridge-chips .choice { min-height: 40px; font-size: 14px; padding: 0 2px; }
 .share-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
@@ -862,6 +945,28 @@ details.more.card { padding: 12px 16px; }
 .node-status-box:empty { display: none; }
 .own-node .key-card { padding: 4px 16px; }
 .balance .sync-action { margin-top: 10px; }
+.balance .btn-text.sync-action { padding-left: 0; padding-right: 0; align-self: flex-start; }
+/* The public nodes, each with its newest block (screens/node.js). */
+.node-screen .public-nodes { padding-bottom: 8px; }
+.node-screen .public-nodes h3 { display: flex; align-items: center; gap: 6px; }
+.node-screen .public-nodes > .small { margin: 0 0 4px; }
+.node-screen .public-nodes > .notice { margin: 6px 0 8px; }
+.node-screen .row.node-row { cursor: default; padding: 10px 4px; min-height: 56px; }
+.node-screen .row.node-row.on { padding-left: 8px; padding-right: 8px; }
+.node-screen .row.node-row .ico { width: 28px; height: 28px; background: none; }
+.node-screen .row.node-row .main .s { white-space: normal; font-variant-numeric: tabular-nums; }
+.node-screen .row.node-row .btn-small { flex: none; padding-left: 8px; padding-right: 8px; min-height: 44px; }
+.node-screen .node-check { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: 6px; }
+.node-screen .node-check .btn-text { padding-left: 0; display: inline-flex; align-items: center; gap: 4px; }
+.node-screen .node-check .btn-secondary { margin: 6px 0 8px; }
+/* Signal bars in Home's top bar: the BEAM node screen in one tap. */
+.sync-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 44px; padding: 13px 10px; }
+.sync-bars .bar { width: 3px; border-radius: 1px; background: var(--border); }
+.sync-bars .b1 { height: 6px; } .sync-bars .b2 { height: 10px; } .sync-bars .b3 { height: 14px; } .sync-bars .b4 { height: 18px; }
+.sync-bars.ok .bar.lit { background: var(--green); }
+.sync-bars.wait .bar.lit { background: var(--yellow); }
+.sync-bars.bad .bar.lit { background: var(--red); }
+.bars-box { display: inline-flex; }
 /* Tokens (screens/token.js, token_ui.js, hidden_tokens.js): Home's rows open a token's page; values and the total. */
 .balance .fiat { font-size: 16px; font-weight: 600; color: var(--text-2); margin-top: 2px; }
 .balance .total-line { color: var(--text-2); }
@@ -891,7 +996,7 @@ details.more.card { padding: 12px 16px; }
 .token-actions { display: flex; flex-direction: column; gap: 6px; }
 .token-balances { padding: 2px 16px; }
 .token-balances .kv { padding: 8px 0; }
-.kv .v.in { color: var(--success); }
+.kv .v.in { color: var(--in); }
 .kv .v.muted { color: var(--muted); font-weight: 500; }
 .token-hide { display: flex; justify-content: center; }
 .token-hide .btn-text svg { width: 18px; height: 18px; }

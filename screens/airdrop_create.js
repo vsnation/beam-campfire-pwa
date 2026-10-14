@@ -3,27 +3,45 @@
  *       Primary CTA: "Create 10 codes" (the approve sheet that follows shows exactly what is locked and the fee).
  *       Taps from app open: 2 (Home -> Airdrop codes -> Create codes), type the amount, 3 ("Create ..."), then approve.
  * Exit-intent reasons and answers:
- *   - "What will this cost?" -> the locked total, the 1% airdrop fee and the 0.121 BEAM network fee
- *     update as you type, before the button.
+ *   - "What will this cost?" -> the locked total, the 1% airdrop fee, the claim fees paid ahead and the
+ *     network fee update as you type, before the button, with what leaves the wallet in total.
+ *   - "My friends have no BEAM for the fee" -> "Pay the claim fee for each code" is on by default: 0.022
+ *     BEAM per code, so people with an empty wallet can claim. One tap turns it off.
  *   - "What if I lose the codes?" -> said up front: they are kept only on this device, saved before
- *     anything is sent; unclaimed ones can be cancelled later to get the rest back.
+ *     anything is sent; unclaimed ones can be taken back later.
+ *   - "Can I share them right away?" -> said before the button: the codes are checked on the network
+ *     first, a few minutes after the batch is confirmed.
  *   - "Is a code safe to hand out?" -> "Codes work like cash" before the button: anyone with one can
- *     claim it, and a claim shows it to the network before it is confirmed (issue #17).
+ *     claim it; claiming never shows it to the network.
  *   - "I tapped twice - did I pay twice?" -> one batch per tap, refused in the library as well.
  *   - "Why is the button grey?" -> the reason is written right above it.
  */
 import { h, put } from '../lib/dom.js';
 import { screen, primary, notice } from '../lib/ui.js';
-import { parseAmount, formatAmount } from '../lib/amount.js';
+import { parseAmount, formatAmount, toInputString } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
-import { creationFee, CALL_FEE, CANCEL_FEE, MAX_VOUCHERS, MAX_TOTAL } from '../lib/airdrop.js';
-import { airdrop, amountText, dropProblemText, forgetOnLock, BEARER_TEXT } from './airdrop.js';
+import { v3CreationFee, createFee, cancelFee, GAS_PER_VOUCHER, V3_MAX_VOUCHERS } from '../lib/airdrop_v3.js';
+import { airdrop, amountText, dropProblemText, forgetOnLock, BEARER_TEXT_V3 } from './airdrop.js';
 import { confirmKeptHere } from './storage_warning.js';
 import { syncReason } from '../lib/sync.js';
 
-export default function airdropCreate(app) {
+// The engine writes a call's funds as signed 64-bit numbers.
+const I64_MAX = (1n << 63n) - 1n;
+
+/**
+ * p.again: { assetId, value, count, gas } after a batch whose codes failed their check, to make new
+ * codes for the same airdrop (screens/airdrop_codes.js "Make new codes").
+ */
+export default function airdropCreate(app, p = {}) {
   forgetOnLock(app);
-  const draft = (app.dropCreateDraft = app.dropCreateDraft || { assetId: 0, amount: '', count: '10' });
+  // The failed batch's figures win over an older draft; used once, so coming back keeps what was typed since.
+  if (p.again) {
+    const a = p.again;
+    app.dropCreateDraft = { assetId: Number(a.assetId) || 0, amount: a.value != null ? toInputString(BigInt(a.value)) : '', count: String(a.count || '10'), gas: a.gas !== false };
+    p.again = null;
+  }
+  const draft = (app.dropCreateDraft = app.dropCreateDraft || { assetId: 0, amount: '', count: '10', gas: true });
+  if (typeof draft.gas !== 'boolean') draft.gas = true;
   let creating = false;
   let result = null;
   let alive = true;
@@ -35,6 +53,8 @@ export default function airdropCreate(app) {
   const unitLabel = h('span', { class: 'suffix-text', 'aria-hidden': 'true' });
   const count = h('input', { class: 'input', type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder: '10', 'aria-label': 'Number of codes', 'data-testid': 'drop-count' });
   count.value = draft.count;
+  const gasBox = h('input', { type: 'checkbox', 'data-testid': 'drop-gas', checked: draft.gas });
+  const gasRow = h('label', { class: 'check-row', 'data-testid': 'drop-gas-row' }, gasBox, h('span', { text: `Pay the claim fee for each code (${formatAmount(GAS_PER_VOUCHER)} BEAM per code), so people with an empty wallet can claim` }));
   const fieldHint = h('p', { class: 'hint', 'data-testid': 'drop-hint' });
   const summary = h('div', { class: 'card flat swap-details' });
   const notes = h('div', { class: 'swap-notes' });
@@ -44,6 +64,7 @@ export default function airdropCreate(app) {
   function assets() {
     const list = [0];
     for (const [id, t] of wallet.state.totals) if (id !== 0 && t.available > 0n) list.push(id);
+    if (!list.includes(Number(draft.assetId))) list.push(Number(draft.assetId));
     return list;
   }
 
@@ -54,7 +75,7 @@ export default function airdropCreate(app) {
     draft.assetId = Number(assetSel.value);
   }
 
-  /** {value, n, total, fee, error} from the two fields. */
+  /** {value, n, total, fee, gasTotal, networkFee, error} from the fields. */
   function plan() {
     let value = null;
     let n = null;
@@ -71,12 +92,15 @@ export default function airdropCreate(app) {
     const c = count.value.trim();
     if (c) {
       n = /^\d+$/.test(c) ? Number(c) : NaN;
-      if (!Number.isInteger(n) || n < 1 || n > MAX_VOUCHERS) error = error || `Choose 1 to ${MAX_VOUCHERS} codes.`;
+      if (!Number.isInteger(n) || n < 1 || n > V3_MAX_VOUCHERS) error = error || `Choose 1 to ${V3_MAX_VOUCHERS} codes.`;
     }
-    if (value == null || error || !Number.isInteger(n) || n < 1 || n > MAX_VOUCHERS) return { value, n, error };
+    if (value == null || error || !Number.isInteger(n) || n < 1 || n > V3_MAX_VOUCHERS) return { value, n, error };
     const total = value * BigInt(n);
-    if (total > MAX_TOTAL) return { value, n, error: 'That is more than one batch can hold. Lower the amount or the number of codes.' };
-    return { value, n, total, fee: creationFee(total), error: null };
+    const gasTotal = draft.gas ? GAS_PER_VOUCHER * BigInt(n) : 0n;
+    if (total > I64_MAX) return { value, n, error: 'That is more than one batch can hold. Lower the amount or the number of codes.' };
+    const fee = v3CreationFee(total);
+    if (total + fee + (Number(draft.assetId) === 0 ? gasTotal : 0n) > I64_MAX) return { value, n, error: 'That is more than one batch can hold. Lower the amount or the number of codes.' };
+    return { value, n, total, fee, gasTotal, networkFee: createFee(n), error: null };
   }
 
   function ctaState(p) {
@@ -88,12 +112,13 @@ export default function airdropCreate(app) {
     if (!p.n) return { off: 'Enter how many codes to create.' };
     if (!wallet.state.sync.canSend) return { off: `Creating codes is paused: ${syncReason(wallet.state.sync.title)}.` };
     const lock = p.total + p.fee;
+    const beam = p.gasTotal + p.networkFee;
     if (id === 0) {
-      const need = lock + CALL_FEE;
-      if (wallet.available(0) < need) return { off: `Not enough BEAM. This needs ${formatAmount(need)} BEAM, network fee included. You have ${formatAmount(wallet.available(0))} BEAM.`, receive: true };
+      const need = lock + beam;
+      if (wallet.available(0) < need) return { off: `Not enough BEAM. This needs ${formatAmount(need)} BEAM, fees included. You have ${formatAmount(wallet.available(0))} BEAM.`, receive: true };
     } else {
       if (wallet.available(id) < lock) return { off: `Not enough ${u}. This needs ${formatAmount(lock)} ${u} with the 1% fee. You have ${formatAmount(wallet.available(id))} ${u}.` };
-      if (wallet.available(0) < CALL_FEE) return { off: `The network fee is paid in BEAM: ${formatAmount(CALL_FEE)} BEAM. You have ${formatAmount(wallet.available(0))} BEAM.`, receive: true };
+      if (wallet.available(0) < beam) return { off: `${p.gasTotal ? 'The claim fees and the network fee are' : 'The network fee is'} paid in BEAM: ${formatAmount(beam)} BEAM. You have ${formatAmount(wallet.available(0))} BEAM.`, receive: true };
     }
     return { off: null };
   }
@@ -103,16 +128,22 @@ export default function airdropCreate(app) {
     const id = Number(draft.assetId);
     const u = wallet.label(id).unit;
     unitLabel.textContent = u;
+    gasBox.checked = draft.gas;
     const p = plan();
     fieldHint.textContent = `Available: ${amountText(id, wallet.available(id))}`;
     const row = (k, v, testid, sub) => h('div', { class: 'kv' }, h('span', { class: 'k' }, k, sub ? h('div', { class: 'small', text: sub }) : null), h('span', { class: 'v', 'data-testid': testid, text: v }));
     const ok = p.total != null;
+    const leaves = () => {
+      if (id === 0) return amountText(0, p.total + p.fee + p.gasTotal + p.networkFee);
+      return `${amountText(id, p.total + p.fee)} + ${formatAmount(p.gasTotal + p.networkFee)} BEAM`;
+    };
     put(
       summary,
       row('Locked for the codes', ok ? amountText(id, p.total) : '—', 'drop-locked', ok ? `${p.n} × ${amountText(id, p.value)}` : null),
       row('Airdrop fee (1%)', ok ? amountText(id, p.fee) : '—', 'drop-fee', 'Kept by the airdrop contract'),
-      row('Network fee', `${formatAmount(CALL_FEE)} BEAM`, 'drop-network-fee'),
-      row('Leaves your wallet', ok ? (id === 0 ? amountText(0, p.total + p.fee + CALL_FEE) : `${amountText(id, p.total + p.fee)} + ${formatAmount(CALL_FEE)} BEAM`) : '—', 'drop-total'),
+      draft.gas ? row('Claim fees paid ahead', ok ? `${formatAmount(p.gasTotal)} BEAM` : '—', 'drop-gas-total', ok ? `${p.n} × ${formatAmount(GAS_PER_VOUCHER)} BEAM` : null) : null,
+      row('Network fee', ok ? `${formatAmount(p.networkFee)} BEAM` : '—', 'drop-network-fee'),
+      row('Leaves your wallet', ok ? leaves() : '—', 'drop-total'),
     );
     const n = [];
     if (result) {
@@ -121,14 +152,15 @@ export default function airdropCreate(app) {
       el.dataset.code = result.code || '';
       n.push(el);
     }
-    const bearer = notice('warn', h('strong', { text: `${BEARER_TEXT.createTitle}. ` }), BEARER_TEXT.createMessage);
+    const bearer = notice('warn', h('strong', { text: `${BEARER_TEXT_V3.createTitle}. ` }), BEARER_TEXT_V3.createMessage);
     bearer.dataset.testid = 'drop-bearer';
     n.push(
       bearer,
+      h('p', { class: 'small', 'data-testid': 'drop-check-note' }, 'Share the codes once BEAM Campfire has checked them: it waits for the network to confirm the batch, then checks every code. This takes a few minutes.'),
       h(
         'p',
         { class: 'small', 'data-testid': 'drop-keep-note' },
-        `The codes are kept only on this device, in this wallet, and saved before anything is sent: copy them somewhere safe. Codes nobody claims can be cancelled later to get the rest back (network fee ${formatAmount(CANCEL_FEE)} BEAM).`,
+        `The codes are kept only on this device, in this wallet, and saved before anything is sent: copy them somewhere safe. Codes nobody claims can be taken back later${draft.gas ? ', with their claim fees' : ''} (network fee from ${formatAmount(cancelFee(1))} BEAM).`,
       ),
     );
     put(notes, ...n);
@@ -151,7 +183,7 @@ export default function airdropCreate(app) {
     result = null;
     render();
     try {
-      const r = await airdrop(app).createBatch({ assetId: Number(draft.assetId), values: Array(p.n).fill(p.value) });
+      const r = await airdrop(app).createBatch({ assetId: Number(draft.assetId), values: Array(p.n).fill(p.value), gas: draft.gas });
       if (!alive) return;
       app.dropCreateDraft = null;
       wallet.refreshTxs();
@@ -173,6 +205,11 @@ export default function airdropCreate(app) {
   });
   count.addEventListener('input', () => {
     draft.count = count.value;
+    result = null;
+    render();
+  });
+  gasBox.addEventListener('change', () => {
+    draft.gas = gasBox.checked;
     result = null;
     render();
   });
@@ -204,6 +241,7 @@ export default function airdropCreate(app) {
       h('label', { class: 'field count-field' }, 'Codes', count),
     ),
     fieldHint,
+    gasRow,
     summary,
     notes,
   );

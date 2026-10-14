@@ -216,7 +216,7 @@ export function crossingRow(ctl, c, onclick) {
     'button',
     { class: 'row bridge-row', onclick, 'data-testid': 'bridge-row', 'data-id': c.id, 'data-state': c.state },
     // A finished move that wants a look (BM-3: refused, while coins of its amount reached BEAM) is no clock.
-    h('span', { class: `ico ${w.mood === 'error' ? 'fail' : w.mood === 'success' ? 'in' : 'swap'}` }, icon(w.mood === 'success' ? 'check' : w.mood === 'error' ? 'close' : w.mood === 'warning' && !isOpen(c) ? 'alert' : 'clock')),
+    h('span', { class: `ico ${w.mood === 'error' ? 'fail' : w.mood === 'success' ? 'ok' : 'swap'}` }, icon(w.mood === 'success' ? 'check' : w.mood === 'error' ? 'close' : w.mood === 'warning' && !isOpen(c) ? 'alert' : 'clock')),
     h('span', { class: 'main' }, h('div', { class: 't', text: headline(c) }), h('div', { class: 's' }, h('span', { class: `bridge-short ${cls}`, 'data-testid': 'bridge-row-status', text: w.short }), ` · ${ago(c.createdAt)}`)),
     h('span', { class: 'chev' }, icon('chevron')),
   );

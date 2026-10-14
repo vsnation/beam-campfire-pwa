@@ -341,7 +341,7 @@ export function activityRow(item, onclick) {
     { class: 'row', onclick, 'data-testid': 'eth-activity-row', 'data-hash': item.hash, 'data-state': item.state },
     h('span', { class: `ico ${bad ? 'fail' : item.direction === 'in' ? 'in' : 'out'}` }, icon(open ? 'clock' : item.direction === 'in' ? 'receive' : 'send')),
     h('span', { class: 'main' }, h('div', { class: 't', text: title }), h('div', { class: 's addr' }, ...sub)),
-    h('span', { class: `end${item.direction === 'in' && !bad ? ' in' : ''}`, text: `${sign}${amountText(item.amount, item.asset)}` }),
+    h('span', { class: `end${bad ? '' : item.direction === 'in' ? ' in' : ' out'}`, text: `${sign}${amountText(item.amount, item.asset)}` }),
   );
 }
 

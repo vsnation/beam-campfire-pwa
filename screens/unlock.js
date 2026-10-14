@@ -26,6 +26,7 @@ import { nameOf, rememberOpened } from '../lib/wallets.js';
 import { unlockPicker } from './wallets.js';
 import { resealAirdropCodes } from './airdrop.js';
 import { notSavedNote } from '../lib/auth_ui.js';
+import { walletNode } from '../lib/nodes.js';
 
 export default function unlock(app, params = {}) {
   if (!app.record) {
@@ -61,7 +62,7 @@ export default function unlock(app, params = {}) {
       // Kept running behind the lock for a payment under way: carry on with it.
       if (!wallet.unlockedAgain(dbPass)) {
         if (wallet.session) await wallet.stop();
-        await wallet.start({ dbPass, node: app.prefs.node, bodyRequests: scanEnabled(app) });
+        await wallet.start({ dbPass, node: walletNode(app.prefs), bodyRequests: scanEnabled(app) });
       }
       // Moves through the bridge are followed again from where they were (only when there are any).
       resumeBridgeIfAny(app);

@@ -8,7 +8,7 @@
     if (localStorage.getItem('campfire-skin') === 'beam') {
       document.documentElement.setAttribute('data-skin', 'beam');
       // The browser bar in BEAM's colours too (index.html's metas carry Campfire's).
-      var bars = { light: '#eef5fa', dark: '#042548' };
+      var bars = { light: '#e0ebf4', dark: '#04325a' };
       var m = document.querySelectorAll('meta[name="theme-color"]');
       for (var i = 0; i < m.length; i++) {
         var own = /dark/.test(m[i].getAttribute('media') || '') ? 'dark' : 'light';

@@ -41,7 +41,7 @@ export function approveLabel(req, unit) {
   if (req.kind === 'send') return `Send ${pay[0]}`;
   // About: BEAM may still finish an approved swap at a slightly lower price (lib/dex.js rebuildFloor).
   if (req.intent && req.intent.action === 'swap' && pay.length === 1 && get.length === 1) return `Swap ${pay[0]} for ≈${get[0]}`;
-  const own = intentLabel(req.intent, pay, get);
+  const own = intentLabel(req.intent, pay, get, req);
   if (own) return own;
   if (pay.length && get.length) return `Pay ${pay.join(' + ')}, get ${get.join(' + ')}`;
   if (pay.length) return `Pay ${pay.join(' + ')}`;
@@ -49,8 +49,14 @@ export function approveLabel(req, unit) {
   return 'Approve';
 }
 
+/** Amount texts with BEAM's last: the voucher's asset first, the BEAM for fees after it ("5 bETH + 0.044 BEAM"). */
+function beamLast(texts, list) {
+  if (!list || list.length !== texts.length) return texts;
+  return texts.map((t, i) => [t, list[i].assetId === 0]).sort((a, b) => Number(a[1]) - Number(b[1])).map(([t]) => t);
+}
+
 /** The wallet's own features (names, airdrops) say what approving does in their words. */
-function intentLabel(intent, pay, get) {
+function intentLabel(intent, pay, get, req = null) {
   if (!intent) return null;
   const one = (l) => (l.length === 1 ? l[0] : null);
   switch (intent.action) {
@@ -60,12 +66,17 @@ function intentLabel(intent, pay, get) {
       return pay.length === 1 && !get.length ? `Pay ${pay[0]} and renew ${intent.name}` : null;
     case 'namePay':
       return pay.length === 1 && !get.length ? `Send ${pay[0]} to ${intent.name}.beam` : null;
+    // Airdrop v3 also moves BEAM for claim fees paid ahead: locked with the codes, released by a claim
+    // (to pay its fee), returned by a take-back. The button names the voucher's asset first.
     case 'airdropCreate':
-      return pay.length === 1 && !get.length ? `Lock ${pay[0]} in ${intent.count} ${intent.count === 1 ? 'code' : 'codes'}` : null;
-    case 'airdropClaim':
-      return one(get) && !pay.length ? `Claim ${get[0]}` : null;
+      return pay.length >= 1 && pay.length <= 2 && !get.length ? `Lock ${beamLast(pay, req && req.spends).join(' + ')} in ${intent.count} ${intent.count === 1 ? 'code' : 'codes'}` : null;
+    case 'airdropClaim': {
+      if (pay.length || !get.length || get.length > 2) return null;
+      const i = req && intent.assetId != null ? req.receives.findIndex((a) => a.assetId === intent.assetId) : 0;
+      return `Claim ${get[i >= 0 ? i : 0]}`;
+    }
     case 'airdropCancel':
-      return one(get) && !pay.length ? `Take back ${get[0]}` : null;
+      return get.length >= 1 && get.length <= 2 && !pay.length ? `Take back ${beamLast(get, req && req.receives).join(' + ')}` : null;
     case 'poolAdd':
       return pay.length === 2 && get.length === 1 ? `Add ${pay.join(' + ')} to the pool` : null;
     case 'poolWithdraw':
@@ -152,7 +163,6 @@ function title(req, bridge) {
   if (req.kind === 'send') return 'Approve this payment';
   if (req.intent && req.intent.action === 'swap') return 'Confirm your swap';
   if (req.intent && TITLES[req.intent.action]) return TITLES[req.intent.action];
-  if (req.native && nameTitle(req.intent)) return nameTitle(req.intent);
   return 'Approve this request';
 }
 

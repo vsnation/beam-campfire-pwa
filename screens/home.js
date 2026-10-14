@@ -15,7 +15,10 @@
  *   - "Can I make my own token?" -> Tokens, at the end of that line: create one, mint more, burn.
  *   - "Why can't I spend what I was sent privately?" -> a line under the balance says it arrived privately and
  *     in how many hours it can be spent; "Coins" beside the balance lists each coin and splits them (screens/coins.js).
- *   - "My own node is down" -> the sync line says so, with "Use random nodes" right under it (never automatic).
+ *   - "My own node is down" -> the sync line says so, with "Use BEAM's public nodes" right under it (never automatic).
+ *   - "Is it connected? Which node?" -> the signal bars in the top bar; one tap opens the BEAM node screen
+ *     (every public node, its newest block, "Use this one"). A public node that is down or behind gets
+ *     "Choose another BEAM node" under the sync line.
  *   - "What is all this worth?" -> BEAM in dollars once allowed (asked once: CoinGecko sees the IP), a total
  *     with the tokens valued from BEAM's DEX; a token row opens its page; spam can be hidden (screens/token_ui.js).
  *   - "What if this phone or this app's web address is gone?" -> a wallet imported from wallet.db has
@@ -52,10 +55,26 @@ import { evictionNotice } from './storage_warning.js';
 import { evictionRisk } from '../lib/storage.js';
 import { syncReason } from '../lib/sync.js';
 
+const syncClass = (sync) => (sync.state === 'synced' ? 'ok' : sync.state === 'offline' || sync.state === 'stalled' || sync.state === 'behind' ? 'bad' : 'wait');
+
 export function syncLine(sync) {
-  const cls = sync.state === 'synced' ? 'ok' : sync.state === 'offline' || sync.state === 'stalled' || sync.state === 'behind' ? 'bad' : 'wait';
+  const cls = syncClass(sync);
   const pct = sync.state === 'syncing' && sync.percent != null ? ` (${sync.percent}%)` : '';
   return h('div', { class: 'syncline', 'data-testid': 'sync', 'data-state': sync.state, 'data-verified': String(Boolean(sync.verified)) }, h('span', { class: `dot ${cls}` }), h('span', { text: `${sync.title}${pct}` }));
+}
+
+/**
+ * The four signal bars of the top bar (as Campfire's, and the Firo web wallet's): green when synced,
+ * amber while connecting or catching up, red when no node answers. A tap opens the BEAM node screen.
+ */
+export function syncBars(sync, onclick) {
+  const cls = syncClass(sync);
+  const lit = sync.state === 'synced' ? 4 : sync.state === 'syncing' ? 1 + Math.min(3, Math.floor((sync.percent || 0) / 34)) : sync.state === 'offline' ? 0 : 1;
+  return h(
+    'button',
+    { class: `icon-btn sync-bars ${cls}`, type: 'button', 'aria-label': `${sync.title}. BEAM node`, title: sync.title, 'data-testid': 'sync-bars', 'data-state': sync.state, onclick },
+    ...[1, 2, 3, 4].map((i) => h('span', { class: `bar b${i}${i <= lit ? ' lit' : ''}` })),
+  );
 }
 
 function contractRow(app, tx, onclick) {
@@ -121,12 +140,13 @@ export function txRow(app, tx, onclick) {
     { class: 'row', onclick, 'data-txid': tx.txId },
     h('span', { class: `ico ${failed ? 'fail' : income ? 'in' : 'out'}` }, icon(isPendingTx(tx) ? 'clock' : income ? 'receive' : 'send')),
     h('span', { class: 'main' }, h('div', { class: 't', text: txStatusText(tx) }), h('div', { class: 's', text: [fmtDate(tx.create_time), rowExtra(tx)].filter(Boolean).join(' · ') })),
-    h('span', { class: `end${income && !failed ? ' in' : ''}`, text: `${income ? '+' : '−'}${formatAmount(value)} ${label.unit}` }),
+    h('span', { class: `end${failed ? '' : income ? ' in' : ' out'}`, text: `${income ? '+' : '−'}${formatAmount(value)} ${label.unit}` }),
   );
 }
 
 export default function home(app) {
   const balanceBox = h('div');
+  const barsBox = h('span', { class: 'bars-box' });
   const tokens = homeTokens(app);
   const assetsBox = tokens.el;
   const txBox = h('div');
@@ -155,10 +175,14 @@ export default function home(app) {
         syncLine(s.sync),
         h('p', { class: 'small', 'data-testid': 'sync-detail', text: s.sync.detail }),
         s.sync.state === 'offline' && s.sync.ownNode
-          ? h('button', { class: 'btn btn-secondary btn-small sync-action', 'data-testid': 'home-use-random', onclick: () => switchToRandom(app) }, 'Use random nodes')
-          : null,
+          ? h('button', { class: 'btn btn-secondary btn-small sync-action', 'data-testid': 'home-use-random', onclick: () => switchToRandom(app) }, "Use BEAM's public nodes")
+          : // A public node that is down, behind or being left: the way to another one, right here.
+            s.nodeMode === 'random' && (['offline', 'stalled', 'behind'].includes(s.sync.state) || s.sync.reconnecting)
+            ? h('button', { class: 'btn btn-text btn-small sync-action', type: 'button', 'data-testid': 'sync-choose-node', onclick: () => app.go('nodeSettings') }, 'Choose another BEAM node')
+            : null,
       ),
     );
+    put(barsBox, syncBars(s.sync, () => app.go('nodeSettings')));
 
     // Every other asset this wallet has anything of, named and drawn as the desktop app's asset
     // list does (lib/meta.js), valued from the DEX; each opens its page (screens/token_ui.js).
@@ -317,6 +341,7 @@ export default function home(app) {
       right: h(
         'div',
         { class: 'top-actions' },
+        barsBox,
         // Scan: any QR code, recognized, then the screen for it (screens/scan_go.js, loaded on the tap).
         h('button', { class: 'icon-btn', 'aria-label': 'Scan a QR code', 'data-testid': 'home-scan', onclick: () => import('./scan_go.js').then((m) => m.scanAndGo(app)) }, icon('scan')),
         h('button', { class: 'icon-btn', 'aria-label': 'Lock', onclick: () => app.lock('manual'), 'data-testid': 'lock' }, icon('lock')),
