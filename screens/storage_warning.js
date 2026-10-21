@@ -1,6 +1,7 @@
 /* What the browser may delete, said where it matters (audit A-7)
  * Spec (Home notice): ONE job: tell a person whose wallet lives in a Safari tab that Safari can
- *       delete it, and what keeps it. Secondary card under the balance; "Later" hides it for a week.
+ *       delete it, and what keeps it. Secondary card under the balance; "Show me how" opens the steps
+ *       (screens/home_screen_guide.js); "Later" hides it for a week.
  * Spec (the sheet before an airdrop batch or a bridge move): ONE job: say that what is about to be
  *       made is kept only in this browser, which may delete it, and how to keep it.
  *       Primary CTA: the outcome ("Create, then save the codes" / "Start the move"); "Not now".
@@ -14,6 +15,8 @@ import { h } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { openSheet } from '../lib/ui.js';
 import { evictionRisk } from '../lib/storage.js';
+import { HOME_SCREEN_TEXT, openHomeScreenGuide } from './home_screen_guide.js';
+import { isIosSafariTab } from './welcome.js';
 import { t, tk } from '../lib/i18n.js';
 
 export const EVICTION_SNOOZE_MS = 7 * 24 * 3600 * 1000;
@@ -52,6 +55,8 @@ export const STORAGE_TEXT = Object.freeze({
 export function evictionNotice(app, rerender) {
   if (evictionRisk(app) !== 'safariTab' || !app.record) return null;
   if (app.prefs && app.prefs.evictionNoticeSnoozedUntil > Date.now()) return null;
+  // The steps are an iPhone / iPad Safari's; Safari on a Mac gets the notice without them.
+  const last = app.record.imported ? 'file' : 'words';
   return h(
     'div',
     { class: 'notice warn', 'data-testid': 'eviction-notice' },
@@ -64,6 +69,7 @@ export function evictionNotice(app, rerender) {
       h(
         'div',
         { class: 'btn-row prompt-actions' },
+        isIosSafariTab() ? h('button', { class: 'btn btn-text btn-small', type: 'button', 'data-testid': 'eviction-how', onclick: () => openHomeScreenGuide(last) }, t(HOME_SCREEN_TEXT.showMe)) : null,
         h('button', {
           class: 'btn btn-text btn-small',
           'data-testid': 'eviction-later',

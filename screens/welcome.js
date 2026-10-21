@@ -10,7 +10,8 @@
  *   - "Three buttons, which one is me?" -> the new wallet is the obvious (primary) one; the other two
  *     are named after what you bring: your 12 words, or your wallet.db file.
  *   - "I have a wallet.db but no words" -> its own button.
- *   - "Will I lose it if Safari clears data?" -> the Home Screen guide says when that happens.
+ *   - "Will I lose it if Safari clears data?" -> the Home Screen card says when Safari deletes it, and
+ *     "Show me how" gives the steps (screens/home_screen_guide.js).
  *   - "What does it cost?" -> nothing to install or sign up; network fees are shown before paying.
  *   - "Which version is this copy?" (another address, a mirror) -> "Version 0.2.x" in small print at
  *     the bottom, before any wallet is made (issue #82).
@@ -26,7 +27,8 @@ import { h } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, secondary, notice, openSheet, versionLine } from '../lib/ui.js';
 import { onSharedOrigin, HOME_URL, SHARED_TEXT } from '../lib/shared_origin.js';
-import { t, tNodes } from '../lib/i18n.js';
+import { t } from '../lib/i18n.js';
+import { HOME_SCREEN_TEXT, openHomeScreenGuide } from './home_screen_guide.js';
 
 /**
  * In place of Create / Restore / Import on an address other websites share: why not here, the way
@@ -137,8 +139,8 @@ function a2hsGuide(app) {
         },
       }, icon('close')),
     ),
-    h('p', {}, ...tNodes('Tap Share {icon} in Safari, choose "Add to Home Screen", then open BEAM Campfire from there.', { icon: icon('share', 'inline-icon') })),
-    h('p', { class: 'small', text: t('Home Screen apps keep their data. Safari tabs may lose it after 7 days without use, and a wallet made in a Safari tab does not move to the Home Screen app.') }),
+    h('p', { text: `${t(HOME_SCREEN_TEXT.why)} ${t(HOME_SCREEN_TEXT.notMoved)}` }),
+    h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'a2hs-how', onclick: () => openHomeScreenGuide('start') }, t(HOME_SCREEN_TEXT.showMe)),
   );
   return card;
 }

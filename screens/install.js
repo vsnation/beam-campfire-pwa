@@ -10,8 +10,9 @@
  *   - "Nothing happens for a minute" -> measured: Safari can take about a minute to start a site's
  *     first service worker. Until setup has begun the screen says the browser is preparing it (no
  *     false "stopped"); only after 150 s without a start does it offer Try again.
- *   - "I want it on my Home Screen" (iPhone Safari tab) -> says to add it now: the Home Screen app sets
- *     itself up separately.
+ *   - "Will I keep it?" (iPhone Safari tab) -> right under the progress: Safari deletes a site's data
+ *     after 7 days without a visit, so add it to the Home Screen now (the three steps, inline); the
+ *     Home Screen app sets itself up separately (screens/home_screen_guide.js).
  *   - "Is this download safe?" -> every file is checked against the release signature before use.
  *   - "Which version am I getting?" -> "Version 0.2.x" in small print once the signed release names it
  *     (never before: the page itself is not checked yet), and "Version 0.2.x checked" at the end (#82).
@@ -21,6 +22,7 @@ import { icon } from '../lib/icons.js';
 import { screen, primary, notice, progressBar, versionText } from '../lib/ui.js';
 import { registerLoader, readInstallProgress, reloadOnceIntoVerifiedCopy, INTEGRITY_CODES } from '../lib/loader.js';
 import { isIosSafariTab } from './welcome.js';
+import { HOME_SCREEN_TEXT, homeScreenSteps } from './home_screen_guide.js';
 import { t, tn, tNodes } from '../lib/i18n.js';
 
 export const STALL_MS = 30000; // no bytes for this long, once downloading: stalled
@@ -67,8 +69,16 @@ export default function install(app) {
   const actions = h('div', { class: 'actions' });
   // Shown once the signed release says which version it is (installVersion).
   const versionEl = h('p', { class: 'version hidden', 'data-testid': 'app-version' });
+  // In an iPhone Safari tab, the first thing to do is to leave it: right under the progress.
   const tip = isIosSafariTab()
-    ? notice('info', ...tNodes('{question} Do it now and open it from there: the Home Screen app sets itself up separately.', { question: h('strong', { text: t('Adding it to your Home Screen?') }) }))
+    ? h(
+        'div',
+        { class: 'card a2hs', 'data-testid': 'install-a2hs' },
+        h('h3', { text: t(HOME_SCREEN_TEXT.title) }),
+        h('p', { text: `${t(HOME_SCREEN_TEXT.why)} ${t(HOME_SCREEN_TEXT.notMoved)}` }),
+        homeScreenSteps('start'),
+        h('p', { class: 'small', 'data-testid': 'install-a2hs-nowait', text: t(HOME_SCREEN_TEXT.noWait) }),
+      )
     : null;
 
   const el = screen(
@@ -78,9 +88,9 @@ export default function install(app) {
     bar,
     line,
     status,
+    tip,
     notice('info', ...tNodes('{lead} Every file is checked against the BEAM Campfire release signature before it is used.', { lead: h('strong', { text: t('This happens once. Keep this screen open.') }) })),
     h('p', { class: 'small', text: t('If the connection drops, nothing is lost: the files already checked are kept, and setup continues the next time you open BEAM Campfire.') }),
-    tip,
   );
   el.appendChild(actions);
   el.appendChild(versionEl);

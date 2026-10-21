@@ -526,6 +526,11 @@ details.more[open] summary { margin-bottom: 6px; }
 .a2hs { padding: 12px 14px; }
 .a2hs h3 { font-size: 15px; }
 .a2hs p { font-size: 14px; color: var(--text-2); }
+/* The three Add to Home Screen steps (screens/home_screen_guide.js), in a card and in its sheet. */
+.a2hs .steps-list { margin-top: 8px; font-size: 14px; }
+.a2hs-steps .inline-icon { color: var(--on-secondary); }
+.sheet .a2hs-steps { margin: 4px 0 8px; }
+.a2hs .btn.inline { display: inline-flex; width: auto; min-height: 0; padding: 0; margin-top: 6px; color: var(--on-secondary); font-weight: 600; }
 
 /* Import wallet.db: the real file input stays in the page (iOS opens the picker from its label). */
 .file-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

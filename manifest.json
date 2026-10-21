@@ -1,6 +1,6 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.2.18",
+ "version": "0.2.19",
  "files": [
   {
    "path": "app.js",
@@ -9,8 +9,8 @@
   },
   {
    "path": "css/app.css",
-   "sha256": "1440c82a314e348d45d5cf270f2c4c0ebd0e387cd5cadae8caf46491cded6787",
-   "size": 79914
+   "sha256": "48dc56377c50f316cd2e255d4fd57ac70743220b2cf0199456ec5fbe8e5e2736",
+   "size": 80317
   },
   {
    "path": "css/payments.css",
@@ -49,18 +49,18 @@
   },
   {
    "path": "i18n/ja.json",
-   "sha256": "cd4a46b8dcf9496f21658268cbd0fe9b9198b4c874cec84d9257002dfa547950",
-   "size": 537183
+   "sha256": "d18f96da0b6c43cc5f27bbf18ee06a756c413b95f3045e404032795f67970e04",
+   "size": 538208
   },
   {
    "path": "i18n/ru.json",
-   "sha256": "4419124d5fd80741e6d85cc213a41e97381304b7dbc1873b0c6bb087e7d56a3f",
-   "size": 639044
+   "sha256": "587b470bb08280c94e8186dd85e16fb67733a9fa1669534c3e86a53380708390",
+   "size": 640085
   },
   {
    "path": "i18n/zh-Hans.json",
-   "sha256": "a668e3e4f64a391546572bb8bc6764117f6e9da44b61be7b317c9d7cc337561a",
-   "size": 433600
+   "sha256": "1e83cfb2e0cc1eb260e390f49764064aabc064b5f052f255e15586c98e76e5a8",
+   "size": 434396
   },
   {
    "path": "icons/apple-touch-icon.png",
@@ -754,8 +754,8 @@
   },
   {
    "path": "lib/icons.js",
-   "sha256": "eef7386a0897b26b48f732b60363f0b9f3a05c3e2130aaaefce24a59b3e8d8dc",
-   "size": 5168
+   "sha256": "6a0a6b2da0823abd722941449bcf6d86bf8fb3218bb62075eb02d8ac9a8159f5",
+   "size": 5302
   },
   {
    "path": "lib/in_flight.js",
@@ -1019,7 +1019,7 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "514126a013dc8cd63c31ed32d9c9c8835726a6c5ef6e1b87aaab0344d52fe24c",
+   "sha256": "87d22fee92e6b0ab710eec1ee9a72742f46f8c78bbdac53d0501a0112b416484",
    "size": 1276
   },
   {
@@ -1343,14 +1343,19 @@
    "size": 20604
   },
   {
+   "path": "screens/home_screen_guide.js",
+   "sha256": "aa66ca65bd2f77676f9fb952ba156067a627d17f25a6629e71eb4f2beb374529",
+   "size": 3752
+  },
+  {
    "path": "screens/import_wallet.js",
    "sha256": "059323197d75fb79a46188975b8ede9b9ed09d0ec93eda6a05338b50c419b572",
    "size": 9656
   },
   {
    "path": "screens/install.js",
-   "sha256": "4d2843b0cd4a9e1526e31dc1590c25cbb8b6b9d5b99df78416bd810411ddda63",
-   "size": 11709
+   "sha256": "8fbb94a190d956ecd0a09c2d24ff379dd3e3edd62fb00239ec5de700f6179e89",
+   "size": 12208
   },
   {
    "path": "screens/ip_notice.js",
@@ -1569,8 +1574,8 @@
   },
   {
    "path": "screens/storage_warning.js",
-   "sha256": "06cc1097fd6ed60be4621ce4ae1b307dc11095bfe98f539ece947e7b5e0461c8",
-   "size": 5976
+   "sha256": "4d70a7861d2d4a295fd44a817569c06bed8fe96abdb14bb8f0f309abce07a6e8",
+   "size": 6522
   },
   {
    "path": "screens/store_screens.js",
@@ -1619,8 +1624,8 @@
   },
   {
    "path": "screens/welcome.js",
-   "sha256": "b3b0be67f3906a0cf00b47a9f34b700cede1552189c354f2666ec7f26401302c",
-   "size": 6967
+   "sha256": "2d5a202ea1bd7d2fecd3f333662bef07ae2b5c2b721e274b61b41bb6af911ed8",
+   "size": 7014
   },
   {
    "path": "shaders/airdrop_app.wasm",
