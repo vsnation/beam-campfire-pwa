@@ -1,6 +1,6 @@
-# BEAM Campfire — web wallet (PWA)
+# Beam PWA — web wallet (PWA)
 
-The BEAM Campfire wallet for iPhone (and any modern browser), without an app store. This repository
+The Beam PWA wallet for iPhone (and any modern browser), without an app store. This repository
 is the signed build itself: these files are the whole app.
 
 **Open it:** https://pwa.buybeam.my/
@@ -9,16 +9,16 @@ is the signed build itself: these files are the whole app.
 https://github.com/vsnation/campfire-beam/releases (the `web-v…` releases).
 
 This repository, and the same files on GitHub Pages (vsnation.github.io/beam-campfire-pwa/), are an update source:
-installed apps fetch signed updates here when pwa.buybeam.my is gone. Don't keep a wallet at the
-GitHub Pages address: every other GitHub Pages site of the same account shares it and could read
-what is stored there. The app there makes no new wallet and sends you to pwa.buybeam.my (it
-restores or imports one only after a warning, for when pwa.buybeam.my is gone).
+installed apps fetch signed updates here when pwa.buybeam.my is gone, and the app there works as a
+full copy (create, restore and import), so it is the way in when pwa.buybeam.my cannot be reached.
+A wallet is kept by the browser per web address, so one made at pwa.buybeam.my is not in this copy:
+bring it with your 12 words or its wallet.db file.
 
 ## Install on iPhone
 
 1. Open https://pwa.buybeam.my/ in **Safari**.
 2. Wait for "Setting up" to finish (it happens once).
-3. Tap Share → **Add to Home Screen** → Add, then open **BEAM Campfire from the Home Screen**.
+3. Tap Share → **Add to Home Screen** → Add, then open **Beam PWA from the Home Screen**.
 4. Create a wallet, restore one with your 12 words, or import a `wallet.db` file.
 
 ## It keeps working without this site

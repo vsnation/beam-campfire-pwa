@@ -32,8 +32,8 @@ export const STORAGE_TEXT = Object.freeze({
   homeTitle: tk('Safari can delete this wallet after 7 days without a visit.'),
   homeBody: (imported) =>
     imported
-      ? t('Add BEAM Campfire to your Home Screen (Share, then Add to Home Screen) and open your wallet there from your wallet.db file: the Home Screen app keeps its data.')
-      : t('Add BEAM Campfire to your Home Screen (Share, then Add to Home Screen) and open your wallet there with your 12 words: the Home Screen app keeps its data.'),
+      ? t('Add Beam PWA to your Home Screen (Share, then Add to Home Screen) and open your wallet there from your wallet.db file: the Home Screen app keeps its data.')
+      : t('Add Beam PWA to your Home Screen (Share, then Add to Home Screen) and open your wallet there with your 12 words: the Home Screen app keeps its data.'),
   why: WHY,
   codesTitle: tk('Save the codes as soon as they are made'),
   codesBody: (why) =>
@@ -44,8 +44,8 @@ export const STORAGE_TEXT = Object.freeze({
   bridgeTitle: tk('Come back until this move is done'),
   bridgeBody: (why) =>
     why === WHY.mayClear
-      ? t("This browser may clear this site's data when the device runs low on space, and this move's record is kept only here: BEAM Campfire needs it to finish the move. Open BEAM Campfire until the move says Done.")
-      : t("Safari deletes a site's data after 7 days without a visit to it, and this move's record is kept only here: BEAM Campfire needs it to finish the move. Open BEAM Campfire until the move says Done."),
+      ? t("This browser may clear this site's data when the device runs low on space, and this move's record is kept only here: Beam PWA needs it to finish the move. Open Beam PWA until the move says Done.")
+      : t("Safari deletes a site's data after 7 days without a visit to it, and this move's record is kept only here: Beam PWA needs it to finish the move. Open Beam PWA until the move says Done."),
   bridgeCta: tk('Start the move'),
   // Shown by screens/airdrop_codes.js after its own sentence (hence the leading space).
   codesNote: { safariTab: tk('Safari can delete them after 7 days without a visit.'), mayClear: tk('This browser may clear them when space runs low.') },

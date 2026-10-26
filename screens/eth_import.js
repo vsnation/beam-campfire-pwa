@@ -145,7 +145,7 @@ export default function ethImport(app) {
     h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: t('Recovery words or private key') }), pasteBtn), area),
     hint,
     advanced,
-    h('p', { class: 'small', text: t('Words are not stored. Only the private key is kept, locked with your BEAM Campfire password.') }),
+    h('p', { class: 'small', text: t('Words are not stored. Only the private key is kept, locked with your Beam PWA password.') }),
   );
   return {
     el,

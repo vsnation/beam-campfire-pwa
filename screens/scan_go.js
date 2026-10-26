@@ -18,9 +18,9 @@ import { scanAnything } from './scan_sheet.js';
 import { t, tk } from '../lib/i18n.js';
 
 const UNSUPPORTED = Object.freeze({
-  chain: tk('It is a payment on another network than Ethereum. BEAM Campfire uses Ethereum mainnet only, so nothing was opened.'),
+  chain: tk('It is a payment on another network than Ethereum. Beam PWA uses Ethereum mainnet only, so nothing was opened.'),
   coin: tk('It is an address of another coin, which this wallet does not hold, so nothing was opened.'),
-  link: tk('It is a web link. BEAM Campfire does not open links from codes, so nothing was opened.'),
+  link: tk('It is a web link. Beam PWA does not open links from codes, so nothing was opened.'),
   token: tk('It is a payment in an Ethereum token this wallet does not know, so nothing was opened.'),
 });
 
@@ -67,7 +67,7 @@ export async function scanAndGo(app) {
     try {
       text = await navigator.clipboard.readText();
     } catch {
-      return toast(t("BEAM Campfire couldn't read the clipboard. Copy the text again and tap Scan."), 4000);
+      return toast(t("Beam PWA couldn't read the clipboard. Copy the text again and tap Scan."), 4000);
     }
     r = { ...recognize(text), text: String(text).trim().slice(0, 2000) };
     if (r.kind === 'empty') return toast(t('The clipboard is empty.'), 3000);
@@ -95,5 +95,5 @@ export async function scanAndGo(app) {
       textButton(t('Not now'), () => close()),
     ], { label: t('An Ethereum address') });
   }
-  return showText(r.text || '', UNSUPPORTED[d.sheet] ? t(UNSUPPORTED[d.sheet]) : t('BEAM Campfire does not know what this is, so nothing was opened.'));
+  return showText(r.text || '', UNSUPPORTED[d.sheet] ? t(UNSUPPORTED[d.sheet]) : t('Beam PWA does not know what this is, so nothing was opened.'));
 }

@@ -110,7 +110,7 @@ export default function airdropCodes(app, p = {}) {
       p.justCreated ? notice('success', h('strong', { text: `${t('Batch sent.')} ` }), t('Wait a few minutes before sharing the codes.')) : null,
       summaryLine(),
       steps(),
-      h('p', { class: 'small', 'data-testid': 'codes-wait-why' }, t('Before you share them, BEAM Campfire makes sure every code points to the batch you made, so nobody can swap them for empty ones. The codes appear here once that is done. You can leave this screen and come back.')),
+      h('p', { class: 'small', 'data-testid': 'codes-wait-why' }, t('Before you share them, Beam PWA makes sure every code points to the batch you made, so nobody can swap them for empty ones. The codes appear here once that is done. You can leave this screen and come back.')),
     ];
     if (st === 'error') {
       const el = notice('error', `${t('The codes could not be checked: {reason} They are saved on this device.', { reason: v3.error.message })} `, h('button', { class: 'btn btn-text btn-small inline', type: 'button', 'data-testid': 'codes-check-again', onclick: () => runCheck() }, t('Check again')));
@@ -124,7 +124,7 @@ export default function airdropCodes(app, p = {}) {
   function render() {
     if (!alive) return;
     if (away) {
-      put(body, h('div', { class: 'card empty', 'data-testid': 'codes-away' }, icon('lock'), h('p', { class: 'small', text: t('Codes hidden while BEAM Campfire is in the background.') })));
+      put(body, h('div', { class: 'card empty', 'data-testid': 'codes-away' }, icon('lock'), h('p', { class: 'small', text: t('Codes hidden while Beam PWA is in the background.') })));
       put(actions);
       return;
     }

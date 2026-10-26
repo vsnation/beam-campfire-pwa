@@ -15,64 +15,14 @@
  *   - "What does it cost?" -> nothing to install or sign up; network fees are shown before paying.
  *   - "Which version is this copy?" (another address, a mirror) -> "Version 0.2.x" in small print at
  *     the bottom, before any wallet is made (issue #82).
- * On an address other websites share (<user>.github.io, .gitlab.io, .codeberg.page;
- * lib/shared_origin.js) the ONE job is to get the wallet to a safe place: primary CTA "Go to
- * pwa.buybeam.my" (1 tap). No Create there. "Restore with 12 words here" and "Import a wallet.db file
- * here" stay, for when pwa.buybeam.my is gone, each behind a warning sheet (2 taps).
- * Exit-intent: "Am I on the wrong site / is this a fake?" -> it says plainly why not here and where,
- * without blame; "pwa.buybeam.my is gone or looks wrong" -> desktop and Android are named, and the
- * line under the button says not to type the words there if it looks unexpected.
  */
 import { h } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, primary, secondary, notice, openSheet, versionLine } from '../lib/ui.js';
-import { onSharedOrigin, HOME_URL, SHARED_TEXT } from '../lib/shared_origin.js';
+import { screen, primary, secondary, versionLine } from '../lib/ui.js';
 import { t } from '../lib/i18n.js';
+import { languagePicker } from '../lib/lang_ui.js';
 import { HOME_SCREEN_TEXT, openHomeScreenGuide } from './home_screen_guide.js';
-
-/**
- * In place of Create / Restore / Import on an address other websites share: why not here, the way
- * to BEAM Campfire's own address, and Restore / Import here behind a warning (audit UPD-2).
- * restore() and importDb() run only once the person confirmed it. A wallet already kept here still
- * opens (unlock never comes this way).
- */
-export function sharedOriginParts(app, { restore, importDb, testid = '' }) {
-  const here = typeof location !== 'undefined' ? location.hostname : '';
-  app.sharedOriginOk = false; // a warning confirmed earlier covered that attempt only
-  const warned = (kind, then) => () =>
-    openSheet(
-      (close) => [
-        h('h2', { 'data-testid': 'shared-warn-title', text: SHARED_TEXT.warnTitle[kind] }),
-        notice('warn', SHARED_TEXT.warn(here, kind)),
-        h('p', { class: 'lead', text: SHARED_TEXT.warnWhen }),
-        h(
-          'div',
-          { class: 'sheet-actions' },
-          h('button', {
-            class: 'btn btn-danger',
-            'data-testid': 'shared-warn-confirm',
-            onclick: () => {
-              app.sharedOriginOk = true;
-              close();
-              then();
-            },
-          }, SHARED_TEXT.confirm[kind]),
-          h('button', { class: 'btn btn-text', 'data-testid': 'shared-warn-cancel', onclick: () => close() }, SHARED_TEXT.cancel),
-        ),
-      ],
-      { label: SHARED_TEXT.warnTitle[kind] },
-    );
-  return {
-    body: h('div', { 'data-testid': 'shared-origin' }, notice('info', SHARED_TEXT.why(here))),
-    actions: [
-      h('a', { class: 'btn btn-primary', href: HOME_URL, rel: 'noopener noreferrer', 'data-testid': 'shared-origin-go' }, SHARED_TEXT.go),
-      h('p', { class: 'small center', 'data-testid': 'shared-origin-unexpected', text: SHARED_TEXT.unexpected }),
-      secondary(SHARED_TEXT.restoreHere, warned('restore', restore), { 'data-testid': `${testid}restore` }),
-      secondary(SHARED_TEXT.importHere, warned('import', importDb), { 'data-testid': `${testid}import` }),
-      h('p', { class: 'small center', 'data-testid': 'shared-origin-elsewhere', text: SHARED_TEXT.elsewhere }),
-    ],
-  };
-}
+import { logoMark } from '../lib/logo.js';
 
 export function isIosSafariTab() {
   const ua = navigator.userAgent;
@@ -90,13 +40,12 @@ export default function welcome(app) {
     app.setup = null;
     app.go('importWallet');
   };
-  const shared = onSharedOrigin() ? sharedOriginParts(app, { restore, importDb }) : null;
-  const guide = !shared && isIosSafariTab() && !app.prefs.a2hsDismissed ? a2hsGuide(app) : null;
+  const guide = isIosSafariTab() && !app.prefs.a2hsDismissed ? a2hsGuide(app) : null;
   const el = screen(
     {
       topbar: false,
       cls: 'welcome',
-      actions: shared ? shared.actions : [
+      actions: [
         primary(t('Create a new wallet'), () => {
           app.setup = { mode: 'create' };
           app.go('backup');
@@ -106,16 +55,17 @@ export default function welcome(app) {
         h('p', { class: 'small center', text: t('No sign-up. Your keys stay on this device.') }),
       ],
     },
+    // The language, named in itself, for a person whose device language is not the one they want.
+    h('div', { class: 'lang-bar' }, languagePicker()),
     h(
       'div',
-      // Compact when more must fit above the fold: the Home Screen guide, or the shared-address
-      // notice with the desktop / Android line under the buttons (375x667 without scrolling).
-      { class: `hero${guide || shared ? ' compact' : ''}` },
-      h('img', { src: 'img/logo.svg', alt: '' }),
-      h('h1', { text: 'BEAM Campfire' }), // i18n-ignore: the brand
+      // Compact when the Home Screen guide must fit above the fold too (375x667 without scrolling).
+      { class: `hero${guide ? ' compact' : ''}` },
+      logoMark(),
+      h('h1', { text: 'Beam PWA' }), // i18n-ignore: the brand
       h('p', { text: t('Your privacy. Your wallet. Your BEAM.') }),
     ),
-    shared ? shared.body : guide,
+    guide,
   );
   const version = versionLine();
   if (version) el.appendChild(version);
@@ -129,7 +79,7 @@ function a2hsGuide(app) {
     h(
       'div',
       { class: 'banner' },
-      h('h3', { class: 'grow', text: t('First, add BEAM Campfire to your Home Screen') }),
+      h('h3', { class: 'grow', text: t('First, add Beam PWA to your Home Screen') }),
       h('button', {
         class: 'icon-btn',
         'aria-label': t('Hide this tip'),

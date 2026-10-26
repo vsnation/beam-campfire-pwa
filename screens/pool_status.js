@@ -71,7 +71,7 @@ export default function poolTx(app, p) {
           ? spentElsewhereNotice(app)
           : failed
           ? notice(s === 2 ? 'info' : 'error', s === 4 && tx.failure_reason ? t('{reason}. Nothing moved: your coins stay in your wallet.', { reason: String(tx.failure_reason) }) : t('Nothing moved: your coins stay in your wallet.'))
-          : notice('info', t('On its way to the blockchain. This usually takes a minute or two; keep BEAM Campfire open until it is done.')),
+          : notice('info', t('On its way to the blockchain. This usually takes a minute or two; keep Beam PWA open until it is done.')),
     );
     if (done && p.action === 'create') {
       put(actions, primary(t('Add the first coins'), () => toPool({ mode: 'add' }), { 'data-testid': 'pool-tx-add-first' }), secondary(t('Done'), () => app.go('pools', {}, { replace: true }), { 'data-testid': 'pool-tx-done' }));

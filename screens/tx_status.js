@@ -61,7 +61,7 @@ export default function txStatus(app, p) {
           ? spentElsewhereNotice(app)
           : failed
           ? notice(s === 2 ? 'info' : 'error', s === 2 ? t('Nothing was sent. The money stays in your wallet.') : tx.failure_reason ? t('{reason} The money stays in your wallet.', { reason: tx.failure_reason }) : t('The payment did not go through. The money stays in your wallet.'))
-          : notice('info', p.mustBeOnline === false ? t('The payment is on its way to the blockchain.') : t("Waiting for the receiver's wallet to come online and accept. Keep BEAM Campfire open; this can take up to 12 hours.")),
+          : notice('info', p.mustBeOnline === false ? t('The payment is on its way to the blockchain.') : t("Waiting for the receiver's wallet to come online and accept. Keep Beam PWA open; this can take up to 12 hours.")),
     );
     const canCancel = tx && (s === 0 || s === 1) && !tx.income && !cancelling;
     put(actions, primary(t('Done'), () => app.go('home'), { 'data-testid': 'tx-done' }), canCancel ? secondary(t('Cancel payment'), cancel, { 'data-testid': 'tx-cancel' }) : null);
@@ -148,7 +148,7 @@ function swapStatus(app, p) {
           ? spentElsewhereNotice(app)
           : failed
           ? notice(s === 2 ? 'info' : 'error', s === 4 && tx.failure_reason ? t('{reason}. Nothing was swapped. Your {unit} stays in your wallet.', { reason: tx.failure_reason, unit: payU }) : t('Nothing was swapped. Your {unit} stays in your wallet.', { unit: payU }))
-          : notice('info', t('On its way to the blockchain. This usually takes a minute or two; keep BEAM Campfire open until it is done.')),
+          : notice('info', t('On its way to the blockchain. This usually takes a minute or two; keep Beam PWA open until it is done.')),
     );
     put(actions, primary(t('Done'), () => app.go('home'), { 'data-testid': 'tx-done' }));
   }

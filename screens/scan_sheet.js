@@ -25,7 +25,7 @@ function elsewhere(text, wanted) {
   if (r.kind === 'code' && wanted !== 'code') return t("That's an airdrop code: claim it under Airdrop codes. Point the camera at an address.");
   if (r.kind === 'unsupported' && r.reason === 'chain') return t("That's a payment on another network, which this wallet doesn't use.");
   if (r.kind === 'unsupported' && r.reason === 'coin') return t("That's an address of another coin, which this wallet doesn't hold.");
-  if (r.kind === 'unsupported' && r.reason === 'link') return t("That's a web link. BEAM Campfire doesn't open links from codes.");
+  if (r.kind === 'unsupported' && r.reason === 'link') return t("That's a web link. Beam PWA doesn't open links from codes.");
   return null;
 }
 
@@ -45,7 +45,7 @@ function scanSheet({ title, idle, consider, wrong }) {
     const photo = h('input', { type: 'file', accept: 'image/*', class: 'file-input', 'data-testid': 'scan-photo-input', 'aria-label': t('Choose a photo of the QR code') });
     const photoBtn = h('label', { class: 'btn btn-secondary' }, icon('file'), t('Use a photo'), photo);
     const pasteBtn = secondary(h('span', {}, t('Paste instead')), () => finish({ paste: true }), { 'data-testid': 'scan-paste' });
-    const privacy = h('p', { class: 'small center', text: t('The picture stays on this phone: BEAM Campfire reads the code here and keeps nothing.') });
+    const privacy = h('p', { class: 'small center', text: t('The picture stays on this phone: Beam PWA reads the code here and keeps nothing.') });
 
     const finish = (v) => {
       if (done) return;

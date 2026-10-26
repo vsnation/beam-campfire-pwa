@@ -1,5 +1,5 @@
 /* First run: setting up the verified copy
- * Spec: ONE job: get BEAM Campfire onto this device, checked against its signature, once.
+ * Spec: ONE job: get Beam PWA onto this device, checked against its signature, once.
  *       Primary CTA: none while it works (live progress); "Try again" if it stopped.
  *       Taps from app open: 0 (the first open on a device, or after the browser cleared it).
  * Exit-intent reasons and answers:
@@ -24,12 +24,13 @@ import { registerLoader, readInstallProgress, reloadOnceIntoVerifiedCopy, INTEGR
 import { isIosSafariTab } from './welcome.js';
 import { HOME_SCREEN_TEXT, homeScreenSteps } from './home_screen_guide.js';
 import { t, tn, tNodes } from '../lib/i18n.js';
+import { logoMark } from '../lib/logo.js';
 
 export const STALL_MS = 30000; // no bytes for this long, once downloading: stalled
 export const SLOW_START_MS = 45000; // the browser has not started setup yet: say it is normal
 export const NO_START_MS = 150000; // ...and only then offer Try again
 const POLL_MS = 500;
-// How long "Opening BEAM Campfire" may show before a way on is offered.
+// How long "Opening Beam PWA" may show before a way on is offered.
 const OPEN_TIMEOUT_MS = 8000;
 const MB = (n) => (n / 1e6).toFixed(1);
 
@@ -40,7 +41,7 @@ export function installVersion(p) {
 
 /** The line under the bar once every file is checked. Pure (unit-tested). */
 export function doneLine(version) {
-  return version ? t('Version {version} checked. Opening BEAM Campfire…', { version }) : t('Checked. Opening BEAM Campfire…');
+  return version ? t('Version {version} checked. Opening Beam PWA…', { version }) : t('Checked. Opening Beam PWA…');
 }
 
 /** The line under the progress bar. Pure (unit-tested). */
@@ -83,14 +84,14 @@ export default function install(app) {
 
   const el = screen(
     { topbar: false, cls: 'install' },
-    h('div', { class: 'hero compact' }, h('img', { src: 'img/logo.svg', alt: '' }), h('h1', { text: 'BEAM Campfire' })), // i18n-ignore: the app's name
-    h('h2', { class: 'title center', 'data-testid': 'install-title', text: t('Setting up BEAM Campfire on this device…') }),
+    h('div', { class: 'hero compact' }, logoMark(), h('h1', { text: 'Beam PWA' })), // i18n-ignore: the app's name
+    h('h2', { class: 'title center', 'data-testid': 'install-title', text: t('Setting up Beam PWA on this device…') }),
     bar,
     line,
     status,
     tip,
-    notice('info', ...tNodes('{lead} Every file is checked against the BEAM Campfire release signature before it is used.', { lead: h('strong', { text: t('This happens once. Keep this screen open.') }) })),
-    h('p', { class: 'small', text: t('If the connection drops, nothing is lost: the files already checked are kept, and setup continues the next time you open BEAM Campfire.') }),
+    notice('info', ...tNodes('{lead} Every file is checked against the Beam PWA release signature before it is used.', { lead: h('strong', { text: t('This happens once. Keep this screen open.') }) })),
+    h('p', { class: 'small', text: t('If the connection drops, nothing is lost: the files already checked are kept, and setup continues the next time you open Beam PWA.') }),
   );
   el.appendChild(actions);
   el.appendChild(versionEl);
@@ -160,8 +161,8 @@ export default function install(app) {
       stopped(
         'stalled',
         p && p.done
-          ? tn({ one: 'The download has not moved for {seconds} seconds. The connection to the BEAM Campfire site may have dropped. The {n} files already checked are kept.', other: 'The download has not moved for {seconds} seconds. The connection to the BEAM Campfire site may have dropped. The {n} files already checked are kept.' }, p.done, { seconds })
-          : t('The download has not moved for {seconds} seconds. The connection to the BEAM Campfire site may have dropped.', { seconds }),
+          ? tn({ one: 'The download has not moved for {seconds} seconds. The connection to the Beam PWA site may have dropped. The {n} files already checked are kept.', other: 'The download has not moved for {seconds} seconds. The connection to the Beam PWA site may have dropped. The {n} files already checked are kept.' }, p.done, { seconds })
+          : t('The download has not moved for {seconds} seconds. The connection to the Beam PWA site may have dropped.', { seconds }),
       );
     }
   }
@@ -177,7 +178,7 @@ export default function install(app) {
     if (code === 'stopped')
       stopped('failed', kept ? tn({ one: 'Setup was stopped. The {n} files already checked are kept; Try again continues from there.', other: 'Setup was stopped. The {n} files already checked are kept; Try again continues from there.' }, kept) : t('Setup was stopped.'));
     else
-      stopped('failed', kept ? tn({ one: "Couldn't reach the BEAM Campfire site to finish setting up. Check your connection. The {n} files already checked are kept; Try again continues from there.", other: "Couldn't reach the BEAM Campfire site to finish setting up. Check your connection. The {n} files already checked are kept; Try again continues from there." }, kept) : t("Couldn't reach the BEAM Campfire site to finish setting up. Check your connection."));
+      stopped('failed', kept ? tn({ one: "Couldn't reach the Beam PWA site to finish setting up. Check your connection. The {n} files already checked are kept; Try again continues from there.", other: "Couldn't reach the Beam PWA site to finish setting up. Check your connection. The {n} files already checked are kept; Try again continues from there." }, kept) : t("Couldn't reach the Beam PWA site to finish setting up. Check your connection."));
   }
 
   function follow(r) {
@@ -235,7 +236,7 @@ export default function install(app) {
       if (destroyed) return;
       put(
         actions,
-        primary(t('Open BEAM Campfire'), () => location.reload(), { 'data-testid': 'install-open' }),
+        primary(t('Open Beam PWA'), () => location.reload(), { 'data-testid': 'install-open' }),
         h('p', { class: 'small', text: t('Still here? If your browser\'s developer tools are open, turn off "Update on reload" and "Bypass for network" (Application, Service workers), then open it again.') }),
       );
     }, OPEN_TIMEOUT_MS);

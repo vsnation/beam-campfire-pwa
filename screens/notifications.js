@@ -1,5 +1,5 @@
 /* Settings -> Notifications
- * Spec: ONE job: choose what BEAM Campfire tells you about, on this device.
+ * Spec: ONE job: choose what Beam PWA tells you about, on this device.
  *       Primary CTA: the switch at the top ("Notifications"): the browser's permission is asked on
  *       that tap, never by itself. Then one switch per kind, "Show amounts", and a test.
  *       Taps from app open: 2 (Settings -> Notifications).
@@ -24,20 +24,20 @@ import { t, tk } from '../lib/i18n.js';
 
 export const NOTIFY_TEXT = Object.freeze({
   title: tk('Notifications'),
-  lead: tk('BEAM Campfire tells you about your wallet from this device. No server watches it: none can read a BEAM wallet, and the app keeps working without ours.'),
-  whereIos: tk('On iPhone: while BEAM Campfire is open. iPhone runs no web app in the background, so when you come back, Home says what happened meanwhile.'),
-  whereOther: tk('While BEAM Campfire is open, and in the background until it locks itself (Auto-lock). Reminders (a payment still waiting, a name about to expire) come then too; when BEAM Campfire is closed, only if you turn that on below. When you come back, Home says what happened meanwhile.'),
+  lead: tk('Beam PWA tells you about your wallet from this device. No server watches it: none can read a BEAM wallet, and the app keeps working without ours.'),
+  whereIos: tk('On iPhone: while Beam PWA is open. iPhone runs no web app in the background, so when you come back, Home says what happened meanwhile.'),
+  whereOther: tk('While Beam PWA is open, and in the background until it locks itself (Auto-lock). Reminders (a payment still waiting, a name about to expire) come then too; when Beam PWA is closed, only if you turn that on below. When you come back, Home says what happened meanwhile.'),
   iosHomeScreen: tk('On iPhone, notifications work in the app added to your Home Screen (Share → Add to Home Screen).'),
   unsupported: tk("This browser can't show notifications. The banner inside the app still tells you while it is open."),
-  denied: tk("Notifications are blocked for BEAM Campfire in this browser's settings. Allow them there, then turn this on again."),
+  denied: tk("Notifications are blocked for Beam PWA in this browser's settings. Allow them there, then turn this on again."),
   notAsked: tk("Not turned on: the browser's question was closed. Tap the switch to be asked again."),
   on: tk('Notifications are on'),
   off: tk('Notifications are off. The banner inside the app stays.'),
   amounts: tk('Show amounts'),
   amountsSub: tk('Off: "Payment received" on your lock screen. On: "Received 0.5 BEAM", for anyone who sees it'),
   test: tk('Send a test notification'),
-  wakeUps: tk('Reminders when BEAM Campfire is closed'),
-  wakeUpsSub: tk("To show them, this browser wakes BEAM Campfire now and then. A wake-up can also bring in changed code from BEAM Campfire's web address, with no BEAM Campfire screen open to warn you if it is not signed. Off unless you turn it on."),
+  wakeUps: tk('Reminders when Beam PWA is closed'),
+  wakeUpsSub: tk("To show them, this browser wakes Beam PWA now and then. A wake-up can also bring in changed code from Beam PWA's web address, with no Beam PWA screen open to warn you if it is not signed. Off unless you turn it on."),
 });
 
 /** Asks the browser, from the person's tap (the first thing that tap does). Old Safari answers through a callback. */
@@ -56,7 +56,7 @@ export function askPermission() {
 export function notificationsRow(app) {
   const s = settingsOf(app.prefs);
   const permission = notificationPermission();
-  const sub = permission === 'unsupported' ? (isIos() && !isStandalone() ? t('On iPhone: add BEAM Campfire to your Home Screen first') : t("This browser can't show them")) : permission === 'denied' ? t('Blocked in this browser’s settings') : s.on && permission === 'granted' ? t('On') : t('Off');
+  const sub = permission === 'unsupported' ? (isIos() && !isStandalone() ? t('On iPhone: add Beam PWA to your Home Screen first') : t("This browser can't show them")) : permission === 'denied' ? t('Blocked in this browser’s settings') : s.on && permission === 'granted' ? t('On') : t('Off');
   return h(
     'button',
     { class: 'row', type: 'button', onclick: () => app.go('notifications'), 'data-testid': 'notify-row' },
@@ -114,7 +114,7 @@ export default function notifications(app) {
         render();
       });
     });
-    const sub = permission === 'unsupported' ? (ios && !isStandalone() ? t('On iPhone: add BEAM Campfire to your Home Screen first') : t("This browser can't show them")) : permission === 'denied' ? t('Blocked in this browser’s settings') : on ? (ios ? t('On, while BEAM Campfire is open') : t('On')) : t('Off. A banner in the app tells you while it is open.');
+    const sub = permission === 'unsupported' ? (ios && !isStandalone() ? t('On iPhone: add Beam PWA to your Home Screen first') : t("This browser can't show them")) : permission === 'denied' ? t('Blocked in this browser’s settings') : on ? (ios ? t('On, while Beam PWA is open') : t('On')) : t('Off. A banner in the app tells you while it is open.');
     const kindRow = (k) => {
       const sw = h('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': t(KIND_WORDS[k].title), 'data-testid': `notify-kind-${k}`, checked: s.kinds[k] !== false });
       sw.addEventListener('change', () => setNotify({ kinds: { [k]: sw.checked } }));

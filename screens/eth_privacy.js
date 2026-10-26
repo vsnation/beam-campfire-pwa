@@ -37,7 +37,7 @@ export default function ethPrivacy(app, params = {}) {
       'ol',
       { class: 'steps-list' },
       h('li', { text: t('iCloud Private Relay (needs iCloud+): Settings → [your name] → iCloud → Private Relay → On. Apple documents it for browsing in Safari; for apps added to the Home Screen it does not say, so do not rely on it alone.') }),
-      h('li', { text: t('A VPN you trust covers every app on the phone, including BEAM Campfire. Turn it on before you open the wallet.') }),
+      h('li', { text: t('A VPN you trust covers every app on the phone, including Beam PWA. Turn it on before you open the wallet.') }),
     ),
   );
   const toggle = secondary(t('How to hide my IP'), () => {

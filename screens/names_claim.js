@@ -102,7 +102,7 @@ export async function runClaim(app, inbox = nameInbox()) {
   } catch (e) {
     if (e && e.code === 'claimUnsupported') {
       inbox.refresh({ force: true });
-      return { ok: false, code: e.code, text: t("This version of BEAM Campfire can't claim name payments yet. They stay safe and waiting for you.") };
+      return { ok: false, code: e.code, text: t("This version of Beam PWA can't claim name payments yet. They stay safe and waiting for you.") };
     }
     if (e && e.refusal === 'nothingToClaim') inbox.refresh({ force: true });
     const text = e && e.code === 'rejected' ? t('Cancelled. Nothing was claimed; it is still waiting for you.') : e && e.code !== 'refused' ? `${nameProblemText(e, 'claim')} ${t('Your payments are still waiting for you.')}` : nameProblemText(e, 'claim');
@@ -123,7 +123,7 @@ export function namesHomeLine(app) {
   const inbox = wallet.session ? nameInbox() : null;
   let toldAmounts; // undefined until the first read (history); then what was last seen waiting
 
-  /** New money paid to a name while BEAM Campfire is not in front: a notification (lib/notify.js); the line says it on screen. */
+  /** New money paid to a name while Beam PWA is not in front: a notification (lib/notify.js); the line says it on screen. */
   function tellNew(pay) {
     const now = pay ? pay.amounts : null;
     if (toldAmounts !== undefined && now && now !== toldAmounts) tellOther(app, { kind: 'in', title: t('Money was paid to your BEAM name'), body: t('{lead}: {amounts}. Claim it on Home.', { lead: pay.lead, amounts: now }), plainBody: t('Claim it on Home.'), tag: 'names-inbox', url: '#open=home' });

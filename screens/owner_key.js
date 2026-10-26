@@ -12,7 +12,7 @@
  *   - "What is this for?" -> first line: your own node finds every payment, offline and
  *     max-privacy ones too.
  *   - "Can someone take my money with it?" -> no: it can see balance and history, not spend.
- *   - "Which password?" -> the BEAM Campfire one; the node needs the same.
+ *   - "Which password?" -> the Beam PWA one; the node needs the same.
  *   - "Wrong password" / "Face ID failed" -> says so, keeps the field, says the way forward.
  *   - "Is it safe on the clipboard?" -> Copy says the clipboard is emptied after a minute (and at
  *     the lock), and that clipboard history apps may keep it.
@@ -26,7 +26,7 @@ import { OWNER_KEY_TEXT as T, looksLikeOwnerKey } from '../lib/owner_key.js';
 import { t, tk } from '../lib/i18n.js';
 
 // Said when the key left the screen because the app went out of sight.
-export const HIDDEN_AWAY = tk('The key was hidden when you left BEAM Campfire. Enter your password to show it again.');
+export const HIDDEN_AWAY = tk('The key was hidden when you left Beam PWA. Enter your password to show it again.');
 
 export default function ownerKey(app, params = {}) {
   // Opened from Backup, or from the BEAM node screens, and goes back there (the fallback when Back has no history).

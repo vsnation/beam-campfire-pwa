@@ -534,7 +534,7 @@ export default function bridgeMove(app, params = {}) {
           { class: 'card empty', 'data-testid': 'bridge-no-eth' },
           icon('bridge'),
           h('h3', { text: t('Add an Ethereum wallet to use the bridge') }),
-          h('p', { class: 'small', text: t('The bridge moves coins between your own BEAM wallet and your own Ethereum wallet, so you need one of each. An Ethereum wallet takes a minute to add, here in BEAM Campfire; then you come back here.') }),
+          h('p', { class: 'small', text: t('The bridge moves coins between your own BEAM wallet and your own Ethereum wallet, so you need one of each. An Ethereum wallet takes a minute to add, here in Beam PWA; then you come back here.') }),
         ),
       );
       put(actions, primary(t('Create an Ethereum wallet'), () => app.go('ethStart', { from: 'bridge' }), { 'data-testid': 'bridge-add-eth' }));

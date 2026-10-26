@@ -7,7 +7,7 @@
  *   - "Wrong current password" -> says so, keeps the new one typed.
  *   - "Can the browser keep it?" -> one line: better not, it would sit next to the wallet it opens.
  *   - "Is my old password gone?" (imported wallet) -> said plainly: the original wallet.db and the copy
- *     inside this browser still open with the file's own password (BEAM Campfire does not re-key them).
+ *     inside this browser still open with the file's own password (Beam PWA does not re-key them).
  */
 import { h, put } from '../lib/dom.js';
 import { screen, primary, notice, toast } from '../lib/ui.js';
@@ -18,8 +18,8 @@ import { t, tk } from '../lib/i18n.js';
 // The screen shows them with t(). newLabel is read when it is shown (a getter), in the language of that
 // moment, with the minimum length put in.
 export const CHANGE_TEXT = Object.freeze({
-  lead: tk('This changes how you unlock BEAM Campfire on this device. Your coins and your 12 words stay the same.'),
-  leadImported: tk('This changes how you unlock BEAM Campfire on this device. Your coins stay the same. The original wallet.db file, and the copy inside this browser, still open with the password the file had.'),
+  lead: tk('This changes how you unlock Beam PWA on this device. Your coins and your 12 words stay the same.'),
+  leadImported: tk('This changes how you unlock Beam PWA on this device. Your coins stay the same. The original wallet.db file, and the copy inside this browser, still open with the password the file had.'),
   get newLabel() {
     return t('New password ({min}+ characters, not a common one)', { min: MIN_PASSWORD });
   },

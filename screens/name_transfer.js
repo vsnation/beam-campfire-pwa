@@ -160,7 +160,7 @@ export default function nameTransfer(app, params = {}) {
   const pasteBtn = h('button', { class: 'btn btn-secondary btn-small paste-btn', type: 'button', 'data-testid': 'transfer-paste', onclick: paste }, icon('paste'), h('span', { text: t('Paste') }));
   const el = screen(
     { title: t('Transfer {name}', { name }), back: () => app.back('names'), cls: 'names feature sticky-actions', actions: [reason, cta] },
-    h('p', { class: 'lead', text: t('Give {name} to another wallet. Ask its owner for their name key: in BEAM Campfire it is under BEAM names → Receive a name.', { name: display(name) }) }),
+    h('p', { class: 'lead', text: t('Give {name} to another wallet. Ask its owner for their name key: in Beam PWA it is under BEAM names → Receive a name.', { name: display(name) }) }),
     h('label', { class: 'field' }, t('Name key of the receiving wallet'), input),
     pasteBtn,
     keyBox,

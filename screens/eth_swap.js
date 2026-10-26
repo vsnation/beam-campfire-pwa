@@ -225,7 +225,7 @@ export default function ethSwap(app, params = {}) {
         el = notice('info', h('strong', { text: `${t('Too small to get any {symbol}.', { symbol: r })} ` }), t('After the pool fee nothing is left. Try a larger amount.'));
         break;
       case 'noPool':
-        el = notice('info', h('strong', { text: `${t('No Uniswap pool trades {pay} for {receive}.', { pay: p, receive: r })} ` }), t('BEAM Campfire looked at every Uniswap pool between them, and at routes through ETH, USDC, USDT, DAI, WBTC and WBEAM. Pick another token.'));
+        el = notice('info', h('strong', { text: `${t('No Uniswap pool trades {pay} for {receive}.', { pay: p, receive: r })} ` }), t('Beam PWA looked at every Uniswap pool between them, and at routes through ETH, USDC, USDT, DAI, WBTC and WBEAM. Pick another token.'));
         break;
       default:
         el = notice(
@@ -420,7 +420,7 @@ export default function ethSwap(app, params = {}) {
       busy = null;
       if (e instanceof UniRouteChanged) {
         quote = e.quote;
-        message = notice('info', t('The best-looking pool would not actually trade, so BEAM Campfire left it out. Here is the next best price; nothing was sent.'));
+        message = notice('info', t('The best-looking pool would not actually trade, so Beam PWA left it out. Here is the next best price; nothing was sent.'));
       } else if (e instanceof UniPriceMoved) {
         quote = e.fresh;
         message = notice('warn', t('The price moved {moved} since your quote, more than your {protection} price protection. Here is the new price; nothing was sent.', { moved: percentText(e.moved), protection: bipsText(draft.slippage) }));

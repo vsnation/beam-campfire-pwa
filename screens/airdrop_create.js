@@ -161,7 +161,7 @@ export default function airdropCreate(app, p = {}) {
     bearer.dataset.testid = 'drop-bearer';
     n.push(
       bearer,
-      h('p', { class: 'small', 'data-testid': 'drop-check-note' }, t('Share the codes once BEAM Campfire has checked them: it waits for the network to confirm the batch, then checks every code. This takes a few minutes.')),
+      h('p', { class: 'small', 'data-testid': 'drop-check-note' }, t('Share the codes once Beam PWA has checked them: it waits for the network to confirm the batch, then checks every code. This takes a few minutes.')),
       h(
         'p',
         { class: 'small', 'data-testid': 'drop-keep-note' },

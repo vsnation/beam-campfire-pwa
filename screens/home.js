@@ -89,7 +89,7 @@ function contractRow(app, tx, onclick) {
     return `${sign}${formatAmount(a.amount)} ${l.pool ? 'LP' : l.unit}`;
   };
   const title = contractLabel(tx);
-  const app2 = tx.appname && tx.appname !== 'BEAM Campfire' && tx.appname !== title ? ` · ${tx.appname}` : '';
+  const app2 = tx.appname && tx.appname !== 'Beam PWA' && tx.appname !== title ? ` · ${tx.appname}` : '';
   const state = Number(tx.status) === 3 ? '' : `${contractStatusText(tx)} · `;
   return h(
     'button',
@@ -218,7 +218,7 @@ export default function home(app) {
     const parts = [];
     if (app.updates.available) {
       parts.push(
-        h('div', { class: 'notice info', 'data-testid': 'update-banner' }, icon('download'), h('div', { class: 'grow', text: copyHost(app.updates.available.from) ? t('BEAM Campfire {version} is ready. It came from a copy at {host} and was checked against the release signature.', { version: app.updates.available.version, host: copyHost(app.updates.available.from) }) : t('BEAM Campfire {version} is ready. It was checked against the release signature.', { version: app.updates.available.version }) }), h('button', { class: 'btn btn-primary btn-small', onclick: () => applyUpdate(app), 'data-testid': 'update-apply' }, t('Update'))),
+        h('div', { class: 'notice info', 'data-testid': 'update-banner' }, icon('download'), h('div', { class: 'grow', text: copyHost(app.updates.available.from) ? t('Beam PWA {version} is ready. It came from a copy at {host} and was checked against the release signature.', { version: app.updates.available.version, host: copyHost(app.updates.available.from) }) : t('Beam PWA {version} is ready. It was checked against the release signature.', { version: app.updates.available.version }) }), h('button', { class: 'btn btn-primary btn-small', onclick: () => applyUpdate(app), 'data-testid': 'update-apply' }, t('Update'))),
       );
     }
     if (needsBackupPrompt(app)) {

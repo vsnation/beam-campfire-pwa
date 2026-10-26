@@ -25,7 +25,7 @@ import { loaderText } from '../lib/loader_words.js';
 
 // What the release signature does not cover, said plainly.
 export const ABOUT_TRIPWIRE = tk(
-  "Updates are checked against BEAM Campfire's signature before they are installed. The part of BEAM Campfire that does that check (the loader) comes straight from this app's web address. While BEAM Campfire is open it watches the loader and stops if the address starts serving a different one; it cannot see a change made while it is closed, and the next time it opens, that code runs.",
+  "Updates are checked against Beam PWA's signature before they are installed. The part of Beam PWA that does that check (the loader) comes straight from this app's web address. While Beam PWA is open it watches the loader and stops if the address starts serving a different one; it cannot see a change made while it is closed, and the next time it opens, that code runs.",
 );
 
 /** The installed release: its version, when it was released, and the copy it came from (not this app's address). */
@@ -104,7 +104,7 @@ export default function about(app) {
     h(
       'div',
       { class: 'card' },
-      kv(t('App'), `BEAM Campfire ${APP_VERSION}`, 'about-version'),
+      kv(t('App'), `Beam PWA ${APP_VERSION}`, 'about-version'),
       kv(t('Wallet engine'), ENGINE_LOCK ? `BEAM ${ENGINE_LOCK.beam_tag} (WebAssembly)` : t('unknown')), // i18n-ignore: BEAM's release tag and the technology's name
       kv(t('Consensus rules'), rules ? (hf6 ? t('mainnet, includes HF6 (block 3928666)') : t('mainnet, WITHOUT HF6')) : t('shown once the wallet has started'), 'about-rules'),
       kv(t('Node'), wallet.state.node || app.prefs.node, null, true),
@@ -121,7 +121,7 @@ export default function about(app) {
     h('div', { class: 'card' }, ...(ENGINE_LOCK ? Object.entries(ENGINE_LOCK.files).map(([f, s]) => h('div', { class: 'kv' }, h('span', { class: 'k', text: f }), h('span', { class: 'v mono', text: s }))) : [h('p', { text: t('Not a release build.') })])),
     rules ? h('details', { class: 'more' }, h('summary', { text: t('Full rules signature') }), h('p', { class: 'mono', 'data-testid': 'about-rules-full', text: rules })) : null,
     hf6 === false && rules ? notice('error', t('This engine does not follow the current BEAM consensus rules (HF6). Do not use it.')) : null,
-    h('p', { class: 'small', text: t("BEAM Campfire is part of Campfire for BEAM (GPL-3.0), a fork of Campfire / Stack Wallet. The wallet engine is BEAM's own (Apache-2.0). Inter font: SIL Open Font License 1.1.") }),
+    h('p', { class: 'small', text: t("Beam PWA is part of Campfire for BEAM (GPL-3.0), a fork of Campfire / Stack Wallet. The wallet engine is BEAM's own (Apache-2.0). Inter font: SIL Open Font License 1.1.") }),
   );
   return { el };
 }

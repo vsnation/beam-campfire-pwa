@@ -4,7 +4,7 @@
  *       Taps from app open: 1 (Home -> Receive).
  * Exit-intent reasons and answers:
  *   - "Why is the payment not arriving?" -> says up front: BEAM regular payments need both
- *     wallets online; keep BEAM Campfire open until it completes. Paying from another app on
+ *     wallets online; keep Beam PWA open until it completes. Paying from another app on
  *     the same phone: that app must be opened once more, since the sender finishes the payment.
  *   - "Is this address safe to share?" -> yes, and a new one is one tap away.
  *   - "The address is huge" -> QR code first; copy and share buttons, no manual selection.
@@ -84,7 +84,7 @@ export default function receive(app, params = {}) {
     qrBox,
     h('div', { class: 'address-box' }, addrText),
     token ? h('p', { class: 'small', 'data-testid': 'receive-token', text: t('{token} arrives at your BEAM address, the same one you use for BEAM.', { token: token.label }) }) : null,
-    h('div', { 'data-testid': 'receive-online' }, notice('info', t('A BEAM payment finishes only while both wallets are online. Keep BEAM Campfire open until it arrives. Paying from another app on this phone? Send, come back here, then open that app once more.'))),
+    h('div', { 'data-testid': 'receive-online' }, notice('info', t('A BEAM payment finishes only while both wallets are online. Keep Beam PWA open until it arrives. Paying from another app on this phone? Send, come back here, then open that app once more.'))),
     msg,
   );
   // Under the buttons, so Share stays where it was: offline, max-privacy and public addresses.

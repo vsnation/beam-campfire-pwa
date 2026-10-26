@@ -300,7 +300,7 @@ export default function swap(app) {
     openSheet(
       (close) => [
         h('h2', { text: t('Price protection') }),
-        h('p', { text: t('If the price moves against you by more than this before your swap is built, BEAM Campfire stops and shows you the new price. Nothing is sent.') }),
+        h('p', { text: t('If the price moves against you by more than this before your swap is built, Beam PWA stops and shows you the new price. Nothing is sent.') }),
         h('p', { class: 'small', text: t('After you approve, BEAM itself never accepts a result more than 1% worse: if someone trades first, it redoes your swap within 1% or cancels it. (Also called slippage tolerance.)') }),
         h(
           'div',

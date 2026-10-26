@@ -11,7 +11,7 @@
  *     exact amount has its own copy button.
  *   - "Did it work?" -> four steps, each ticked as it happens; the screen updates by itself.
  *     "Arrived" is said only once this wallet has the BEAM transaction.
- *   - "Can I close this?" -> said: the buy keeps going; BEAM Campfire must be opened again within
+ *   - "Can I close this?" -> said: the buy keeps going; Beam PWA must be opened again within
  *     12 hours for the BEAM to arrive (a regular BEAM address needs the wallet online).
  *   - "It went wrong" -> what happened, where the coins are (sent back, or never taken), and the one
  *     next step.
@@ -91,7 +91,7 @@ export default function buyOrderScreen(app, params = {}) {
     switch (s) {
       case 'delivered':
         if (arrived) return n('success', 'buy-arrived', t('Your BEAM has arrived.'), got ? t('{amount} is in your BEAM wallet.', { amount: got }) : t('Your BEAM is in your BEAM wallet.'));
-        return n('info', 'buy-delivered', t('buybeam.my sent your BEAM.'), got ? t('{amount} shows in your BEAM wallet as soon as BEAM Campfire accepts it: keep it open.', { amount: got }) : t('Your BEAM shows in your BEAM wallet as soon as BEAM Campfire accepts it: keep it open.'));
+        return n('info', 'buy-delivered', t('buybeam.my sent your BEAM.'), got ? t('{amount} shows in your BEAM wallet as soon as Beam PWA accepts it: keep it open.', { amount: got }) : t('Your BEAM shows in your BEAM wallet as soon as Beam PWA accepts it: keep it open.'));
       case 'refunded':
         return n('warn', 'buy-refunded', t('Your payment was sent back to {address}.', { address: shorten(o.refundAddress, 6, 4) }), t("buybeam.my couldn't buy the BEAM, so your {symbol} went back to your {chain} address. There is nothing else to do.", { symbol: o.symbol, chain: o.chainName }));
       case 'expired':
@@ -99,7 +99,7 @@ export default function buyOrderScreen(app, params = {}) {
       case 'failed':
         return n('error', 'buy-failed', t("The payment couldn't be processed."), t('Contact buybeam.my support with this order (copy it below). They can see where your coins are.'));
       case 'attention':
-        return n('warn', 'buy-attention', t('buybeam.my is checking this order.'), t('Contact their support with this order (copy it below). BEAM Campfire keeps checking meanwhile.'));
+        return n('warn', 'buy-attention', t('buybeam.my is checking this order.'), t('Contact their support with this order (copy it below). Beam PWA keeps checking meanwhile.'));
       default:
         return null;
     }
@@ -149,9 +149,9 @@ export default function buyOrderScreen(app, params = {}) {
       ...(s === 'awaiting_deposit' ? payment(o) : []),
       steps(s, arrived),
       details(o, s, arrived),
-      o.isOpen ? h('p', { class: 'small', 'data-testid': 'buy-keep-open', text: t('Keep BEAM Campfire open until your BEAM arrives. If you close it, open it again within 12 hours.') }) : null,
+      o.isOpen ? h('p', { class: 'small', 'data-testid': 'buy-keep-open', text: t('Keep Beam PWA open until your BEAM arrives. If you close it, open it again within 12 hours.') }) : null,
       o.isOpen ? h('p', { class: 'small', 'data-testid': 'buy-can-leave', text: t('You can leave this screen: your buy keeps going.') }) : null,
-      pollError && o.isOpen ? h('p', { class: 'small', 'data-testid': 'buy-poll-error', text: pollError.unreachable ? t("Couldn't reach buybeam.my just now. BEAM Campfire keeps checking.") : t("buybeam.my's last answer didn't make sense. BEAM Campfire keeps checking.") }) : null,
+      pollError && o.isOpen ? h('p', { class: 'small', 'data-testid': 'buy-poll-error', text: pollError.unreachable ? t("Couldn't reach buybeam.my just now. Beam PWA keeps checking.") : t("buybeam.my's last answer didn't make sense. Beam PWA keeps checking.") }) : null,
     );
     let cta;
     if (s === 'awaiting_deposit') cta = primary(h('span', { text: copied ? t('Address copied') : t('Copy address') }), () => copy(o.depositAddress), { 'data-testid': 'buy-order-cta' });

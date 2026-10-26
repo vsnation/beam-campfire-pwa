@@ -10,7 +10,7 @@
  *     "Replaced" only once the server showed the transaction that took its place (signed by this
  *     wallet: lib/eth/send.js), which is named here.
  *   - "Not sent - is that sure?" -> it is the server's word after half an hour of refusals, said as
- *     such, with Etherscan one tap away; BEAM Campfire asks for its receipt again whenever this screen
+ *     such, with Etherscan one tap away; Beam PWA asks for its receipt again whenever this screen
  *     or Ethereum Home opens, and a block in the history index outranks it (release audit BM-2).
  *   - "The server says it was replaced, but shows nothing" -> "Not sure yet": don't send it again
  *     yet (the first one may still go through and it would be paid twice); the same payment keeps
@@ -40,7 +40,7 @@ function texts(state, assetSym, { unsure = false, refused = false } = {}) {
     return { title: t('Not sure yet'), icon: 'clock', cls: 'wait', kind: 'warn', note: t("Don't send it again yet. Your Ethereum server says another transaction from this wallet took this payment's place, but it can't show that transaction, so this payment may still go through. The same payment (never a second one) keeps being offered, and this screen updates by itself.") };
   // The server refused the bytes, but may have passed them on first.
   if (refused && state === 'signed')
-    return { title: t('Not sent yet'), icon: 'clock', cls: 'wait', kind: 'warn', note: t("Don't send it again yet. Your Ethereum server refused this payment, so it has most likely not left, but it may have passed it on before refusing. BEAM Campfire keeps checking it, and offering the same payment (never a second one), for half an hour; if it never reaches Ethereum, this then says \"Not sent\".") };
+    return { title: t('Not sent yet'), icon: 'clock', cls: 'wait', kind: 'warn', note: t("Don't send it again yet. Your Ethereum server refused this payment, so it has most likely not left, but it may have passed it on before refusing. Beam PWA keeps checking it, and offering the same payment (never a second one), for half an hour; if it never reaches Ethereum, this then says \"Not sent\".") };
   switch (state) {
     case 'signed':
       return { title: t('Sending'), icon: 'clock', cls: 'wait', kind: 'info', note: t('Saved on this device and being handed to Ethereum. If the connection drops, the same payment is sent again by itself - never twice.') };

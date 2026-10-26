@@ -33,7 +33,7 @@ const CLAIM_POLL_MS = 5000;
  * What a code on the old airdrop contract is, said where its codes are claimed (issue #17), in the
  * app's words (lib/widgets/beam/airdrop/airdrop_text.dart AirdropBearerText). That contract redeems
  * with the code itself, so a claim carries the code in a transaction the network sees before it is
- * in a block; BEAM Campfire cannot change that contract, so it says so. Marked with tk(), shown as
+ * in a block; Beam PWA cannot change that contract, so it says so. Marked with tk(), shown as
  * t(BEARER_TEXT.claimMessage); the English must stay the app's, word for word.
  */
 export const BEARER_TEXT = Object.freeze({
@@ -225,7 +225,7 @@ export default function airdropClaim(app) {
         row(t('Network fee'), c.codePaysFee ? t('Paid by the code') : null, `${formatAmount(c.fee)} BEAM`, 'airdrop-fee'),
         row(t('Balance change'), null, balanceChange(info), 'airdrop-net'),
       ),
-      info.assetId !== 0 && !l.verified ? h('p', { class: 'small', text: t("{symbol} is asset #{id}: not on BEAM Campfire's list of known assets.", { symbol: l.symbol, id: info.assetId }) }) : null,
+      info.assetId !== 0 && !l.verified ? h('p', { class: 'small', text: t("{symbol} is asset #{id}: not on Beam PWA's list of known assets.", { symbol: l.symbol, id: info.assetId }) }) : null,
       worthLess ? notice('warn', t('This code gives {amount} and claiming it costs {fee} BEAM, so your balance goes down. Claim only if you want it anyway.', { amount: amountText(0, info.value), fee: formatAmount(c.fee) })) : null,
       h('p', { class: 'small', 'data-testid': 'airdrop-bearer', text: info.contract === 'v3' ? t(BEARER_TEXT_V3.claimMessage) : t(BEARER_TEXT.claimMessage) }),
     );

@@ -3,7 +3,7 @@
  *       coins now, the coins after, the fee, and that nothing leaves the wallet.
  *       Primary CTA: "Split into 5 coins", then Face ID / password.
  *       Taps from app open: 3 (Home -> Coins -> "Split into 5 coins" -> here), then Face ID / password.
- * Exit-intent reasons and answers (BEAM Campfire's beam_split_confirm_view.dart):
+ * Exit-intent reasons and answers (Beam PWA's beam_split_confirm_view.dart):
  *   - "Is money leaving?" -> the first notice and the last line both say only the fee does.
  *   - "Can I back out?" -> Back and "Change"; nothing is signed until Face ID / the password.
  *   - "Did it go?" -> the screen turns into "Splitting into 5 coins" with when they are ready.

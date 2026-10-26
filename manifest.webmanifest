@@ -1,14 +1,14 @@
 {
   "id": "./",
-  "name": "BEAM Campfire",
+  "name": "Beam PWA",
   "short_name": "Beam PWA",
   "description": "A private BEAM wallet that runs on your phone. Your keys never leave the device.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#fff1f1",
-  "theme_color": "#fff1f1",
+  "background_color": "#042548",
+  "theme_color": "#04325a",
   "categories": ["finance"],
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

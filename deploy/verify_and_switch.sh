@@ -1,5 +1,5 @@
 #!/bin/sh
-# Serve a BEAM Campfire release only after it verified, the way the app verifies it.
+# Serve a Beam PWA release only after it verified, the way the app verifies it.
 #
 #   sh /etc/beam-campfire/verify_and_switch.sh <checkout> <site> [--key <release_public.jwk>] [--keep 3]
 #
@@ -167,7 +167,7 @@ def verify_signature(release_bytes, sig_text):
                 f.write(data)
         r = subprocess.run(['openssl', 'dgst', '-sha256', '-verify', os.path.join(t, 'key.pem'), '-signature', os.path.join(t, 'sig.der'), os.path.join(t, 'release.json')], capture_output=True)
     if r.returncode != 0:
-        raise Refused('release.sig is not a valid signature of release.json under the pinned BEAM Campfire release key')
+        raise Refused('release.sig is not a valid signature of release.json under the pinned Beam PWA release key')
 
 
 def served_release():

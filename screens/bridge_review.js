@@ -134,7 +134,7 @@ export function openBridgeReview(app, s, first, { onStarted }) {
             )
           : null,
         h('div', { 'data-testid': 'bridge-review-public' }, notice('info', t(PUBLIC_NOTE))),
-        freeze ? h('p', { class: 'small', 'data-testid': 'bridge-review-freeze', text: `${freeze} ${t('BEAM Campfire asks Ethereum again right before signing.')}` }) : null,
+        freeze ? h('p', { class: 'small', 'data-testid': 'bridge-review-freeze', text: `${freeze} ${t('Beam PWA asks Ethereum again right before signing.')}` }) : null,
         h(
           'div',
           { class: 'sheet-actions' },

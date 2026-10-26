@@ -59,7 +59,7 @@ export function crossingWords(c, { blocksLeft = null, now = Date.now() } = {}) {
       if (blocksLeft > 0) {
         return words(
           tn({ one: 'On its way: {n} BEAM block to go', other: 'On its way: {n} BEAM blocks to go' }, blocksLeft),
-          tn({ one: 'The bridge pays your Ethereum wallet after {n} BEAM block (about one a minute). Nothing needs doing; you can close BEAM Campfire.', other: 'The bridge pays your Ethereum wallet after {n} BEAM blocks (about one a minute). Nothing needs doing; you can close BEAM Campfire.' }, BEAM_CONFIRMATIONS),
+          tn({ one: 'The bridge pays your Ethereum wallet after {n} BEAM block (about one a minute). Nothing needs doing; you can close Beam PWA.', other: 'The bridge pays your Ethereum wallet after {n} BEAM blocks (about one a minute). Nothing needs doing; you can close Beam PWA.' }, BEAM_CONFIRMATIONS),
           tn({ one: '{n} block to go', other: '{n} blocks to go' }, blocksLeft),
           'progress',
         );
@@ -80,13 +80,13 @@ export function crossingWords(c, { blocksLeft = null, now = Date.now() } = {}) {
     case STATES.approving:
       return words(
         t('Letting the bridge take your {coin}', { coin: r.ethSymbol }),
-        t('First an Ethereum transaction allows the bridge to take exactly {amount}, then it is sent. Keep BEAM Campfire open for a minute.', { amount: coin(c.amount + c.relayerFee, r.ethDecimals, r.ethSymbol) }),
+        t('First an Ethereum transaction allows the bridge to take exactly {amount}, then it is sent. Keep Beam PWA open for a minute.', { amount: coin(c.amount + c.relayerFee, r.ethDecimals, r.ethSymbol) }),
         t('Starting'),
         'progress',
       );
     case STATES.locking:
       // One server said the lock reverted: BEAM is watched for it before that is believed (controller.js).
-      if (c.revertSeenAt) return words(t('Checking whether it reached the bridge'), shown || t('BEAM Campfire watches BEAM for it before saying anything is lost.'), t('Checking'), 'warning');
+      if (c.revertSeenAt) return words(t('Checking whether it reached the bridge'), shown || t('Beam PWA watches BEAM for it before saying anything is lost.'), t('Checking'), 'warning');
       return words(t('Sending {amount} to the bridge', { amount: out }), withError(t('Waiting for Ethereum, usually under a minute.')), t('Waiting for Ethereum'), 'progress');
     case STATES.locked:
       return words(t('On its way to BEAM'), t('Ethereum has it. The bridge brings it to BEAM, usually within 2 minutes; then you collect it.'), t('On its way'), 'progress');
@@ -94,8 +94,8 @@ export function crossingWords(c, { blocksLeft = null, now = Date.now() } = {}) {
       return words(
         t('Taking longer than usual'),
         c.lockedAt
-          ? t('Sent to the bridge {when}. The bridge is sometimes slow when it is busy; BEAM Campfire keeps looking. If you use this wallet on another device too, it may have been collected there.', { when: ago(c.lockedAt, now) })
-          : t('Sent to the bridge over 30 minutes ago. The bridge is sometimes slow when it is busy; BEAM Campfire keeps looking. If you use this wallet on another device too, it may have been collected there.'),
+          ? t('Sent to the bridge {when}. The bridge is sometimes slow when it is busy; Beam PWA keeps looking. If you use this wallet on another device too, it may have been collected there.', { when: ago(c.lockedAt, now) })
+          : t('Sent to the bridge over 30 minutes ago. The bridge is sometimes slow when it is busy; Beam PWA keeps looking. If you use this wallet on another device too, it may have been collected there.'),
         t('Taking longer'),
         'warning',
       );
@@ -105,7 +105,7 @@ export function crossingWords(c, { blocksLeft = null, now = Date.now() } = {}) {
         t('Ready to collect'),
         withError(
           c.origin === 'found'
-            ? t('BEAM Campfire found it waiting on BEAM for this wallet. Collecting it is a BEAM transaction with a {fee} network fee.', { fee })
+            ? t('Beam PWA found it waiting on BEAM for this wallet. Collecting it is a BEAM transaction with a {fee} network fee.', { fee })
             : t('It is on BEAM. Collecting it is a BEAM transaction with a {fee} network fee.', { fee }),
         ),
         t('Collect'),
@@ -128,11 +128,11 @@ export function crossingWords(c, { blocksLeft = null, now = Date.now() } = {}) {
       return words(t('Nothing was moved'), shown || t('The bridge did not take your {coin}.', { coin: r.ethSymbol }), t('Not sent'), 'error');
     case STATES.unknown:
       return words(
-        t("BEAM Campfire can't tell yet whether it was sent"),
+        t("Beam PWA can't tell yet whether it was sent"),
         withError(
           c.direction === DIRECTIONS.toEthereum
-            ? t('Your BEAM wallet did not confirm sending it. Check its Activity before trying again: BEAM Campfire keeps looking for it and shows it here when it finds it.')
-            : t('Ethereum did not confirm it. Check your Ethereum wallet before trying again: BEAM Campfire keeps looking for it on BEAM and shows it here when it arrives.'),
+            ? t('Your BEAM wallet did not confirm sending it. Check its Activity before trying again: Beam PWA keeps looking for it and shows it here when it finds it.')
+            : t('Ethereum did not confirm it. Check your Ethereum wallet before trying again: Beam PWA keeps looking for it on BEAM and shows it here when it arrives.'),
         ),
         t('Checking'),
         'warning',
@@ -178,6 +178,6 @@ export function crossingSteps(c, { blocksLeft = null, now = Date.now() } = {}) {
 export function lockedNote(c, { blocksLeft = null } = {}) {
   if (!c || !isOpen(c)) return null;
   const w = crossingWords(c, { blocksLeft });
-  if (c.direction === DIRECTIONS.toEthereum) return w.needsYou ? t('Your move to Ethereum is ready to collect.') : t('Your move to Ethereum was at "{status}" when BEAM Campfire locked.', { status: w.short });
-  return w.needsYou ? t('Your move to BEAM is ready to collect.') : t('Your move to BEAM was at "{status}" when BEAM Campfire locked.', { status: w.short });
+  if (c.direction === DIRECTIONS.toEthereum) return w.needsYou ? t('Your move to Ethereum is ready to collect.') : t('Your move to Ethereum was at "{status}" when Beam PWA locked.', { status: w.short });
+  return w.needsYou ? t('Your move to BEAM is ready to collect.') : t('Your move to BEAM was at "{status}" when Beam PWA locked.', { status: w.short });
 }

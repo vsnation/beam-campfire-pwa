@@ -60,8 +60,8 @@ export default function activity(app, params = {}) {
       const arriving = tx.income && (s === 0 || s === 1 || s === 5);
       if (arriving)
         put(msg, h('div', { 'data-testid': 'tx-arriving-help' }, notice('info', s === 5
-          ? t("BEAM Campfire has accepted it. The sender's wallet now puts it on the blockchain, so it must be online. Paid from another app on this phone? Open that app again.")
-          : t('It finishes while both wallets are online: keep BEAM Campfire open.'))));
+          ? t("Beam PWA has accepted it. The sender's wallet now puts it on the blockchain, so it must be online. Paid from another app on this phone? Open that app again.")
+          : t('It finishes while both wallets are online: keep Beam PWA open.'))));
       return [
         h('h2', { 'data-testid': 'tx-detail-title', text: txStatusText(tx) }),
         h('div', { class: 'big-amount', text: `${tx.income ? '+' : '−'}${formatAmount(BigInt(tx.value || 0))} ${unit}` }),

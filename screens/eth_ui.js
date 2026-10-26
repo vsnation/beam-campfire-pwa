@@ -73,13 +73,13 @@ export function shortAddress(address) {
  */
 /**
  * A network fee walletFees() refused (lib/eth/rpc.js 'bad_fees'), in words: {title, detail}. Far
- * above what BEAM Campfire pays ('high': Ethereum has been that dear, for minutes), or figures that
+ * above what Beam PWA pays ('high': Ethereum has been that dear, for minutes), or figures that
  * cannot be right ('jump'). Either way nothing was signed.
  */
 export function badFeesWords(error, serverName) {
   if (error && error.data && error.data.problem === 'high') {
     return {
-      title: `${t('The network fee is far above anything BEAM Campfire will pay.')} `,
+      title: `${t('The network fee is far above anything Beam PWA will pay.')} `,
       detail: t("{server}'s Ethereum server says Ethereum is that expensive right now. It has been, but only for minutes at a time. Nothing was sent, and nothing was paid. Try again in a few minutes, or use another server.", { server: serverName }),
     };
   }
@@ -198,7 +198,7 @@ export function forgetSheet(app, entry, onDone = null) {
     (close, rerender) => [
       h('h2', { 'data-testid': 'eth-forget-title', text: t(words.ask) }),
       notice('warn', h('strong', { 'data-testid': 'eth-forget-warning', text: t(FORGET_WARNING) })),
-      h('p', { class: 'lead', text: t('BEAM Campfire stops waiting for it, and you can send from this Ethereum wallet again. If it does go through, your balance shows it.') }),
+      h('p', { class: 'lead', text: t('Beam PWA stops waiting for it, and you can send from this Ethereum wallet again. If it does go through, your balance shows it.') }),
       message,
       h(
         'div',
@@ -268,7 +268,7 @@ export function followDoubt(app, getWallet, onChange, { every = 4000 } = {}) {
  * REFUSAL_WATCH_MS), said as such, with Etherscan one tap away (release audit BM-2).
  */
 export const NOT_SENT_NOTE = tk(
-  "Your Ethereum server refused it for half an hour and never showed it on Ethereum, so most likely it never left and nothing was spent. That is the server's word, not Ethereum's. BEAM Campfire looks for it again each time you open your Ethereum wallet.",
+  "Your Ethereum server refused it for half an hour and never showed it on Ethereum, so most likely it never left and nothing was spent. That is the server's word, not Ethereum's. Beam PWA looks for it again each time you open your Ethereum wallet.",
 );
 
 /**

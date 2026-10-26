@@ -181,7 +181,7 @@ export default function buyBeamScreen(app, params = {}) {
       if (!alive) return;
       if (e instanceof BuyBeamError) orderError = e;
       else if (e instanceof WalletNotReady) walletProblem = t('Your BEAM wallet is still starting, so it cannot make an address for the BEAM yet. Try again in a moment.');
-      else walletProblem = t("BEAM Campfire couldn't finish setting up this buy. Nothing was sent. Try again.");
+      else walletProblem = t("Beam PWA couldn't finish setting up this buy. Nothing was sent. Try again.");
     }
     busy = false;
     render();
@@ -212,7 +212,7 @@ export default function buyBeamScreen(app, params = {}) {
       const n = notice(
         'warn',
         h('strong', { text: `${t("buybeam.my can't take exactly {amount} {symbol}.", { amount: value.text, symbol: coin.symbol })} ` }),
-        nearest ? t('It would read it as a slightly different amount, and the payment would not match. {amount} {symbol} is read exactly.', { amount: nearest, symbol: coin.symbol }) : t("BEAM Campfire can't send buybeam.my an exact amount of {symbol}. Pick another coin.", { symbol: coin.symbol }),
+        nearest ? t('It would read it as a slightly different amount, and the payment would not match. {amount} {symbol} is read exactly.', { amount: nearest, symbol: coin.symbol }) : t("Beam PWA can't send buybeam.my an exact amount of {symbol}. Pick another coin.", { symbol: coin.symbol }),
         h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'buy-fix', onclick: () => (nearest ? setAmount(nearest) : pickCoin()) }, nearest ? t('Use {amount} {symbol}', { amount: nearest, symbol: coin.symbol }) : t('Pick another coin'))),
       );
       n.dataset.testid = 'buy-inexact';

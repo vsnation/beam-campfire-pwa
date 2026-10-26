@@ -3,7 +3,7 @@
  *       Primary CTA: "I wrote them down" (enabled after the words are shown).
  *       Taps from app open: 1 (Welcome -> Create).
  * Spec (Settings -> Backup): ONE job: say what brings this wallet back, and hand out a copy.
- *       Primary CTA: "Export wallet.db" (every wallet type): a file that opens with the BEAM Campfire
+ *       Primary CTA: "Export wallet.db" (every wallet type): a file that opens with the Beam PWA
  *       password in BEAM Campfire desktop, BEAM's desktop wallet, LightWallet or the CLI - the way
  *       out that needs neither the web address nor the 12 words.
  *       Taps from app open: 2 (Settings -> Backup), 4 to a saved file (Export, password, Save).
@@ -118,7 +118,7 @@ function existingBackup(app) {
     'div',
     { class: 'card', 'data-testid': 'export-card' },
     h('h3', { text: t('Export wallet.db') }),
-    h('p', { text: t("A copy of this wallet as a file that opens with your BEAM Campfire password in BEAM Campfire desktop, BEAM's desktop wallet, Light Wallet or the BEAM CLI. It keeps working if this app's web address ever disappears.") }),
+    h('p', { text: t("A copy of this wallet as a file that opens with your Beam PWA password in BEAM Campfire desktop, BEAM's desktop wallet, Light Wallet or the BEAM CLI. It keeps working if this app's web address ever disappears.") }),
     h('p', { class: 'small', 'data-testid': 'export-last', text: app.record.exportedAt ? t('Last exported {date}.', { date: new Date(app.record.exportedAt).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' }) }) : t('Not exported yet.') }),
   );
   const el = screen(
@@ -134,13 +134,13 @@ function existingBackup(app) {
               'ol',
               { class: 'steps-list' },
               h('li', { text: t('The original wallet.db file, or one exported below.') }),
-              h('li', { text: t('Its password: the original file opens with the password it had when you imported it; an exported copy opens with your BEAM Campfire password.') }),
+              h('li', { text: t('Its password: the original file opens with the password it had when you imported it; an exported copy opens with your Beam PWA password.') }),
             ),
           ),
         ]
       : [
           h('div', { 'data-testid': 'phrase-backup' }, notice('info', ...tNodes('{backup} With them you can restore it on any device.', { backup: h('strong', { text: t("Your 12 words are this wallet's backup.") }) }))),
-          h('p', { class: 'small', text: t('BEAM Campfire does not keep a copy of the words, so it cannot show them again. Keep your paper safe and private.') }),
+          h('p', { class: 'small', text: t('Beam PWA does not keep a copy of the words, so it cannot show them again. Keep your paper safe and private.') }),
         ],
     exportCard,
     cloudCard(app),
@@ -165,17 +165,17 @@ export function cloudText(where) {
     title: apple ? t('Keep a copy in iCloud Drive') : t('Keep a copy in your cloud storage'),
     lead:
       where === 'mac'
-        ? t('Optional. If this computer is lost, open BEAM Campfire anywhere, choose Import wallet.db and pick the copy in iCloud Drive.')
+        ? t('Optional. If this computer is lost, open Beam PWA anywhere, choose Import wallet.db and pick the copy in iCloud Drive.')
         : apple
-          ? t('Optional. If this phone is lost, open BEAM Campfire anywhere, choose Import wallet.db and pick the copy in iCloud Drive.')
-          : t('Optional. If this phone is lost, open BEAM Campfire anywhere, choose Import wallet.db and pick the copy in your cloud storage.'),
+          ? t('Optional. If this phone is lost, open Beam PWA anywhere, choose Import wallet.db and pick the copy in iCloud Drive.')
+          : t('Optional. If this phone is lost, open Beam PWA anywhere, choose Import wallet.db and pick the copy in your cloud storage.'),
     lock: apple
       ? t('The copy is encrypted (AES-256) and opens only with its password. Apple cannot open it, but anyone who gets into your account can keep guessing the password, so it must be at least {min} characters.', { min: CLOUD_MIN_PASSWORD })
       : t('The copy is encrypted (AES-256) and opens only with its password. The cloud service cannot open it, but anyone who gets into your account can keep guessing the password, so it must be at least {min} characters.', { min: CLOUD_MIN_PASSWORD }),
-    // choose: why the BEAM Campfire password is not used for the copy, and what to pick instead.
+    // choose: why the Beam PWA password is not used for the copy, and what to pick instead.
     choose: apple
-      ? t('Your BEAM Campfire password is easy to guess, or too short for a file kept in iCloud Drive. Choose one of at least {min} characters, not a common one, for this copy. You need it to open the copy, so write it down, not in the same account as the copy.', { min: CLOUD_MIN_PASSWORD })
-      : t('Your BEAM Campfire password is easy to guess, or too short for a file kept in your cloud storage. Choose one of at least {min} characters, not a common one, for this copy. You need it to open the copy, so write it down, not in the same account as the copy.', { min: CLOUD_MIN_PASSWORD }),
+      ? t('Your Beam PWA password is easy to guess, or too short for a file kept in iCloud Drive. Choose one of at least {min} characters, not a common one, for this copy. You need it to open the copy, so write it down, not in the same account as the copy.', { min: CLOUD_MIN_PASSWORD })
+      : t('Your Beam PWA password is easy to guess, or too short for a file kept in your cloud storage. Choose one of at least {min} characters, not a common one, for this copy. You need it to open the copy, so write it down, not in the same account as the copy.', { min: CLOUD_MIN_PASSWORD }),
     cta: apple ? t('Save a copy to iCloud Drive') : t('Save a copy to the cloud'),
     save: where === 'ios' ? t('Save to iCloud Drive') : where === 'mac' ? t('Save the file') : t('Save to the cloud'),
     steps:
@@ -212,7 +212,7 @@ function cloudCard(app) {
 }
 
 /**
- * The cloud copy: BEAM Campfire password (who is asking) -> if it is shorter than
+ * The cloud copy: Beam PWA password (who is asking) -> if it is shorter than
  * CLOUD_MIN_PASSWORD or easy to guess (lib/password_strength.js; a password set before those rules),
  * a stronger one for this copy only -> prepare -> a fresh tap to save it.
  */
@@ -228,7 +228,7 @@ function cloudSheet(app) {
   // Not saved by the browser (any of them): a password kept in the same account as the copy, or in
   // the same browser profile as the wallet, would protect nothing.
   const field = (attrs) => h('input', { class: 'input', type: 'password', autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', ...attrs });
-  const pw = field({ 'aria-label': t('BEAM Campfire password'), placeholder: t('Password'), 'data-testid': 'cloud-pw' });
+  const pw = field({ 'aria-label': t('Beam PWA password'), placeholder: t('Password'), 'data-testid': 'cloud-pw' });
   const pw1 = field({ 'aria-label': t('Password for the copy'), placeholder: t('At least {min} characters', { min: CLOUD_MIN_PASSWORD }), 'data-testid': 'cloud-pw1' });
   const pw2 = field({ 'aria-label': t('The same password again'), placeholder: t('The same password again'), 'data-testid': 'cloud-pw2' });
   openSheet((close, rerender) => {
@@ -250,7 +250,7 @@ function cloudSheet(app) {
     const who = async () => {
       if (busy) return;
       if (!pw.value) {
-        message = notice('warn', t('Enter your BEAM Campfire password.'));
+        message = notice('warn', t('Enter your Beam PWA password.'));
         return rerender();
       }
       busy = true;
@@ -303,7 +303,7 @@ function cloudSheet(app) {
       focusSoon(pw);
       return [
         h('h2', { text: words.cta }),
-        h('p', { class: 'lead', text: t('Enter your BEAM Campfire password.') }),
+        h('p', { class: 'lead', text: t('Enter your Beam PWA password.') }),
         h('label', { class: 'field' }, t('Password'), pw),
         message,
         h('button', { class: 'btn btn-primary', onclick: who, disabled: busy, 'data-testid': 'cloud-continue' }, busy ? t('Checking…') : t('Continue')),
@@ -324,7 +324,7 @@ function cloudSheet(app) {
     }
     return [
       h('h2', { text: t('Your copy is ready') }),
-      h('div', { class: 'card file-card' }, h('span', { class: 'ico' }, icon('file')), h('span', { class: 'main' }, h('div', { class: 't', 'data-testid': 'cloud-name', text: file.name }), h('div', { class: 's', 'data-testid': 'cloud-opens-with', text: sameAsApp ? t('{size} · opens with your BEAM Campfire password', { size: formatFileSize(file.size) }) : t('{size} · opens with the password you chose', { size: formatFileSize(file.size) }) }))),
+      h('div', { class: 'card file-card' }, h('span', { class: 'ico' }, icon('file')), h('span', { class: 'main' }, h('div', { class: 't', 'data-testid': 'cloud-name', text: file.name }), h('div', { class: 's', 'data-testid': 'cloud-opens-with', text: sameAsApp ? t('{size} · opens with your Beam PWA password', { size: formatFileSize(file.size) }) : t('{size} · opens with the password you chose', { size: formatFileSize(file.size) }) }))),
       h('ol', { class: 'steps-list', 'data-testid': 'cloud-steps' }, ...words.steps.map((s) => h('li', { text: s }))),
       h(
         'button',
@@ -352,12 +352,12 @@ function exportSheet(app) {
   let file = null;
   let busy = false;
   let message = null;
-  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'aria-label': t('BEAM Campfire password'), placeholder: t('Password'), 'data-testid': 'export-pw' });
+  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'aria-label': t('Beam PWA password'), placeholder: t('Password'), 'data-testid': 'export-pw' });
   openSheet((close, rerender) => {
     const prepare = async () => {
       if (busy) return;
       if (!pw.value) {
-        message = notice('warn', t('Enter your BEAM Campfire password.'));
+        message = notice('warn', t('Enter your Beam PWA password.'));
         return rerender();
       }
       busy = true;
@@ -388,7 +388,7 @@ function exportSheet(app) {
       focusSoon(pw);
       return [
         h('h2', { text: t('Export wallet.db') }),
-        h('p', { class: 'lead', text: t('Enter your BEAM Campfire password. The exported file will open with it.') }),
+        h('p', { class: 'lead', text: t('Enter your Beam PWA password. The exported file will open with it.') }),
         h('label', { class: 'field' }, t('Password'), pw),
         message,
         h('button', { class: 'btn btn-primary', onclick: prepare, disabled: busy, 'data-testid': 'export-prepare' }, busy ? t('Preparing…') : t('Prepare the file')),
@@ -397,7 +397,7 @@ function exportSheet(app) {
     }
     return [
       h('h2', { text: t('Your wallet.db is ready') }),
-      h('div', { class: 'card file-card' }, h('span', { class: 'ico' }, icon('file')), h('span', { class: 'main' }, h('div', { class: 't', 'data-testid': 'export-name', text: file.name }), h('div', { class: 's', text: t('{size} · opens with your BEAM Campfire password', { size: formatFileSize(file.size) }) }))),
+      h('div', { class: 'card file-card' }, h('span', { class: 'ico' }, icon('file')), h('span', { class: 'main' }, h('div', { class: 't', 'data-testid': 'export-name', text: file.name }), h('div', { class: 's', text: t('{size} · opens with your Beam PWA password', { size: formatFileSize(file.size) }) }))),
       notice('warn', t('Keep it private: this file and your password are your wallet.')),
       h(
         'button',

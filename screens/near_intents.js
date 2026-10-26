@@ -238,7 +238,7 @@ export default function nearIntents(app, params = {}) {
         await ctx.store.save(swap);
       } catch (e) {
         if (!alive) return;
-        saveProblem = t("BEAM Campfire couldn't keep this swap on this device ({reason}), so no address is shown. Nothing was sent. Try again.", { reason: e.message });
+        saveProblem = t("Beam PWA couldn't keep this swap on this device ({reason}), so no address is shown. Nothing was sent. Try again.", { reason: e.message });
         busy = false;
         render();
         problemBox.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -269,7 +269,7 @@ export default function nearIntents(app, params = {}) {
     if (!refund.value.trim()) return { off: t('Add your {chain} address for a refund.', { chain: coin.chainName }) };
     if (refundError()) return { off: refundError() };
     // The notice can be below the fold (the keyboard is up): its title goes right above the button too.
-    if (saveProblem) return { off: t("BEAM Campfire couldn't keep this swap. Nothing was sent.") };
+    if (saveProblem) return { off: t("Beam PWA couldn't keep this swap. Nothing was sent.") };
     if (problem) return { off: problem.unreachable && loaderBehind() ? t('Finish the update first.') : problemWords(problem, { coin }).title };
     if (quoting || !quote) return { off: t('Getting a price from NEAR Intents…') };
     return { off: null };

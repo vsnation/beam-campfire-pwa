@@ -205,7 +205,7 @@ export function openAllowSheet(app, { w, svc, approval }) {
             for (const tx of txs) {
               const r = await signAndBroadcast(app, w, tx, { kind: tx.kind, asset, amount: tx.kind === 'approveReset' ? 0n : approval.amount, extra: { spender: ADDRESSES.permit2 } });
               // Refused: most likely not sent, but the server may have passed it on (lib/eth/send.js keeps checking).
-              if (!r.sent && (r.entry.refusedAt || r.entry.state === 'rejected')) throw new Error(t('Your Ethereum server refused it: "{reason}". It most likely did not go through; it shows in your Ethereum activity while BEAM Campfire checks.', { reason: String(r.error && r.error.message) }));
+              if (!r.sent && (r.entry.refusedAt || r.entry.state === 'rejected')) throw new Error(t('Your Ethereum server refused it: "{reason}". It most likely did not go through; it shows in your Ethereum activity while Beam PWA checks.', { reason: String(r.error && r.error.message) }));
               hash = r.entry.hash;
               phase = 'waiting';
               rerender();
@@ -231,7 +231,7 @@ export function openAllowSheet(app, { w, svc, approval }) {
           h('h2', { text: t('Allow {symbol}', { symbol: tok.symbol }) }),
           h('p', { class: 'lead', text: t('Before {symbol} can be swapped, Ethereum needs your permission for Uniswap to move it. This is its own transaction; nothing is swapped yet, and the swap comes right after.', { symbol: tok.symbol }) }),
           h('p', { class: 'small', 'data-testid': 'uni-approve-explain', text: t('Exactly what this swap uses: {amount}. The next swap of {symbol} asks again.', { amount: amt(approval.amount, tok), symbol: tok.symbol }) }),
-          twoSteps ? notice('info', h('strong', { text: `${t('{symbol} takes two steps.', { symbol: tok.symbol })} ` }), t('{symbol} only changes a permission from zero, so BEAM Campfire first sets the old one to 0, then to the new amount: two transactions, one confirmation.', { symbol: tok.symbol })) : null,
+          twoSteps ? notice('info', h('strong', { text: `${t('{symbol} takes two steps.', { symbol: tok.symbol })} ` }), t('{symbol} only changes a permission from zero, so Beam PWA first sets the old one to 0, then to the new amount: two transactions, one confirmation.', { symbol: tok.symbol })) : null,
           h(
             'div',
             { class: 'card flat swap-details' },
@@ -345,7 +345,7 @@ export function openReviewSheet(app, { w, svc, review: first, acceptImpact, chec
               review = Object.freeze({ ...review, gasLimit: e.gasLimit, maxGasCost: e.gasLimit * review.fees.maxFeePerGas, expectedGasCost: e.gasLimit * (review.fees.baseFee + review.fees.maxPriorityFeePerGas) });
               feeAck = false;
               error = t('The swap needs a little more gas than first measured. The network fee below is updated; nothing was sent.');
-            } else if (e instanceof UniRouteChanged) error = t('One of the pools on this route would not actually trade, so BEAM Campfire left it out. Go back for the next best price.');
+            } else if (e instanceof UniRouteChanged) error = t('One of the pools on this route would not actually trade, so Beam PWA left it out. Go back for the next best price.');
             else if (e instanceof EthRpcError && (e.code === 3 || /revert/i.test(e.message))) error = t('Ethereum would refuse this swap now, most often because the price moved past your protection since this review. Nothing was sent. Tap Change for a new price.');
             else if (e instanceof EthRpcError) error = t('Your Ethereum server would not build it: "{reason}". Nothing was sent.', { reason: e.message });
             else error = t("Couldn't build the swap: {reason} Nothing was sent.", { reason: e.message });

@@ -3,7 +3,7 @@
  *       Primary CTA: none on Receive (it stays "Share address"); each type is a row; the address it makes
  *       opens in a sheet whose primary is "Copy address".
  *       Taps from app open: 3 (Home -> Receive -> More ways to receive -> a type).
- * Exit-intent reasons and answers (BEAM Campfire's beam_more_ways.dart):
+ * Exit-intent reasons and answers (Beam PWA's beam_more_ways.dart):
  *   - "Which one do I need?" -> folded away: most people only need the regular address above. Each type
  *     says what it does for the person paid, when the money can be spent, and the fee the sender pays.
  *   - "Why are they grey?" -> they are never hidden and never offered when this wallet would not see the

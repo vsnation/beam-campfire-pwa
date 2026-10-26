@@ -25,6 +25,7 @@ import { screen, primary, secondary, textButton, notice, openSheet, toast } from
 import { formatAmount } from '../lib/amount.js';
 import { listWallets, nameOf, switchWallet, selectWallet, runningWallet, renameWallet, MAX_NAME } from '../lib/wallets.js';
 import { t, tn } from '../lib/i18n.js';
+import { logoMark } from '../lib/logo.js';
 
 /** How a wallet came to this device, in words. */
 export function kindText(r) {
@@ -145,7 +146,7 @@ export function walletChip(app) {
     h(
       'button',
       { class: 'wallet-chip', type: 'button', 'data-testid': 'wallet-chip', 'aria-label': t('{name}. Switch wallet', { name }), onclick: () => openSwitcher(app) },
-      h('img', { src: 'img/logo.svg', alt: '' }),
+      logoMark(),
       h('span', { class: 'name', 'data-testid': 'wallet-name', text: name }),
       icon('down', 'chev'),
     ),

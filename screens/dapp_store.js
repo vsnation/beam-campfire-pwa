@@ -7,7 +7,7 @@
  *       Taps from app open: 3 (Home > dApps > DApp Store), 4 to a dApp's page.
  * Exit-intent reasons and answers:
  *   - "Who made this? Is it a scam?" -> every row says "by <publisher>" from the chain, and a row
- *     whose name reads like a dApp of BEAM Campfire's, or that another publisher also uses, is marked.
+ *     whose name reads like a dApp of Beam PWA's, or that another publisher also uses, is marked.
  *   - "Too much junk" -> hide a publisher from its page; the Publishers list shows them back.
  *   - "It doesn't load" -> what failed and Try again; the dApps you have stay under dApps.
  *
@@ -19,7 +19,7 @@
  *   - "Is it safe?" -> who published it (their page one tap away), when, the warnings that apply,
  *     and what installing checks: the file must hash to the publisher's on-chain record, and it runs
  *     walled off from the wallet, asking before anything leaves it.
- *   - "Where does it download from?" -> said under the button: BEAM Campfire's own copy, at this app's address.
+ *   - "Where does it download from?" -> said under the button: Beam PWA's own copy, at this app's address.
  *   - "It isn't in the copy" -> said plainly, with the way on: its .dapp file, Install from a file.
  *
  * dappPublisher
@@ -117,7 +117,7 @@ export function dappStore(app, params = {}) {
         { class: 'main' },
         h('div', { class: 't', text: d.name }),
         h('div', { class: 's', text: t('by {publisher}', { publisher: p ? p.name : shortKey(d.publisher) }) }),
-        flags.length ? h('div', { class: 's meta warn-text', 'data-testid': 'store-row-flag', text: flags.some((f) => f.code === 'bundledName' || f.code === 'bundledId') ? t('Name or id like a dApp of BEAM Campfire’s') : t('Another publisher uses this name') }) : null,
+        flags.length ? h('div', { class: 's meta warn-text', 'data-testid': 'store-row-flag', text: flags.some((f) => f.code === 'bundledName' || f.code === 'bundledId') ? t('Name or id like a dApp of Beam PWA’s') : t('Another publisher uses this name') }) : null,
       ),
       h('span', { class: 'pill', text: st.action === 'open' ? t('Installed') : st.action === 'update' ? t('Update') : t('View') }),
     );
@@ -146,7 +146,7 @@ export function dappStore(app, params = {}) {
         h('span', { class: 'main' }, h('div', { class: 't', text: t('Publishers') }), h('div', { class: 's', text: hiddenCount ? tn({ one: '{count} · {n} hidden', other: '{count} · {n} hidden' }, hiddenCount, { count: listedPublishers(store).length }) : t('{count}, all shown', { count: listedPublishers(store).length }) })),
         h('span', { class: 'chev' }, icon('chevron')),
       ),
-      h('p', { class: 'small settings-note', text: t("Anyone can publish in BEAM's DApp Store: BEAM Campfire shows who published each dApp, checks every download against the publisher's record on the chain, and runs it walled off from your wallet.") }),
+      h('p', { class: 'small settings-note', text: t("Anyone can publish in BEAM's DApp Store: Beam PWA shows who published each dApp, checks every download against the publisher's record on the chain, and runs it walled off from your wallet.") }),
     );
   }
 
@@ -227,7 +227,7 @@ export function dappStoreItem(app, params = {}) {
     const label = st.action === 'open' ? t('Open') : st.action === 'update' ? t('Update to {version}', { version: d.versionText }) : t('Install {name}', { name: d.name });
     const btn = primary(label, act, { 'data-testid': 'store-item-cta', disabled: blocked });
     const why = blocked
-      ? h('p', { class: 'small', 'data-testid': 'store-item-blocked', text: st.action === 'blocked' ? storeInstallErrorText(new StoreInstallError(st.code, ''), d.name) || '' : !d.servedApi ? t('{name} needs a newer wallet than this version of BEAM Campfire.', { name: d.name }) : flagText(flags.find((f) => f.code === 'bundledId')) })
+      ? h('p', { class: 'small', 'data-testid': 'store-item-blocked', text: st.action === 'blocked' ? storeInstallErrorText(new StoreInstallError(st.code, ''), d.name) || '' : !d.servedApi ? t('{name} needs a newer wallet than this version of Beam PWA.', { name: d.name }) : flagText(flags.find((f) => f.code === 'bundledId')) })
       : null;
     put(
       box,
@@ -247,7 +247,7 @@ export function dappStoreItem(app, params = {}) {
       bar,
       btn,
       why,
-      h('p', { class: 'small settings-note', 'data-testid': 'store-item-note', text: p ? t("Downloaded from BEAM Campfire's copy of the store at this app's address, and installed only if it is exactly the file {publisher} recorded on the chain (IPFS {cid}…). It runs walled off from your wallet: it can see your balance, and asks before anything leaves it.", { publisher: p.name, cid: d.cid.slice(0, 10) }) : t("Downloaded from BEAM Campfire's copy of the store at this app's address, and installed only if it is exactly the file its publisher recorded on the chain (IPFS {cid}…). It runs walled off from your wallet: it can see your balance, and asks before anything leaves it.", { cid: d.cid.slice(0, 10) }) }),
+      h('p', { class: 'small settings-note', 'data-testid': 'store-item-note', text: p ? t("Downloaded from Beam PWA's copy of the store at this app's address, and installed only if it is exactly the file {publisher} recorded on the chain (IPFS {cid}…). It runs walled off from your wallet: it can see your balance, and asks before anything leaves it.", { publisher: p.name, cid: d.cid.slice(0, 10) }) : t("Downloaded from Beam PWA's copy of the store at this app's address, and installed only if it is exactly the file its publisher recorded on the chain (IPFS {cid}…). It runs walled off from your wallet: it can see your balance, and asks before anything leaves it.", { cid: d.cid.slice(0, 10) }) }),
     );
   }
 
@@ -296,7 +296,7 @@ export function dappPublisher(app, params = {}) {
             ...p.socials.map((s) => (s.url ? link(s.url, `${s.label}: ${s.text}`, `publisher-${s.kind}`) : h('div', { class: 'row', 'data-testid': `publisher-${s.kind}` }, h('span', { class: 'main' }, h('div', { class: 't', text: `${s.label}: ${s.text}` }))))),
           )
         : null,
-      p.website || p.socials.some((s) => s.url) ? h('p', { class: 'small', text: t('Links open outside BEAM Campfire; the site sees your IP address.') }) : null,
+      p.website || p.socials.some((s) => s.url) ? h('p', { class: 'small', text: t('Links open outside Beam PWA; the site sees your IP address.') }) : null,
       h('p', { class: 'section-title', text: t('dApps ({count})', { count: p.dapps.length }) }),
       p.dapps.length
         ? h(

@@ -9,8 +9,8 @@
  *   - Imported from a wallet.db: the same, with the original file and its password instead of words.
  *   - "Does this delete my other wallets?" -> with several, it names the one that goes and says the
  *     others stay as they are; only its own file and data are removed (lib/wallets.js).
- *   - "Is it really all gone?" -> what BEAM Campfire cannot remove is said, small: its Face ID passkey
- *     lives in the password manager (BEAM Campfire asks it to forget it; where to check), and, for the
+ *   - "Is it really all gone?" -> what Beam PWA cannot remove is said, small: its Face ID passkey
+ *     lives in the password manager (Beam PWA asks it to forget it; where to check), and, for the
  *     last wallet, the browser may keep deleted data on disk until it tidies up (clearing the site's
  *     data in the browser's settings removes it).
  *   - "What about my move / my codes / my purchase still under way?" -> open bridge moves, airdrop
@@ -149,8 +149,8 @@ export default function deleteWallet(app, params = {}) {
           ? h('p', {
               'data-testid': 'delete-in-flight-unseen',
               text: counted.length
-                ? t("It also keeps saved {list}: BEAM Campfire can't look inside them without this wallet's password.", { list: listed(unseen) })
-                : t("This device keeps this wallet's saved {list}, the only record of any still under way. BEAM Campfire can't look inside them without the wallet's password, so it can't tell whether any are. Open the wallet to check them first, if you can.", { list: listed(unseen) }),
+                ? t("It also keeps saved {list}: Beam PWA can't look inside them without this wallet's password.", { list: listed(unseen) })
+                : t("This device keeps this wallet's saved {list}, the only record of any still under way. Beam PWA can't look inside them without the wallet's password, so it can't tell whether any are. Open the wallet to check them first, if you can.", { list: listed(unseen) }),
             })
           : null,
         openHere && counted.length
@@ -161,7 +161,7 @@ export default function deleteWallet(app, params = {}) {
     );
   }
 
-  // What stays where BEAM Campfire cannot reach it.
+  // What stays where Beam PWA cannot reach it.
   const tracesBox = h('div', { class: 'stack tight' });
   listWallets().then((l) => {
     // Two or more wallets here: one other (l.length 2) is "Your other wallet".
@@ -175,9 +175,9 @@ export default function deleteWallet(app, params = {}) {
         ? h('p', {
             class: 'small',
             'data-testid': 'delete-passkey',
-            text: t('Its Face ID key (a passkey for {host}, “{passkey}”) is kept by your password manager, not by BEAM Campfire. BEAM Campfire asks it to forget the key; if it is still listed in Passwords or Google Password Manager, delete it there.', {
+            text: t('Its Face ID key (a passkey for {host}, “{passkey}”) is kept by your password manager, not by Beam PWA. Beam PWA asks it to forget the key; if it is still listed in Passwords or Google Password Manager, delete it there.', {
               host: location.hostname,
-              passkey: `BEAM Campfire wallet ${target.id.slice(0, 6)}`, // i18n-ignore: the passkey's name in the password manager (lib/passkey.js)
+              passkey: `Beam PWA wallet ${target.id.slice(0, 6)}`, // i18n-ignore: the passkey's name in the password manager (lib/passkey.js)
             }),
           })
         : null,

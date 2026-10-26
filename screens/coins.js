@@ -4,7 +4,7 @@
  *       Primary CTA: the outcome, "Split into 5 coins" (the advised count already picked). It opens the
  *       review, which asks once more ("Split into 5 coins", then Face ID / password) before anything is signed.
  *       Taps from app open: 1 (Home -> Coins), 2 "Split into 5 coins", 3 on the review, then Face ID / password.
- * Exit-intent reasons and answers (BEAM Campfire's, lib/pages/beam/split/beam_split_view.dart):
+ * Exit-intent reasons and answers (Beam PWA's, lib/pages/beam/split/beam_split_view.dart):
  *   - "Is this sending my money somewhere?" -> the first lines say nothing leaves the wallet; the review
  *     says it again with the fee.
  *   - "What's a coin? Why would I want more?" -> the headline is the gain ("Send several payments at

@@ -16,7 +16,7 @@
  *     A rescan that fails changes nothing, and leaving it starts the wallet again as it was.
  *   - "Will a rescan break my payment?" -> it waits: with a payment under way it says so and
  *     points to Activity instead of starting.
- *   - "The BEAM Campfire site is gone" -> the snapshot can come from BEAM directly: download
+ *   - "The Beam PWA site is gone" -> the snapshot can come from BEAM directly: download
  *     mainnet_recovery.bin yourself (the exact address is shown) and choose the file; it is read on
  *     this device and checked by the engine exactly like the downloaded one.
  *   - "Who made this file, and must it come from this site?" (issue #79) -> one line, always: BEAM
@@ -45,7 +45,7 @@ const THIS_SITE = 'this-site';
 /**
  * Where the snapshot comes from, in one line (issue #79), as {lead, address, rest}: the address is
  * shown as a link between them (the translated sentence decides where it goes). relay: who passes it
- * on here (THIS_SITE, or the host of BEAM Campfire's own server when this address has none), or null
+ * on here (THIS_SITE, or the host of Beam PWA's own server when this address has none), or null
  * when nobody does and the person brings the file. rescan: no scanning instead (a rescan needs the snapshot).
  */
 export function sourceWords({ relay = THIS_SITE, rescan = false } = {}) {
@@ -74,7 +74,7 @@ export default function fastStart(app, params = {}) {
   const newWallet = !rescan && !restoring;
   let sizeBytes = null;
   let sizeChecked = false;
-  let fromFallback = false; // this address has no snapshot: it comes from BEAM Campfire's server
+  let fromFallback = false; // this address has no snapshot: it comes from Beam PWA's server
   let releaseAwake = null;
   let abort = null;
   let destroyed = false;
@@ -110,7 +110,7 @@ export default function fastStart(app, params = {}) {
     phase = 'choose';
     lastError = errorText || null;
     const size = sizeBytes ? t('{mb} MB', { mb: MB(sizeBytes) }) : t('about {mb} MB', { mb: RECOVERY_APPROX_MB });
-    // No snapshot through this app's web address or BEAM Campfire's server: the person brings the file.
+    // No snapshot through this app's web address or Beam PWA's server: the person brings the file.
     const noRelay = sizeChecked && !sizeBytes;
     // How to get the file, when it is the way on (an error, or no relay); the button is always there (#79).
     const howToFile = Boolean(errorText) || noRelay;
@@ -121,10 +121,10 @@ export default function fastStart(app, params = {}) {
         ? t('Rescan rebuilds your balance from the BEAM blockchain. Use it if your balance looks wrong or coins are missing. Your payment history and addresses stay as they are.')
         : t('Rescan rebuilds your balance from the BEAM blockchain. Use it if your balance looks wrong or coins are missing, for example coins sent to these 12 words in another app. Your payment history and addresses stay as they are.')
       : noRelay
-        ? t("To find your coins, BEAM Campfire reads a snapshot of the BEAM blockchain once. This site has no copy of it, so download BEAM's recovery file and choose it below.")
+        ? t("To find your coins, Beam PWA reads a snapshot of the BEAM blockchain once. This site has no copy of it, so download BEAM's recovery file and choose it below.")
         : fromFallback
-          ? t('To find your coins, BEAM Campfire downloads a snapshot of the BEAM blockchain once, from {host} (this site has no copy of it).', { host: RECOVERY_FALLBACK_HOST })
-          : t('To find your coins, BEAM Campfire downloads a snapshot of the BEAM blockchain once.');
+          ? t('To find your coins, Beam PWA downloads a snapshot of the BEAM blockchain once, from {host} (this site has no copy of it).', { host: RECOVERY_FALLBACK_HOST })
+          : t('To find your coins, Beam PWA downloads a snapshot of the BEAM blockchain once.');
     view(
       [
         h('div', { class: 'status-icon wait' }, icon('download')),
@@ -133,8 +133,8 @@ export default function fastStart(app, params = {}) {
           ? // The person downloads it in the browser, outside this app.
             notice('info', ...tNodes('{lead} Download it once, then come back and choose it here.', { lead: h('strong', { text: t('The file is {size}.', { size }) }) }))
           : onMobileData()
-            ? notice('warn', ...tNodes('{lead} Wi-Fi is better. Keep BEAM Campfire open until it finishes; leaving the app pauses it.', { lead: h('strong', { text: t('This is mobile data: the download is {size}.', { size }) }) }))
-            : notice('info', ...tNodes('{lead} It takes a few minutes. Keep BEAM Campfire open until it finishes: the screen stays on meanwhile, and if it is interrupted it carries on where it stopped.', { lead: h('strong', { text: rescan ? t('A download of {size}.', { size }) : t('A one-time download of {size}.', { size }) }) })),
+            ? notice('warn', ...tNodes('{lead} Wi-Fi is better. Keep Beam PWA open until it finishes; leaving the app pauses it.', { lead: h('strong', { text: t('This is mobile data: the download is {size}.', { size }) }) }))
+            : notice('info', ...tNodes('{lead} It takes a few minutes. Keep Beam PWA open until it finishes: the screen stays on meanwhile, and if it is interrupted it carries on where it stopped.', { lead: h('strong', { text: rescan ? t('A download of {size}.', { size }) : t('A one-time download of {size}.', { size }) }) })),
         h(
           'p',
           { class: 'small', 'data-testid': 'recovery-source' },
@@ -213,7 +213,7 @@ export default function fastStart(app, params = {}) {
   async function useFile(f) {
     phase = 'reading';
     keepAwake();
-    view([h('div', { class: 'status-icon wait' }, icon('file')), h('p', { class: 'lead', text: t('Reading the recovery file…') }), progressBar(null), notice('info', t('Keep BEAM Campfire open until this finishes.'))], []);
+    view([h('div', { class: 'status-icon wait' }, icon('file')), h('p', { class: 'lead', text: t('Reading the recovery file…') }), progressBar(null), notice('info', t('Keep Beam PWA open until this finishes.'))], []);
     let buf;
     try {
       buf = await readRecoveryFile(f);
@@ -232,7 +232,7 @@ export default function fastStart(app, params = {}) {
     const bar = progressBar(0);
     const line = h('p', { class: 'small', 'aria-live': 'polite', text: t('Starting…') });
     view(
-      [h('div', { class: 'status-icon wait' }, icon('download')), h('p', { class: 'lead', text: t('Downloading the BEAM snapshot…') }), bar, line, notice('info', t('Keep BEAM Campfire open until this finishes.'))],
+      [h('div', { class: 'status-icon wait' }, icon('download')), h('p', { class: 'lead', text: t('Downloading the BEAM snapshot…') }), bar, line, notice('info', t('Keep Beam PWA open until this finishes.'))],
       [secondary(t('Stop'), () => ctl.abort(), { 'data-testid': 'fast-stop' })],
     );
     let buf;
@@ -256,7 +256,7 @@ export default function fastStart(app, params = {}) {
     phase = 'run';
     const bar = progressBar(buf ? 0 : null);
     const line = h('p', { class: 'small', 'aria-live': 'polite', text: buf ? t('Reading the snapshot…') : t('Connecting to the BEAM network…') });
-    view([h('div', { class: 'status-icon wait' }, icon('refresh')), h('p', { class: 'lead', text: buf ? t('Reading the snapshot') : t('Opening your wallet') }), bar, line, buf ? notice('info', t('Keep BEAM Campfire open until this finishes.')) : null], []);
+    view([h('div', { class: 'status-icon wait' }, icon('refresh')), h('p', { class: 'lead', text: buf ? t('Reading the snapshot') : t('Opening your wallet') }), bar, line, buf ? notice('info', t('Keep Beam PWA open until this finishes.')) : null], []);
     const off = wallet.onChange((s) => {
       if (s.importProgress && s.importProgress.total) {
         const f = s.importProgress.done / s.importProgress.total;

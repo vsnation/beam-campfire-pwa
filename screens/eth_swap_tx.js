@@ -79,8 +79,8 @@ export default function ethSwapTx(app, p = {}) {
       cls = 'wait';
       ico = 'clock';
       const head = swap
-        ? t('Don\'t swap again yet. Your Ethereum server refused this transaction, so it has most likely not left, but it may have passed it on before refusing. BEAM Campfire keeps checking it, and offering the same one (never a second), for half an hour; if it never reaches Ethereum, this then says "Not sent".')
-        : t('Don\'t allow it again yet. Your Ethereum server refused this transaction, so it has most likely not left, but it may have passed it on before refusing. BEAM Campfire keeps checking it, and offering the same one (never a second), for half an hour; if it never reaches Ethereum, this then says "Not sent".');
+        ? t('Don\'t swap again yet. Your Ethereum server refused this transaction, so it has most likely not left, but it may have passed it on before refusing. Beam PWA keeps checking it, and offering the same one (never a second), for half an hour; if it never reaches Ethereum, this then says "Not sent".')
+        : t('Don\'t allow it again yet. Your Ethereum server refused this transaction, so it has most likely not left, but it may have passed it on before refusing. Beam PWA keeps checking it, and offering the same one (never a second), for half an hour; if it never reaches Ethereum, this then says "Not sent".');
       lines = [notice('warn', `${head}${entry.error ? ` ${t('The server said: {reason}', { reason: entry.error })}` : ''}`)];
     } else if (state === 'signed' || state === 'pending') {
       title = swap ? t('Swap sent: waiting for Ethereum…') : t('Waiting for Ethereum…');

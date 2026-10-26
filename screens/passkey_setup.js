@@ -40,7 +40,7 @@ export default function passkeySetup(app, params = {}) {
   const el = screen(
     { title: t('Unlock with Face ID'), back: first ? null : () => app.go('settings'), actions: [cta, textButton(first ? t('Not now') : t('Cancel'), next, { 'data-testid': 'passkey-skip' })] },
     first ? h('p', { class: 'step', text: t('Almost done') }) : null,
-    h('p', { class: 'lead', text: t('Open BEAM Campfire with Face ID or Touch ID instead of typing your password.') }),
+    h('p', { class: 'lead', text: t('Open Beam PWA with Face ID or Touch ID instead of typing your password.') }),
     h(
       'div',
       { class: 'card' },

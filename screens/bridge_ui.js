@@ -1,4 +1,4 @@
-// The bridge while BEAM Campfire is unlocked: one controller for this BEAM
+// The bridge while Beam PWA is unlocked: one controller for this BEAM
 // wallet and this Ethereum wallet (lib/bridge/controller.js), built from the
 // app's own parts, plus the pieces the bridge screens share (the steps, a
 // crossing's row, the CoinGecko question).
@@ -181,7 +181,7 @@ export function bridgeProblem(e, retry) {
       'error',
       h('strong', { text: `${sealed ? t("Your saved moves didn't open.") : t("The bridge couldn't open.")} ` }),
       sealed
-        ? t('They were kept exactly as they were; nothing was changed or sent. Lock and unlock BEAM Campfire, then try again.')
+        ? t('They were kept exactly as they were; nothing was changed or sent. Lock and unlock Beam PWA, then try again.')
         : t('One of your wallets did not answer ({reason}). This is not something you did, and nothing was sent.', { reason: String((e && e.message) || e) }),
       retry ? h('div', { class: 'btn-row prompt-actions' }, secondary(t('Try again'), retry, { class: 'btn btn-secondary btn-small', 'data-testid': 'bridge-retry' })) : null,
     ),
@@ -235,7 +235,7 @@ export function priceQuestion({ allow, refuse }) {
     'div',
     { class: 'card bridge-ask', 'data-testid': 'bridge-prices-ask' },
     h('h3', { text: t('The bridge fee follows coin prices') }),
-    h('p', { class: 'small', text: t('To work it out, BEAM Campfire asks CoinGecko for the prices of ETH and of the coin you move, the same prices the bridge uses. CoinGecko sees your IP address, not your wallets. It is asked only while you use the bridge.') }),
+    h('p', { class: 'small', text: t('To work it out, Beam PWA asks CoinGecko for the prices of ETH and of the coin you move, the same prices the bridge uses. CoinGecko sees your IP address, not your wallets. It is asked only while you use the bridge.') }),
     h('div', { class: 'btn-row prompt-actions' }, secondary(t('Allow CoinGecko prices'), allow, { class: 'btn btn-secondary btn-small', 'data-testid': 'bridge-prices-allow' }), textButton(t('Not now'), refuse, { class: 'btn btn-text btn-small', 'data-testid': 'bridge-prices-refuse' })),
   );
 }

@@ -1,4 +1,4 @@
-/* BEAM Campfire. Colours from Campfire's theme (asset_sources/default_themes/
+/* Beam PWA. Colours from Campfire's theme (asset_sources/default_themes/
    campfire/light.zip, theme.json). Campfire ships only a light theme; the dark
    palette keeps Campfire's accent and takes its neutrals from Stack Wallet's
    dark theme family. Inter is bundled (fonts/LICENSE.txt, SIL OFL 1.1). */
@@ -147,8 +147,8 @@
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
 
-/* BEAM (Settings -> Appearance -> Colours, issue #80): BEAM's own colours in place of Campfire red.
-   Campfire red stays the default; the logo and the app icon stay Campfire's. Every value is BEAM's,
+/* BEAM (Settings -> Appearance -> Colours, issue #80): BEAM's own colours, or Campfire red in their place.
+   The default since 0.2.20 (owner 2026-10-26), with the flame and the app icon in BEAM's colours. Every value is BEAM's,
    with its source, in docs/beam-brand-palette.json, and test/unit/theme.test.mjs checks them against it.
    Dark is BEAM's own wallet (desktop beam-ui Mainnet.qml, the same palette in the browser extension,
    Android and iOS): navy #042548 under a #035b8f band at the top, cards #103051, turquoise #00f6d2
@@ -315,7 +315,7 @@ input, select, textarea { font-size: 16px; }
 .topbar { display: flex; align-items: center; gap: 8px; min-height: 48px; margin-bottom: 8px; }
 .topbar h1 { font-size: 20px; font-weight: 700; margin: 0; flex: 1; }
 .topbar .brand { display: flex; align-items: center; gap: 8px; flex: 1; font-weight: 700; font-size: 18px; }
-.topbar .brand img { width: 26px; height: 30px; }
+.topbar .brand img, .topbar .brand .logo-mark { width: 26px; height: 30px; }
 .icon-btn { background: none; border: 0; padding: 10px; margin: -6px; border-radius: 10px; color: var(--text); display: inline-flex; cursor: pointer; }
 .icon-btn:active { background: var(--surface-2); }
 .icon-btn svg { width: 24px; height: 24px; }
@@ -426,6 +426,8 @@ textarea.input { resize: none; min-height: 84px; }
 .row .main { flex: 1; min-width: 0; }
 .row .main .t { font-weight: 600; }
 .row .main .s { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Settings' and the dApp list's second lines are sentences: whole in every language (German, Russian run long). */
+.settings .row .main .s, .dapp-list .dapp-row .main .s, .dapp-store-entry .main .s { white-space: normal; }
 .row .end { text-align: right; font-weight: 600; white-space: nowrap; }
 .row .end.in { color: var(--in); }
 .row .end.out { color: var(--out-text); }
@@ -487,7 +489,12 @@ textarea.input { resize: none; min-height: 84px; }
 .banner { display: flex; align-items: center; gap: 10px; }
 
 .hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 20px 0 8px; }
-.hero img { width: 64px; height: 75px; }
+.hero img, .hero .logo-mark { width: 64px; height: 75px; }
+/* The flame in the colours on show (lib/logo.js): Campfire red's own gradient, or BEAM's turquoise to cyan. */
+.logo-mark .a { stop-color: #f5595c; }
+.logo-mark .b { stop-color: #f94167; }
+:root[data-skin="beam"] .logo-mark .a { stop-color: #00f6d2; }
+:root[data-skin="beam"] .logo-mark .b { stop-color: #0bccf7; }
 .hero h1 { margin: 6px 0 0; font-size: 28px; font-weight: 700; }
 .hero p { color: var(--text-2); font-size: 17px; }
 .steps-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
@@ -515,6 +522,14 @@ details.more[open] summary { margin-bottom: 6px; }
 
 /* Welcome: three choices fit a 375 x 667 screen; a smaller hero when the Home Screen guide shows. */
 .welcome .hero { padding-top: 12px; }
+.welcome .lang-bar { display: flex; justify-content: flex-end; margin-bottom: -8px; }
+/* The language, named in itself: the select fills the pill (the whole pill is the tap target), the
+   two marks are drawn over it and let taps through. */
+.lang-pick { position: relative; display: inline-flex; align-items: center; max-width: 100%; }
+.lang-pick select { appearance: none; -webkit-appearance: none; font: inherit; font-size: 15px; font-weight: 500; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; min-height: 40px; padding: 8px 34px 8px 38px; max-width: 100%; text-overflow: ellipsis; cursor: pointer; }
+.lang-pick svg { position: absolute; width: 18px; height: 18px; pointer-events: none; color: var(--text-2); }
+.lang-pick svg:first-child { left: 13px; }
+.lang-pick svg:last-child { right: 11px; width: 16px; height: 16px; }
 .hero.compact { gap: 4px; padding: 4px 0 0; }
 /* One tab at a time (screens/one_tab.js): a sentence for a title, so a little smaller than the name. */
 .one-tab .hero { padding-top: 40px; gap: 12px; }
@@ -622,7 +637,7 @@ label.btn.disabled { pointer-events: none; opacity: 0.5; }
 .consent { display: flex; flex-direction: column; gap: 12px; }
 .consent h2 { margin: 0; font-size: 20px; }
 .consent-app { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--text-2); font-weight: 500; }
-.consent-app img { width: 22px; height: 26px; }
+.consent-app img, .consent-app .logo-mark { width: 22px; height: 26px; }
 .consent-app .app-dot { width: 26px; height: 26px; border-radius: 50%; background: var(--surface-2); display: flex; align-items: center; justify-content: center; }
 .consent-app .app-dot svg { width: 16px; height: 16px; }
 .consent .card { padding: 4px 14px; }
@@ -740,7 +755,8 @@ details.more.card { padding: 12px 16px; }
 .more-entry .tile:active { background: var(--surface-2); }
 .more-entry .ico { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--secondary); color: var(--on-secondary); }
 .more-entry .ico svg { width: 14px; height: 14px; }
-.more-entry .t { max-width: 100%; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A label may take two lines (Spanish, German, Turkish run long), hyphenated in the page's language, never cut. */
+.more-entry .t { max-width: 100%; font-weight: 600; font-size: 14px; line-height: 1.2; text-align: center; overflow-wrap: break-word; hyphens: auto; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .feature .content > div:empty { display: none; }
 .inline-actions { margin-top: 2px; gap: 6px; }
 .inline-actions .hint { min-height: 0; }
@@ -802,7 +818,7 @@ details.more.card { padding: 12px 16px; }
 .name-row { cursor: pointer; }
 .name-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
 .name-row .main .s.sale { color: var(--info); }
-.names-receive-link { align-self: flex-start; width: auto; padding-left: 4px; }
+.names-receive-link { align-self: flex-start; width: auto; max-width: 100%; padding-left: 4px; white-space: normal; text-align: left; }
 .paste-btn { align-self: flex-start; width: auto; }
 .paste-btn svg { width: 16px; height: 16px; }
 .sell-fields { display: flex; gap: 8px; }

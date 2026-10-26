@@ -8,7 +8,7 @@
  *   - "Is it stuck?" -> the step under way is marked, with what it waits for in words ("34 BEAM blocks
  *     to go", "Waiting for Ethereum", "Ready to collect"), and slow is said to be normal when it is.
  *   - "Did it work?" -> the end state says where the coins are now.
- *   - "Can I close this?" -> said: it carries on, and BEAM Campfire picks it up again when unlocked.
+ *   - "Can I close this?" -> said: it carries on, and Beam PWA picks it up again when unlocked.
  *   - "Something went wrong" -> what happened, that nothing was lost when that is so, and never a
  *     button that sends the same thing twice.
  */
@@ -96,7 +96,7 @@ export default function bridgeCrossing(app, params = {}) {
           : null,
       ),
       c.lockHash ? h('a', { class: 'btn btn-text', href: txExplorerUrl(c.lockHash), target: '_blank', rel: 'noopener noreferrer', 'data-testid': 'bridge-crossing-explorer' }, icon('external'), t('See it on Etherscan')) : null,
-      isOpen(c) && !ctl.active ? h('p', { class: 'small center', text: t('BEAM Campfire looks again when it is back on screen.') }) : null,
+      isOpen(c) && !ctl.active ? h('p', { class: 'small center', text: t('Beam PWA looks again when it is back on screen.') }) : null,
     );
     put(
       actions,

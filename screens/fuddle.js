@@ -1,4 +1,4 @@
-// Fuddle, the Wordle tournament on BEAM (lib/fuddle.js), built into BEAM Campfire and opened from
+// Fuddle, the Wordle tournament on BEAM (lib/fuddle.js), built into Beam PWA and opened from
 // dApps. Four screens: Fuddle (your games and the tournaments), a tournament (its rules, entering,
 // collecting), a game (the grid, guessing, hints, refunds) and your games. Loaded on first use
 // (screens/fuddle_screens.js). While the contract is not deployed (lib/fuddle_id.js FUDDLE_CID null)
@@ -105,7 +105,7 @@ export function fuddleMark(size = '') {
 
 /** Who answers a tournament's guesses, in words. */
 function answeredBy(svc, tour) {
-  return svc.servicePk && tour.answerer === svc.servicePk ? t('Answers by the BEAM Campfire service') : t('Answers by another service, not the BEAM Campfire one');
+  return svc.servicePk && tour.answerer === svc.servicePk ? t('Answers by the Beam PWA service') : t('Answers by another service, not the Beam PWA one');
 }
 
 /** "in about 3 hours" for a height ahead, "now" when it has come. */

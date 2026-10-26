@@ -1,4 +1,4 @@
-# BEAM Campfire (PWA) on Caddy. Replace wallet.example.org with your own address
+# Beam PWA (PWA) on Caddy. Replace wallet.example.org with your own address
 # (used only for this app). Caddy gets and renews the HTTPS certificate itself.
 # Files: never the checkout itself. Pull the hosting repository into /srv/beam-campfire-pwa, then
 # deploy/verify_and_switch.sh /srv/beam-campfire-pwa /srv/beam-campfire checks it against the

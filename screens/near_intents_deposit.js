@@ -139,7 +139,7 @@ export default function nearIntentsDeposit(app, params = {}) {
       steps(state, expired),
       details(s),
       s.isOpen ? h('p', { class: 'small', 'data-testid': 'ni-can-leave', text: t('You can leave this screen: the swap is kept on this device, and Ethereum Home shows it until the ETH arrives.') }) : null,
-      pollError && s.isOpen ? h('p', { class: 'small', 'data-testid': 'ni-poll-error', text: t("Couldn't reach NEAR Intents just now. BEAM Campfire keeps checking while this screen is open.") }) : null,
+      pollError && s.isOpen ? h('p', { class: 'small', 'data-testid': 'ni-poll-error', text: t("Couldn't reach NEAR Intents just now. Beam PWA keeps checking while this screen is open.") }) : null,
       state === 'FAILED' ? h('a', { class: 'btn btn-text link-left', href: intentsExplorerUrl(), target: '_blank', rel: 'noopener noreferrer', 'data-testid': 'ni-explorer' }, t('Open the NEAR Intents explorer')) : null,
     );
     const spend = state === 'SUCCESS' ? wbeamSpend(s.amountOut) : 0n;

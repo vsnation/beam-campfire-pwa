@@ -34,7 +34,7 @@ export default function ethWords(app) {
     h('p', { class: 'lead', text: t('These 12 words are your Ethereum wallet. They are not your BEAM words: write these down too.') }),
     notice('warn', ...tNodes('{warning} Anyone who sees them can take your Ethereum coins. No screenshots: photos sync to the cloud.', { warning: h('strong', { text: t('Write them on paper, in order.') }) })),
     reveal.el,
-    h('p', { class: 'small', text: t('BEAM Campfire does not keep these words, so it cannot show them again.') }),
+    h('p', { class: 'small', text: t('Beam PWA does not keep these words, so it cannot show them again.') }),
   );
   return { el, destroy: reveal.destroy };
 }

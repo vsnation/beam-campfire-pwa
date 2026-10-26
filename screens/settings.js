@@ -37,7 +37,8 @@ import { tokenSettings } from './token_ui.js';
 import { listWallets, nameOf } from '../lib/wallets.js';
 import { notificationsRow } from './notifications.js';
 import { THEMES, THEME_WORDS, SKINS, SKIN_WORDS, readTheme, setTheme, readSkin, pickSkin } from '../lib/theme.js';
-import { t, LANGUAGES, LANGUAGE_NAMES, readLanguageChoice, setLanguage, deviceLanguage, navigatorLanguages } from '../lib/i18n.js';
+import { t } from '../lib/i18n.js';
+import { languageSelect, languageRowNote } from '../lib/lang_ui.js';
 
 export default function settings(app) {
   const row = (ico, title, sub, onclick, extra = {}) =>
@@ -61,27 +62,10 @@ export default function settings(app) {
   skinSel.addEventListener('change', () => {
     themeSel.value = pickSkin(skinSel.value).theme;
   });
-  // The language: like this device (the default, never asked on the first open), or one of them, each
-  // named in its own script so a person who cannot read the current one still finds theirs. It changes
-  // at once: lib/i18n.js reads that catalog and app.js draws this screen again. The 12 words stay
-  // English whatever is chosen (BEAM's word list is English only).
-  // The closed select shows only the start of its choice on a phone, so "Like this device" stays
-  // short (as Theme's) and the row's second line names the device's language while it is followed.
-  const device = deviceLanguage(navigatorLanguages());
-  const langChoice = readLanguageChoice();
-  const langSel = h(
-    'select',
-    { class: 'inline', 'aria-label': t('Language'), 'data-testid': 'lang-select' },
-    h('option', { value: 'system', text: t('Like this device') }),
-    ...LANGUAGES.map((l) => h('option', { value: l, lang: l, text: LANGUAGE_NAMES[l] })),
-  );
-  langSel.value = langChoice;
-  const langSub = langChoice === 'system' ? h('div', { class: 's', lang: device, 'data-testid': 'lang-device', text: LANGUAGE_NAMES[device] }) : null;
-  // Not disabled while the catalog is read: a disabled select loses the focus, and app.js puts the
-  // redrawn screen back where it was by the focused control.
-  langSel.addEventListener('change', () => {
-    setLanguage(langSel.value);
-  });
+  // The language: like this device (the default, never asked on the first open), or one of them
+  // (lib/lang_ui.js, the same control as the first screen's in a Settings row).
+  const langSel = languageSelect();
+  const langSub = languageRowNote();
 
   const faceRowBox = h('div');
   (async () => {
@@ -163,7 +147,7 @@ export default function settings(app) {
       'div',
       { class: 'card list' },
       h('div', { class: 'row', 'data-testid': 'theme-row' }, h('span', { class: 'ico' }, icon('moon')), h('span', { class: 'main' }, h('div', { class: 't', text: t('Theme') }), h('div', { class: 's', text: t('Light or dark') })), themeSel),
-      h('div', { class: 'row', 'data-testid': 'skin-row' }, h('span', { class: 'ico' }, icon('palette')), h('span', { class: 'main' }, h('div', { class: 't', text: t('Colours') }), h('div', { class: 's', text: t('Campfire or BEAM') })), skinSel),
+      h('div', { class: 'row', 'data-testid': 'skin-row' }, h('span', { class: 'ico' }, icon('palette')), h('span', { class: 'main' }, h('div', { class: 't', text: t('Colours') }), h('div', { class: 's', text: t('BEAM or Campfire red') })), skinSel),
       h('div', { class: 'row', 'data-testid': 'lang-row' }, h('span', { class: 'ico' }, icon('language')), h('span', { class: 'main' }, h('div', { class: 't', text: t('Language') }), langSub), langSel),
     ),
     h('p', { class: 'section-title', text: t('App') }),

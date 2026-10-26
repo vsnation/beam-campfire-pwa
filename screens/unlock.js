@@ -28,6 +28,7 @@ import { resealAirdropCodes } from './airdrop.js';
 import { notSavedNote } from '../lib/auth_ui.js';
 import { walletNode } from '../lib/nodes.js';
 import { t, tn } from '../lib/i18n.js';
+import { logoMark } from '../lib/logo.js';
 
 export default function unlock(app, params = {}) {
   if (!app.record) {
@@ -41,16 +42,16 @@ export default function unlock(app, params = {}) {
   const min = app.prefs.autoLockMin;
   if (params.reason === 'timeout')
     put(msg, h('div', { 'data-testid': 'locked-notice' }, notice('info', going
-      ? tn({ one: "Locked after {n} minute without use. Your payment keeps going: leave BEAM Campfire open until it's done.", other: "Locked after {n} minutes without use. Your payment keeps going: leave BEAM Campfire open until it's done." }, min)
+      ? tn({ one: "Locked after {n} minute without use. Your payment keeps going: leave Beam PWA open until it's done.", other: "Locked after {n} minutes without use. Your payment keeps going: leave Beam PWA open until it's done." }, min)
       : tn({ one: 'Locked after {n} minute without use.', other: 'Locked after {n} minutes without use.' }, min))));
-  else if (params.reason === 'manual') put(msg, h('div', { 'data-testid': 'locked-notice' }, notice('info', going ? t("Locked. Your payment keeps going: leave BEAM Campfire open until it's done.") : t('Locked.'))));
+  else if (params.reason === 'manual') put(msg, h('div', { 'data-testid': 'locked-notice' }, notice('info', going ? t("Locked. Your payment keeps going: leave Beam PWA open until it's done.") : t('Locked.'))));
   else if (params.reason === 'switch' && params.from) put(msg, h('div', { 'data-testid': 'locked-notice' }, notice('info', going ? t('{name} is locked. Its payment keeps going until you open this wallet.', { name: params.from }) : t('{name} is locked.', { name: params.from }))));
   else if (params.reason === 'deleted' && params.deleted) put(msg, h('div', { 'data-testid': 'deleted-notice' }, notice('success', t('{name} was deleted from this device. Your other wallets are here.', { name: params.deleted }))));
   else if (params.updated) put(msg, h('div', { 'data-testid': 'updated-notice' }, notice('success', params.updated)));
   const switched = takeSwitchNote();
   if (switched) put(msg, notice('info', t('Unlock to connect through your node, {node}.', { node: switched })));
   // A bridge screen was open when it locked: say where its move was, and go back to it after unlock.
-  const follow = app.afterUnlock ? h('div', { 'data-testid': 'unlock-follow' }, notice('info', h('strong', { text: app.afterUnlock.lead || t('Unlock to follow your move.') + ' ' }), app.afterUnlock.note || t('BEAM Campfire goes back to it once the wallet is open.'))) : null;
+  const follow = app.afterUnlock ? h('div', { 'data-testid': 'unlock-follow' }, notice('info', h('strong', { text: app.afterUnlock.lead || t('Unlock to follow your move.') + ' ' }), app.afterUnlock.note || t('Beam PWA goes back to it once the wallet is open.'))) : null;
 
   const pw = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'aria-label': t('Password'), 'data-testid': 'unlock-pw', placeholder: t('Password') });
   const pwBtn = primary(t('Unlock'), () => withPassword(), { 'data-testid': 'unlock-submit' });
@@ -141,7 +142,7 @@ export default function unlock(app, params = {}) {
 
   const el = screen(
     { topbar: false },
-    h('div', { class: 'hero' }, h('img', { src: 'img/logo.svg', alt: '' }), h('h1', { text: 'BEAM Campfire' }), lead), // i18n-ignore: the brand
+    h('div', { class: 'hero' }, logoMark(), h('h1', { text: 'Beam PWA' }), lead), // i18n-ignore: the brand
     picker,
     follow,
     pwBlock,

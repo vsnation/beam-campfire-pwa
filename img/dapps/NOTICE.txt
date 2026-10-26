@@ -10,5 +10,5 @@ They ship inside the signed release so the dApps list can show an app before it 
 without fetching anything: an icon URL would tell its server who is browsing which dApps.
 
 The packages themselves are not part of the release: they bundle third-party fonts whose licences
-do not clearly allow redistribution. BEAM Campfire downloads a package from BEAM's GitHub the first
+do not clearly allow redistribution. Beam PWA downloads a package from BEAM's GitHub the first
 time it is opened and refuses it unless its size and SHA-256 match the pin.

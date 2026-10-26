@@ -1,4 +1,4 @@
-/* BEAM Campfire dApp frame bootstrap.
+/* Beam PWA dApp frame bootstrap.
  *
  * The service worker serves this file, inlined under a nonce, as the whole
  * document of a dApp frame (lib/dapps/frame_policy.js). The frame is

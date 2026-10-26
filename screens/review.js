@@ -76,7 +76,7 @@ export default function review(app, p) {
       h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Total') }), h('span', { class: 'v', 'data-testid': 'review-total', text: total })),
       note ? h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Note (only you see it)') }), h('span', { class: 'v', 'data-testid': 'review-note', text: note })) : null,
     ),
-    notice('info', mode.explanation, mode.receiverMustBeOnline ? ` ${t('Keep BEAM Campfire open until it completes. If nobody accepts it, it is cancelled and the money stays yours.')}` : ''),
+    notice('info', mode.explanation, mode.receiverMustBeOnline ? ` ${t('Keep Beam PWA open until it completes. If nobody accepts it, it is cancelled and the money stays yours.')}` : ''),
     msg,
   );
   return { el };
@@ -152,7 +152,7 @@ function nameReview(app, p) {
       h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Total') }), h('span', { class: 'v', 'data-testid': 'review-total', text: total })),
     ),
     // The name's owner is what the node says it is: comparing the key with the person is what makes it theirs.
-    h('p', { class: 'small', 'data-testid': 'review-owner-hint', text: t('To be sure it reaches them, ask for their name key (in BEAM Campfire: BEAM names → Receive a name). Its 16 characters must match the owner key above.') }),
+    h('p', { class: 'small', 'data-testid': 'review-owner-hint', text: t('To be sure it reaches them, ask for their name key (in Beam PWA: BEAM names → Receive a name). Its 16 characters must match the owner key above.') }),
     ownerHistory(p),
     notice('info', t("It goes into BEAM's name vault for whoever owns {name}; they claim it from their wallet. The amount is visible on the blockchain, the recipient is not. The name is checked again right before you approve: if its owner changed, nothing is sent.", { name: display(p.name) })),
     msg,

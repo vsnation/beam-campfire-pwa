@@ -1,6 +1,6 @@
 /* One tab at a time (lib/one_tab.js): this tab does not hold the wallet.
  *
- * otherTab - Spec: ONE job: say BEAM Campfire is already open in another tab, and move it here.
+ * otherTab - Spec: ONE job: say Beam PWA is already open in another tab, and move it here.
  *       Primary CTA: "Use it here instead" (only if the other tab does not answer: "Take over anyway").
  *       Taps from app open: 0 to see it, 1 to have the wallet here.
  * movedTab - Spec: ONE job: say the wallet moved to another tab (locked and saved here first), and
@@ -23,21 +23,22 @@ import { h, clear } from '../lib/dom.js';
 import { screen, primary, notice } from '../lib/ui.js';
 import { oneTab } from '../lib/one_tab.js';
 import { t, tk, tNodes } from '../lib/i18n.js';
+import { logoMark } from '../lib/logo.js';
 
 // The texts are marked with tk() and translated where they are shown (t(OTHER_TAB_TITLE)).
-export const OTHER_TAB_TITLE = tk('BEAM Campfire is open in another tab');
+export const OTHER_TAB_TITLE = tk('Beam PWA is open in another tab');
 export const OTHER_TAB_LEAD = tk('It works in one tab at a time, so your wallet data stays intact.');
-export const MOVED_TITLE = tk('BEAM Campfire moved to another tab');
+export const MOVED_TITLE = tk('Beam PWA moved to another tab');
 export const MOVED_LEAD = {
   handed: tk('It works in one tab at a time. Your wallet was locked and saved here before it moved.'),
   stolen: tk('It works in one tab at a time. Another tab took it over, so your wallet is locked here.'),
   // Locking and saving had not finished when the hand-over's time ran out (lib/one_tab.js, RE1-7).
   capped: tk('It works in one tab at a time. Your wallet was locked here before it moved, but it may not have saved its last few seconds.'),
 };
-export const UNCHECKED_TITLE = tk('Close your other BEAM Campfire tabs');
-export const UNCHECKED_LEAD = tk('This browser cannot keep BEAM Campfire to one tab. Close every other BEAM Campfire tab, then reload.');
+export const UNCHECKED_TITLE = tk('Close your other Beam PWA tabs');
+export const UNCHECKED_LEAD = tk('This browser cannot keep Beam PWA to one tab. Close every other Beam PWA tab, then reload.');
 const UNCHECKED_HINT = tk('Your wallet stays locked in this tab until then.');
-export const UNCHECKED_WAY_OUT = tk('If this keeps happening, this browser cannot run BEAM Campfire safely: open it in another browser and restore your wallet there from its 12 words (or its wallet.db file).');
+export const UNCHECKED_WAY_OUT = tk('If this keeps happening, this browser cannot run Beam PWA safely: open it in another browser and restore your wallet there from its 12 words (or its wallet.db file).');
 const UNCHECKED_SEEN_KEY = 'campfire-unchecked-seen';
 
 /**
@@ -146,7 +147,7 @@ function oneTabScreen(app, { title, lead, testid, spent, how = null }) {
 
   const el = screen(
     { topbar: false, cls: 'one-tab', actions: [btn, hint] },
-    h('div', { class: 'hero', 'data-testid': testid, 'data-how': how || '' }, h('img', { src: 'img/logo.svg', alt: '' }), h('h1', { text: title }), h('p', { text: lead })),
+    h('div', { class: 'hero', 'data-testid': testid, 'data-how': how || '' }, logoMark(), h('h1', { text: title }), h('p', { text: lead })),
     note,
   );
   // Left (another screen took over, e.g. this tab found it cannot check the lock): nothing of this
@@ -178,7 +179,7 @@ function uncheckedTab() {
         again ? null : h('p', { class: 'small center', 'data-testid': 'one-tab-way-out', text: t(UNCHECKED_WAY_OUT) }),
       ],
     },
-    h('div', { class: 'hero', 'data-testid': 'one-tab-moved', 'data-how': 'unchecked' }, h('img', { src: 'img/logo.svg', alt: '' }), h('h1', { text: t(UNCHECKED_TITLE) }), h('p', { text: t(UNCHECKED_LEAD) })),
+    h('div', { class: 'hero', 'data-testid': 'one-tab-moved', 'data-how': 'unchecked' }, logoMark(), h('h1', { text: t(UNCHECKED_TITLE) }), h('p', { text: t(UNCHECKED_LEAD) })),
     wayOut,
   );
   return { el };

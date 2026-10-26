@@ -29,6 +29,7 @@ import { formatAmount } from '../lib/amount.js';
 import { setConsentPresenter, NATIVE_APP_NAME } from '../lib/contracts.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
 import { t, tn, tk } from '../lib/i18n.js';
+import { logoMark } from '../lib/logo.js';
 
 /** "371.76" for the button; the rows above it carry every digit. */
 export function shortAmount(groth) {
@@ -300,13 +301,13 @@ function showConsent(app, req, bridge, bt) {
           h(
             'div',
             { class: 'consent-app', 'data-testid': 'consent-app' },
-            native ? h('img', { src: 'img/logo.svg', alt: '' }) : h('span', { class: 'app-dot' }, icon('globe')),
-            h('span', { text: native ? t('BEAM Campfire, this wallet') : t('{name} asks you to approve', { name: req.appName }) }),
+            native ? logoMark() : h('span', { class: 'app-dot' }, icon('globe')),
+            h('span', { text: native ? t('Beam PWA, this wallet') : t('{name} asks you to approve', { name: req.appName }) }),
           ),
           !native && req.publisher
             ? h('p', { class: 'tag store', 'data-testid': 'consent-publisher', text: t("From BEAM's DApp Store · published by {publisher} ({key})", { publisher: req.publisher.name, key: `${req.publisher.key.slice(0, 8)}…${req.publisher.key.slice(-6)}` }) })
             : !native && req.unchecked
-              ? h('p', { class: 'tag unchecked', 'data-testid': 'consent-unchecked', text: t('Installed from a file · not checked by BEAM Campfire') })
+              ? h('p', { class: 'tag unchecked', 'data-testid': 'consent-unchecked', text: t('Installed from a file · not checked by Beam PWA') })
               : null,
           bridge
             ? bridgeCard(req, bridge, bt)
@@ -345,7 +346,7 @@ function showConsent(app, req, bridge, bt) {
           native && req.intent && intentNote(req.intent) ? h('div', { 'data-testid': 'consent-intent-note' }, intentNote(req.intent)) : null,
           ...(extras.notes || []).map((note, i) => h('p', { class: 'small', 'data-testid': `consent-note-${i}`, text: note })),
           !native && req.comment ? h('p', { class: 'small', text: t('The app describes it as: “{comment}”', { comment: req.comment }) }) : null,
-          notListed.length ? h('p', { class: 'small', 'data-testid': 'consent-unlisted', text: t("{assets}: not on BEAM Campfire's list of known assets. Check the number if the name matters to you.", { assets: notListed.map((a) => t('{symbol} is asset #{id}', { symbol: wallet.label(a.assetId).symbol, id: a.assetId })).join('; ') }) }) : null,
+          notListed.length ? h('p', { class: 'small', 'data-testid': 'consent-unlisted', text: t("{assets}: not on Beam PWA's list of known assets. Check the number if the name matters to you.", { assets: notListed.map((a) => t('{symbol} is asset #{id}', { symbol: wallet.label(a.assetId).symbol, id: a.assetId })).join('; ') }) }) : null,
           !native ? notice('warn', t('Only approve if you trust {name}. Approving lets it move what is listed above.', { name: req.appName })) : null,
           enough
             ? null
