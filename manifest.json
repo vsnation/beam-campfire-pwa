@@ -1,6 +1,6 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.2.20",
+ "version": "0.2.21",
  "files": [
   {
    "path": "app.js",
@@ -49,53 +49,53 @@
   },
   {
    "path": "i18n/de.json",
-   "sha256": "50a07510e95cd63930a90d41cd086673ddc24fc495be3fff7ce7e369eb728852",
-   "size": 471257
+   "sha256": "faa21996b87cd319c54fba97087d9fb47e650b0b1e9e31fce8d764f59a4d79ed",
+   "size": 471339
   },
   {
    "path": "i18n/es.json",
-   "sha256": "2beb2f4a0924196ecb7bf98eefe0304cd13f7c3133847b84008a72df9821b4c7",
-   "size": 458270
+   "sha256": "64940964947ddc5c567283f56ae370a4d40b058c6d2e5da0e94babfd6bcc3a65",
+   "size": 458346
   },
   {
    "path": "i18n/fr.json",
-   "sha256": "854ca0f9d1e5ae56f49bcc055aa7f2c25cffaa0e3cd9659db5df8ed2585f0ab7",
-   "size": 476698
+   "sha256": "06d40399ba7bcdabaa46fe82eed4ae799f6fe478ac3e051bd521c104c2620272",
+   "size": 476779
   },
   {
    "path": "i18n/ja.json",
-   "sha256": "381e6fcb2074e8ff27a8be7d529833d1f887aed93178d1c74b23c2288d4bf9f7",
-   "size": 531723
+   "sha256": "d7756f6ca204ff4ddce25bbecd2bc28bff3d72c01c450337c1c4e8a04f895b65",
+   "size": 531820
   },
   {
    "path": "i18n/ko.json",
-   "sha256": "934d37d81157f500195f35beccc96c4c037171d3f9a59d1f639f48c60edc02a6",
-   "size": 471101
+   "sha256": "259d5e41a7a06f567b49fa8cb1bb3b9ec4c9bf8289105024879d124d254dad4a",
+   "size": 471188
   },
   {
    "path": "i18n/pt-BR.json",
-   "sha256": "928fbda9b11fbe99479b4453db2c385bb60c1a5b40cbf0f2691f24308f2da2e7",
-   "size": 454760
+   "sha256": "762d51d7823b46697dd77448d476ed14e3098dd45c6d4ff615ee77746f0b5d7b",
+   "size": 454836
   },
   {
    "path": "i18n/ru.json",
-   "sha256": "01ea1b7c36c239e3b6605fb54cd9b17bb27503809321a0b3de3c8864a8999394",
-   "size": 632982
+   "sha256": "6cde0f2430f53dfdb8adaa2b80a22ccfe6fea0dc89d5006e6935a5e95a107022",
+   "size": 633055
   },
   {
    "path": "i18n/tr.json",
-   "sha256": "bbfdf60186f062d9c6115a3d5e5b53eeaec13f107d4ad058250cc8b27cbe21ac",
-   "size": 456712
+   "sha256": "0f93597e2df20d63b34ae353e89ba6552b229c0554f00b76c4701286430393c2",
+   "size": 456791
   },
   {
    "path": "i18n/vi.json",
-   "sha256": "33995a945eb78217b65aa24978c4c2fbcf449c9ac3c397b3c69458878c1709a1",
-   "size": 489282
+   "sha256": "63f93ec3c2e35ee1b122d12647762c6d86e1ae6adfed95f6858496607d764dc5",
+   "size": 489378
   },
   {
    "path": "i18n/zh-Hans.json",
-   "sha256": "bbf9a804f0025350782f79c6be34aee26dafeabb9b33c012f93c724118cbd07a",
-   "size": 428696
+   "sha256": "c5283370ba726fc77ad24c7030b83e40ac1dcfa2faf4a219d87f4383ac87b857",
+   "size": 428771
   },
   {
    "path": "icons/apple-touch-icon.png",
@@ -359,8 +359,8 @@
   },
   {
    "path": "lib/amount.js",
-   "sha256": "e04e434abb610dc83fc3759028605c15d61711ad8122b56cbafe6c49fd40f0ee",
-   "size": 3913
+   "sha256": "fb82448ede5e6b9f8199dcc55d16545f3abb325e11c2f730c5e93dd0ddfc9071",
+   "size": 4681
   },
   {
    "path": "lib/auth_ui.js",
@@ -374,8 +374,8 @@
   },
   {
    "path": "lib/back.js",
-   "sha256": "dedc8af770f23033037d405cbc7327c6a3f6c35ed2721a0f96102215243a0198",
-   "size": 4759
+   "sha256": "b5227760e1c9b621205156f9d722218575905832cdfe6f7e9cf3efca7122b6d6",
+   "size": 14662
   },
   {
    "path": "lib/bans.js",
@@ -434,8 +434,8 @@
   },
   {
    "path": "lib/buy/buybeam.js",
-   "sha256": "59f1f3197d312bc3557109fadcb9187099feffc0d8edd4540fae571f47807a90",
-   "size": 21528
+   "sha256": "eb0457465158568185b0b845f26bd2da184175baa981ca28d5d7a02837665222",
+   "size": 21614
   },
   {
    "path": "lib/buy/chains.js",
@@ -744,8 +744,8 @@
   },
   {
    "path": "lib/eth/units.js",
-   "sha256": "c4549af9fc6122b37d4f5fa46cd3caed2886f7e24a27de41f1ba40e237f54d9c",
-   "size": 4431
+   "sha256": "86aca1a7635a0e87ad9a2a566dd4931f1b41f895b5203e37d351eac4c52d506d",
+   "size": 4451
   },
   {
    "path": "lib/eth/vault.js",
@@ -859,13 +859,13 @@
   },
   {
    "path": "lib/minter.js",
-   "sha256": "668470c6eef36b734ba8ec07a90c53a6b5af533392ce0d966724b2bc5e26b36a",
-   "size": 32686
+   "sha256": "ad9eaeb3087691382908b27e66f79b1674c5f1194dc21842bda4220c4d86cf07",
+   "size": 32684
   },
   {
    "path": "lib/nav.js",
-   "sha256": "2d79d084f11a499353555c1a5214f5e9b0defd4dad6269f9c63251913b26ca9e",
-   "size": 2841
+   "sha256": "af5c0580a6449ab3dbc15a8a1e233057d1d931ae3e167e394990e2e299f0667d",
+   "size": 3008
   },
   {
    "path": "lib/network.js",
@@ -1039,8 +1039,8 @@
   },
   {
    "path": "lib/ui.js",
-   "sha256": "9cbbb08b826b155a6d350a881be5d7b4586c327d9d5fddb9622ee327834f51e9",
-   "size": 15413
+   "sha256": "96196075a22cc935bed0369b21f7bca8eea79a8fa8eb330c7bd806eb2cf2314f",
+   "size": 15433
   },
   {
    "path": "lib/update.js",
@@ -1059,7 +1059,7 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "6693f1186a313177e3656ec4798698c333912d82517700f3a3eae6c54b5cb0b5",
+   "sha256": "fbcdfd7e799770a35c9584ac119227092e1fb46a5da608f5697eddadc57ac81f",
    "size": 1276
   },
   {
@@ -1134,8 +1134,8 @@
   },
   {
    "path": "screens/airdrop.js",
-   "sha256": "0a4a3a4aa26e0aab179de0de38a36d770a291ff0ad37b0a243f7a2992f488191",
-   "size": 23533
+   "sha256": "43721c11b0e97ff587283098a394838f81d638c5f08ea8359915e156295faafc",
+   "size": 23553
   },
   {
    "path": "screens/airdrop_batches.js",
@@ -1179,8 +1179,8 @@
   },
   {
    "path": "screens/bridge_text.js",
-   "sha256": "4bedc20d7e38cf27bfc56a1309e1a68adfc729087f9ef9794974388181986602",
-   "size": 12603
+   "sha256": "111ffcd09fb4d9d0240dfcb783a54d5ea06659541901ddd62185affdc4ca68d7",
+   "size": 12689
   },
   {
    "path": "screens/bridge_ui.js",
@@ -1359,8 +1359,8 @@
   },
   {
    "path": "screens/fast_start.js",
-   "sha256": "57e81da4ae110ff02079388039a7bb6bd8b552279db587d9eebfdd006adff46a",
-   "size": 17256
+   "sha256": "d019a94d97009872438d5092a96f4ba029d826269c1f2002816f8a6e630047c7",
+   "size": 17276
   },
   {
    "path": "screens/fuddle.js",

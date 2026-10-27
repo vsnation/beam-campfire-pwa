@@ -149,7 +149,7 @@ export default function airdropClaim(app) {
   let pollTimer = null;
   let alive = true;
 
-  const input = h('input', { class: 'input code-input', type: 'text', autocomplete: 'off', autocapitalize: 'characters', autocorrect: 'off', spellcheck: 'false', placeholder: 'XXXX-XXXX-XXXX-XXXX', 'aria-label': t('Code'), 'data-testid': 'airdrop-code' }); // i18n-ignore: the placeholder is the shape of a code, not words
+  const input = h('input', { class: 'input code-input', type: 'text', autocomplete: 'off', autocapitalize: 'characters', autocorrect: 'off', spellcheck: 'false', placeholder: 'XXXX-XXXX-XXXX-XXXX', 'aria-label': t('Code'), 'data-testid': 'airdrop-code', 'data-secret': '1' }); // i18n-ignore: the placeholder is the shape of a code, not words
   input.value = draft.code;
   const pasteBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'airdrop-paste' }, icon('paste'), t('Paste'));
   const scanBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'airdrop-scan', 'aria-label': t('Scan a QR code') }, icon('scan'), t('Scan'));

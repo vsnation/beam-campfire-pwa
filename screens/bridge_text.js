@@ -14,6 +14,7 @@
 
 import { BEAM_DECIMALS, SEND_FEE, CLAIM_FEE, routeById, grothToEth, ethToGroth } from '../lib/bridge/routes.js';
 import { t, tn, tk, dateLocale } from '../lib/i18n.js';
+import { oneDecimalMark } from '../lib/amount.js';
 
 const MIN = 60000;
 export const TO_ETHEREUM = 'toEthereum';
@@ -79,9 +80,11 @@ export const feeText = (v, decimals) => roundedUp(v, decimals, v >= 10n ** BigIn
  * nothing typed is floored away later.
  */
 export function parseBridgeAmount(text, route, direction) {
-  const typed = String(text ?? '').trim();
-  if (!typed) return { value: null, error: null };
-  if (typed.includes(',')) return { value: null, error: t('Use a dot for decimals, like 0.5') };
+  const asTyped = String(text ?? '').trim();
+  if (!asTyped) return { value: null, error: null };
+  const mark = oneDecimalMark(asTyped);
+  if (mark.error) return { value: null, error: mark.error };
+  const typed = mark.text;
   if (!/^[0-9]*\.?[0-9]*$/.test(typed) || typed === '.') return { value: null, error: t('Enter a number, like 0.5') };
   const dot = typed.indexOf('.');
   const whole = dot < 0 ? typed : typed.slice(0, dot);

@@ -87,7 +87,7 @@ export default function fastStart(app, params = {}) {
   const el = h(
     'main',
     { class: 'screen' },
-    h('header', { class: 'topbar' }, rescan ? h('button', { class: 'icon-btn', 'aria-label': t('Back'), onclick: () => phase === 'choose' && leave() }, icon('back')) : null, h('h1', { text: title })),
+    h('header', { class: 'topbar' }, rescan ? h('button', { class: 'icon-btn', 'aria-label': t('Back'), 'data-nav': 'back', onclick: () => phase === 'choose' && leave() }, icon('back')) : null, h('h1', { text: title })),
     body,
     actions,
   );
