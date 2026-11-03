@@ -54,7 +54,7 @@ export default function pools(app) {
           'span',
           { class: 'main' },
           h('span', { class: 'pool-title' }, h('span', { class: 'name', 'data-testid': 'pool-name', text: pairName(p) }), h('span', { class: 'fee-chip', text: feeText(p.kind) })),
-          h('span', { class: 'line', 'data-testid': 'pool-reserves', text: empty ? t('Empty: nobody has added coins yet') : `${compact(p.tok1, wallet.label(p.aid1).decimals)} ${unit(p.aid1)} · ${compact(p.tok2, wallet.label(p.aid2).decimals)} ${unit(p.aid2)}` }),
+          h('span', { class: 'line', 'data-testid': 'pool-reserves', text: empty ? t('Empty: nobody has added coins yet') : `${compact(p.tok1)} ${unit(p.aid1)} · ${compact(p.tok2)} ${unit(p.aid2)}` }),
           empty ? null : h('span', { class: 'line', 'data-testid': 'pool-size', text: size == null ? t('Pool size: no price') : t('Pool size {worth}', { worth: beamWorth(size) }) }),
           ...sideWarnings(p),
           share ? h('span', { class: 'mine', 'data-testid': 'pool-share', text: t('Your share of the pool: {share}', { share: percentText(share.num, share.den) }) }) : null,

@@ -20,7 +20,6 @@
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, notice } from '../lib/ui.js';
-import { otherWalletsText } from '../lib/meta.js';
 import { parseAmount, formatAmount, toInputString } from '../lib/amount.js';
 import { wallet, sendModeFor } from '../lib/wallet.js';
 import { classifyRecipient, describeNameProblem, canReceivePayments, display, fingerprint, checkCode, pinVerdict, dateOf, holdEndHeight, STATUS, NAME_CALL_FEE } from '../lib/bans.js';
@@ -73,12 +72,7 @@ export default function send(app) {
     fill: (r) => {
       addr.value = r.address;
       const a = scannedAmount(r);
-      // A beam: link's amount is BEAM (as scan_go.js reads it), whichever token was chosen.
-      if (a) {
-        amount.value = draft.amount = a;
-        draft.assetId = 0;
-        assetSel.value = '0';
-      }
+      if (a) amount.value = draft.amount = a;
       validate();
     },
     paste: () => pasteBtn.click(),
@@ -92,8 +86,6 @@ export default function send(app) {
   const unitLabel = h('span', { class: 'small' });
   const maxBtn = h('button', { class: 'btn btn-secondary btn-small inside', type: 'button', 'data-testid': 'max' }, t('Max'));
   const amountHint = h('p', { class: 'hint' });
-  // A token with its own decimals: the amount as BEAM's desktop wallet and explorer read it.
-  const otherLine = h('p', { class: 'hint hidden', 'data-testid': 'send-other-wallets' });
   const feeLine = h('div', { class: 'kv' });
   const syncMsg = h('div', { class: 'send-slot' });
   const cta = primary(t('Review payment'), review, { disabled: true, 'data-testid': 'review' });
@@ -109,7 +101,7 @@ export default function send(app) {
   function fillAssets() {
     const list = assets();
     const cur = String(draft.assetId);
-    put(assetSel, ...list.map(([id, tot]) => h('option', { value: String(id), text: t('{unit} ({amount} available)', { unit: wallet.distinctUnit(id), amount: formatAmount(tot.available, { decimals: wallet.label(id).decimals }) }) })));
+    put(assetSel, ...list.map(([id, tot]) => h('option', { value: String(id), text: t('{unit} ({amount} available)', { unit: wallet.distinctUnit(id), amount: formatAmount(tot.available) }) })));
     assetSel.value = list.some(([id]) => String(id) === cur) ? cur : '0';
     draft.assetId = Number(assetSel.value);
     assetField.classList.toggle('hidden', list.length < 2);
@@ -203,7 +195,7 @@ export default function send(app) {
 
   function evaluate() {
     const id = Number(draft.assetId);
-    const { unit, decimals } = wallet.label(id);
+    const unit = wallet.label(id).unit;
     unitLabel.textContent = unit;
     const tot = wallet.state.totals.get(id) || { available: 0n };
     const beam = wallet.state.totals.get(0) || { available: 0n };
@@ -213,7 +205,7 @@ export default function send(app) {
     let amtErr = null;
     if (amount.value.trim()) {
       try {
-        amt = parseAmount(amount.value, { decimals, unit });
+        amt = parseAmount(amount.value);
         if (amt <= 0n) amtErr = t('The amount must be more than zero.');
       } catch (e) {
         amtErr = e.message;
@@ -221,14 +213,11 @@ export default function send(app) {
     }
     if (amt != null && !amtErr) {
       if (id === 0 && amt + fee > tot.available) amtErr = t("That's more than you have. Up to {amount} BEAM after the fee.", { amount: formatAmount(tot.available > fee ? tot.available - fee : 0n) });
-      else if (id !== 0 && amt > tot.available) amtErr = t("That's more than you have ({amount} {unit}).", { amount: formatAmount(tot.available, { decimals }), unit });
+      else if (id !== 0 && amt > tot.available) amtErr = t("That's more than you have ({amount} {unit}).", { amount: formatAmount(tot.available), unit });
       else if (id !== 0 && fee > beam.available) amtErr = t('The fee is paid in BEAM, and you have {amount} BEAM.', { amount: formatAmount(beam.available) });
     }
-    amountHint.textContent = amtErr || t('Available: {amount} {unit}', { amount: formatAmount(tot.available, { decimals }), unit });
+    amountHint.textContent = amtErr || t('Available: {amount} {unit}', { amount: formatAmount(tot.available), unit });
     amountHint.className = 'hint' + (amtErr ? ' bad' : '');
-    const other = amt != null && !amtErr ? otherWalletsText(amt, wallet.label(id)) : null;
-    otherLine.textContent = other || '';
-    otherLine.classList.toggle('hidden', !other);
     amount.classList.toggle('bad', Boolean(amtErr));
 
     const sync = wallet.state.sync;
@@ -237,8 +226,7 @@ export default function send(app) {
     note.setToName(Boolean(check.state === 'ok' && check.name) || classifyRecipient(addr.value).kind === 'name');
     const ok = check.state === 'ok' && amt != null && !amtErr && sync.canSend;
     cta.disabled = !ok;
-    // The decimals the amount was read with go along: Review shows it with the same ones, or sends nothing.
-    return ok ? { amount: amt, fee, assetId: id, decimals } : null;
+    return ok ? { amount: amt, fee, assetId: id } : null;
   }
 
   async function validate() {
@@ -328,7 +316,7 @@ export default function send(app) {
     const t2 = wallet.state.totals.get(id) || { available: 0n };
     const fee = id === 0 ? mode().fee : 0n;
     const max = t2.available > fee ? t2.available - fee : 0n;
-    amount.value = toInputString(max, wallet.label(id).decimals);
+    amount.value = toInputString(max);
     draft.amount = amount.value;
     evaluate();
   });
@@ -336,8 +324,8 @@ export default function send(app) {
   function review() {
     const ok = evaluate();
     if (!ok) return;
-    if (check.name) return app.go('review', { kind: 'name', name: check.name, ownerKey: check.ownerKey, pinnedKey: check.pinnedKey, pinUnread: Boolean(check.pinUnread), acceptedKey: check.acceptedKey, amount: ok.amount, fee: ok.fee, assetId: ok.assetId, decimals: ok.decimals });
-    app.go('review', { address: draft.address, amount: ok.amount, fee: ok.fee, assetId: ok.assetId, decimals: ok.decimals, type: check.type, note: note.value() });
+    if (check.name) return app.go('review', { kind: 'name', name: check.name, ownerKey: check.ownerKey, pinnedKey: check.pinnedKey, pinUnread: Boolean(check.pinUnread), acceptedKey: check.acceptedKey, amount: ok.amount, fee: ok.fee, assetId: ok.assetId });
+    app.go('review', { address: draft.address, amount: ok.amount, fee: ok.fee, assetId: ok.assetId, type: check.type, note: note.value() });
   }
 
   fillAssets();
@@ -365,7 +353,6 @@ export default function send(app) {
     assetField,
     h('label', { class: 'field' }, h('span', { class: 'banner' }, h('span', { class: 'grow', text: t('Amount') }), unitLabel), h('div', { class: 'input-wrap' }, amount, maxBtn)),
     amountHint,
-    otherLine,
     h('div', { class: 'card flat' }, feeLine),
     note.el,
     syncMsg,

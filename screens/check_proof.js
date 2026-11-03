@@ -58,7 +58,7 @@ export default function checkProof(app, params = {}) {
         const id = identityOf(c.address);
         if (id) names.set(id, c.name);
       }
-      const v = proofVerdict(info, { mine, names, describe: (a, id) => `${formatAmount(a, { decimals: wallet.label(id).decimals })} ${wallet.label(id).unit}` });
+      const v = proofVerdict(info, { mine, names, describe: (a, id) => `${formatAmount(a)} ${wallet.label(id).unit}` });
       if (!v.valid) return put(result, h('div', { 'data-testid': 'proof-invalid' }, notice('error', v.sentence)));
       const url = explorerUrl(v.kernel);
       // The same payment in this wallet's list: the proof and the list agree on it.
@@ -70,7 +70,7 @@ export default function checkProof(app, params = {}) {
         h(
           'div',
           { class: 'card' },
-          kv(t('Amount'), `${formatAmount(v.amount, { decimals: wallet.label(v.assetId).decimals })} ${wallet.label(v.assetId).unit}`),
+          kv(t('Amount'), `${formatAmount(v.amount)} ${wallet.label(v.assetId).unit}`),
           kv(t('Paid by'), v.fromYou ? t('You') : v.senderName || short(v.sender, 10, 8), { copy: v.fromYou ? null : v.sender }),
           kv(t('Paid to'), v.toYou ? t('You (this wallet)') : v.receiverName || short(v.receiver, 10, 8), { copy: v.toYou ? null : v.receiver }),
           kv(t('Transaction ID'), short(v.kernel, 10, 8), { copy: v.kernel }),

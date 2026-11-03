@@ -8,7 +8,6 @@ import { VERIFIED, copyWarning } from '../lib/meta.js';
 import { KINDS } from '../lib/dex.js';
 import { dexApp } from '../lib/dex_pools.js';
 import { createLiquidity, ratioText } from '../lib/dex_liquidity.js';
-import { DECIMALS } from '../lib/amount.js';
 import { t } from '../lib/i18n.js';
 
 /** Campfire's own list decides what is "verified" for pricing (as the desktop's pricer). */
@@ -35,12 +34,11 @@ export const feeText = (kind) => t('{percent} fee', { percent: feePercent(kind) 
 /** The pool's two icons in one badge. */
 export const pairBadge = (p, size = '') => assetBadge({ id: -1, pool: { aid1: p.aid1, aid2: p.aid2 } }, { size });
 
-/** "1 BEAM ≈ 8.1443 FOMO", or the other way round. Whole tokens of each side, each with its own decimals. */
+/** "1 BEAM ≈ 8.1443 FOMO", or the other way round. */
 export function rateText(p, flipped = false) {
   const [base, quote, rb, rq] = flipped ? [p.aid2, p.aid1, p.tok2, p.tok1] : [p.aid1, p.aid2, p.tok1, p.tok2];
   if (rb <= 0n || rq <= 0n) return t('No price yet');
-  const coin = (id) => 10n ** BigInt(wallet.label(id).decimals ?? DECIMALS);
-  return `1 ${unit(base)} ≈ ${ratioText(rq * coin(base), rb * coin(quote))} ${unit(quote)}`;
+  return `1 ${unit(base)} ≈ ${ratioText(rq, rb)} ${unit(quote)}`;
 }
 
 /** The red line under a side that copies a verified asset's name. */

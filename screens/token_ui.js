@@ -126,10 +126,9 @@ export function homeTokens(app) {
                     const { id, totals: tot } = hd;
                     const l = app.wallet.label(id);
                     const pending = [];
-                    const decimals = l.decimals;
-                    if (tot.receiving > 0n) pending.push(t('+{amount} incoming', { amount: formatAmount(tot.receiving, { decimals }) }));
-                    if (tot.sending > 0n) pending.push(t('−{amount} outgoing', { amount: formatAmount(tot.sending, { decimals }) }));
-                    pending.push(...maturingParts(tot, { decimals }));
+                    if (tot.receiving > 0n) pending.push(t('+{amount} incoming', { amount: formatAmount(tot.receiving) }));
+                    if (tot.sending > 0n) pending.push(t('−{amount} outgoing', { amount: formatAmount(tot.sending) }));
+                    pending.push(...maturingParts(tot));
                     const warning = copyWarning(l);
                     // Two held assets with one ticker (CHAD #187 and #190) show their numbers.
                     const sub = tokenSubtitle(l);
@@ -149,7 +148,7 @@ export function homeTokens(app) {
                       h(
                         'span',
                         { class: 'end' },
-                        h('div', { 'data-testid': 'token-balance', text: `${formatAmount(tot.available, { decimals })} ${l.pool ? 'LP' : l.symbol}` }), // i18n-ignore: an amount and its ticker
+                        h('div', { 'data-testid': 'token-balance', text: `${formatAmount(tot.available)} ${l.pool ? 'LP' : l.symbol}` }), // i18n-ignore: an amount and its ticker
                         pending.length ? h('div', { class: 'small', text: pending.join(' · ') }) : null,
                         value ? h('div', { class: 'small', 'data-testid': 'token-value', text: value }) : null,
                       ),

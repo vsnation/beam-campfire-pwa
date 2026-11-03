@@ -16,12 +16,11 @@
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, notice, openSheet, assetBadge } from '../lib/ui.js';
-import { parseAmount, formatAmount, toInputString, unknownDecimals, DECIMALS } from '../lib/amount.js';
+import { parseAmount, formatAmount, toInputString } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
 import { dexApp, loadPools } from '../lib/dex_pools.js';
 import { DEX_CALL_FEE, DEFAULT_RECEIVE, KINDS, PROTECTION_BPS, PROTECTIONS, receivable, tradable, bestQuote, tradeArgs, swapExpectation, leastReceive, priceImpactBps, IMPACT_WARN_BPS, feeIsLarge, swapValue, feeShareBps, bpsText, DexError } from '../lib/dex.js';
 import { shortAmount } from './consent.js';
-import { otherWalletsText } from '../lib/meta.js';
 import { hiddenIds } from '../lib/hidden_tokens.js';
 import { syncReason } from '../lib/sync.js';
 import { t, tNodes } from '../lib/i18n.js';
@@ -66,18 +65,16 @@ export default function swap(app) {
   const details = h('div', { class: 'card flat swap-details' });
   const notes = h('div', { class: 'swap-notes' });
   const reason = h('p', { class: 'hint center', 'data-testid': 'swap-reason', 'aria-live': 'polite' });
-  // Wraps: "Swap 0.00009997961 doggy #161 for ≈0.00190141 BEAM" is wider than a phone.
-  const cta = primary(t('Swap'), doSwap, { disabled: true, 'data-testid': 'swap-cta', class: 'btn btn-primary wrap' });
+  const cta = primary(t('Swap'), doSwap, { disabled: true, 'data-testid': 'swap-cta' });
   const flipBtn = h('button', { class: 'swap-flip', type: 'button', 'aria-label': t('Swap the two assets'), 'data-testid': 'swap-flip', onclick: flip }, icon('swap'));
 
   const unit = (id) => wallet.label(id).unit;
-  const decimalsOf = (id) => wallet.label(id).decimals;
 
   function amountState() {
     const typed = payInput.value.trim();
     if (!typed) return { value: null, error: null };
     try {
-      const v = parseAmount(typed, { decimals: decimalsOf(draft.pay), unit: unit(draft.pay) });
+      const v = parseAmount(typed);
       return v > 0n ? { value: v, error: null } : { value: null, error: t('The amount must be more than zero.') };
     } catch (e) {
       return { value: null, error: e.message };
@@ -102,12 +99,10 @@ export default function swap(app) {
     const a = amountState();
     if (a.error) return { off: a.error };
     if (a.value == null) return { off: t('Enter how much {unit} to swap.', { unit: payU }) };
-    // What it gets is shown, and checked on the approve sheet, in the receive token's decimals.
-    if (decimalsOf(draft.receive) == null) return { off: unknownDecimals(unit(draft.receive)) };
     const tot = wallet.state.totals.get(draft.pay) || { available: 0n, receiving: 0n };
     if (a.value > tot.available) {
-      if (tot.receiving > 0n && a.value <= tot.available + tot.receiving) return { off: t("{amount} {unit} is in a payment that hasn't finished yet; it's yours in about a minute.", { amount: formatAmount(tot.receiving, { decimals: decimalsOf(draft.pay) }), unit: payU }) };
-      return { off: t('Not enough {unit}. You have {amount} {unit}.', { unit: payU, amount: formatAmount(tot.available, { decimals: decimalsOf(draft.pay) }) }) };
+      if (tot.receiving > 0n && a.value <= tot.available + tot.receiving) return { off: t("{amount} {unit} is in a payment that hasn't finished yet; it's yours in about a minute.", { amount: formatAmount(tot.receiving), unit: payU }) };
+      return { off: t('Not enough {unit}. You have {amount} {unit}.', { unit: payU, amount: formatAmount(tot.available) }) };
     }
     if (problem) return { off: problemText(problem, payU, unit(draft.receive)) };
     if (quoting || !quote) return { off: t('Getting the best price…') };
@@ -130,12 +125,10 @@ export default function swap(app) {
     const payL = wallet.label(draft.pay);
     put(payAssetBtn, assetBadge(payL, { size: 'small' }), h('span', { text: payU }), icon('down'));
     const getL = draft.receive == null ? null : wallet.label(draft.receive);
-    const payD = payL.decimals;
-    const getD = getL ? getL.decimals : null;
     put(getAssetBtn, ...(getL ? [assetBadge(getL, { size: 'small' }), h('span', { text: getL.unit })] : [h('span', { text: t('Pick') })]), icon('down'));
 
     const tot = wallet.state.totals.get(draft.pay) || { available: 0n };
-    put(payInfo, h('span', { class: 'grow', text: t('Available: {amount} {unit}', { amount: formatAmount(tot.available, { decimals: payD }), unit: payU }) }));
+    put(payInfo, h('span', { class: 'grow', text: t('Available: {amount} {unit}', { amount: formatAmount(tot.available), unit: payU }) }));
     put(
       shareRow,
       ...[25, 50, 75, 100].map((p) =>
@@ -147,24 +140,23 @@ export default function swap(app) {
       ),
     );
     const a = amountState();
-    const quoted = Boolean(quote && a.value != null && !quoting && getD != null);
+    const quoted = Boolean(quote && a.value != null && !quoting);
     const who = getL && !getL.verified && draft.receive !== 0 ? t('{name} · asset #{id}', { name: getL.name, id: draft.receive }) : getL && getL.name !== getL.unit ? getL.name : '';
     const least = quoted ? leastReceive(quote, protection()) : null;
     // "About 5 bETH, at least 4.95": one sentence, each amount in its own element.
-    const exactEl = h('span', { 'data-testid': 'swap-get-exact', text: quoted ? t('About {amount} {unit}', { amount: formatAmount(quote.receive, { decimals: getD }), unit: getL.unit }) : who });
+    const exactEl = h('span', { 'data-testid': 'swap-get-exact', text: quoted ? t('About {amount} {unit}', { amount: formatAmount(quote.receive), unit: getL.unit }) : who });
     put(
       getInfo,
-      h('span', {}, ...(quoted ? tNodes('{about}, at least {least}', { about: exactEl, least: h('span', { 'data-testid': 'swap-get-least', text: formatAmount(least, { decimals: getD }) }) }) : [exactEl]), quoted && who ? ` · ${who}` : null),
+      h('span', {}, ...(quoted ? tNodes('{about}, at least {least}', { about: exactEl, least: h('span', { 'data-testid': 'swap-get-least', text: formatAmount(least) }) }) : [exactEl]), quoted && who ? ` · ${who}` : null),
     );
-    getAmount.textContent = quoted ? `≈ ${shortAmount(quote.receive, getD)}` : quoting || (quote && getD == null) ? '…' : '0';
+    getAmount.textContent = quoted ? `≈ ${shortAmount(quote.receive)}` : quoting ? '…' : '0';
     getAmount.classList.toggle('muted', !(quote && !quoting));
 
     const rows = [];
     if (quote && !quoting) {
-      // What one whole pay token gets, in the receive token's smallest units: each side has its own decimals.
-      const per = quote.pay > 0n ? (quote.receive * 10n ** BigInt(payD ?? DECIMALS)) / quote.pay : 0n;
-      rows.push(h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Price') }), h('span', { class: 'v', 'data-testid': 'swap-rate', text: `1 ${payU} ≈ ${shortAmount(per, getD)} ${unit(draft.receive)}` })));
-      rows.push(h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Pool fee ({percent})', { percent: KINDS[quote.kind].percent }) }), h('span', { class: 'v', 'data-testid': 'swap-pool-fee', text: `${formatAmount(quote.fee, { decimals: payD })} ${payU}` })));
+      const per = quote.pay > 0n ? (quote.receive * 100000000n) / quote.pay : 0n;
+      rows.push(h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Price') }), h('span', { class: 'v', 'data-testid': 'swap-rate', text: `1 ${payU} ≈ ${shortAmount(per)} ${unit(draft.receive)}` })));
+      rows.push(h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Pool fee ({percent})', { percent: KINDS[quote.kind].percent }) }), h('span', { class: 'v', 'data-testid': 'swap-pool-fee', text: `${formatAmount(quote.fee)} ${payU}` })));
     }
     rows.push(h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Network fee') }), h('span', { class: 'v', 'data-testid': 'swap-fee', text: `${formatAmount(DEX_CALL_FEE)} BEAM` }))); // i18n-ignore: an amount and its ticker
     rows.push(
@@ -196,19 +188,17 @@ export default function swap(app) {
       // An asset worth a lot per smallest unit (bETH: about 0.0025 BEAM a satoshi) comes in whole units,
       // so the pool takes only what those cost: say so, as the button and the consent show that amount.
       if (a.value != null && quote.pay < a.value && (a.value - quote.pay) * 200n > a.value) {
-        n.push(notice('info', h('span', { 'data-testid': 'swap-rounded', text: t('{unit} comes in steps of {step}, so {amount} {unit} costs {cost} {payUnit}, not the {entered} you entered.', { unit: getL.unit, step: formatAmount(1n, { decimals: getD }), amount: shortAmount(quote.receive, getD), cost: formatAmount(quote.pay, { decimals: payD }), payUnit: payU, entered: formatAmount(a.value, { decimals: payD }) }) })));
+        n.push(notice('info', h('span', { 'data-testid': 'swap-rounded', text: t('{unit} comes in steps of 0.00000001, so {amount} {unit} costs {cost} {payUnit}, not the {entered} you entered.', { unit: getL.unit, amount: shortAmount(quote.receive), cost: formatAmount(quote.pay), payUnit: payU, entered: formatAmount(a.value) }) })));
       }
     }
-    const others = quoted ? [otherWalletsText(quote.pay, payL), otherWalletsText(quote.receive, getL)].filter(Boolean) : [];
-    if (!n.length) n.push(h('p', { class: 'small', 'data-testid': 'swap-promise', text: quoted ? t('You get at least {amount} {unit}, or the swap stops and nothing is sent.', { amount: formatAmount(least, { decimals: getD }), unit: getL.unit }) : t('If the price gets more than {percent} worse before you approve, the swap stops and nothing is sent.', { percent: bpsText(protection()) }) }));
-    others.forEach((text, i) => n.push(h('p', { class: 'small', 'data-testid': `swap-other-wallets-${i}`, text })));
+    if (!n.length) n.push(h('p', { class: 'small', 'data-testid': 'swap-promise', text: quoted ? t('You get at least {amount} {unit}, or the swap stops and nothing is sent.', { amount: formatAmount(least), unit: getL.unit }) : t('If the price gets more than {percent} worse before you approve, the swap stops and nothing is sent.', { percent: bpsText(protection()) }) }));
     put(notes, ...n);
 
     const st = ctaState();
     cta.disabled = Boolean(st.off);
     // Quoted: what the swap will really pay (the consent shows the same), which can be a little less
     // than what was typed when the other asset comes in large steps.
-    cta.textContent = a.value == null || a.error ? t('Swap') : quoted ? t('Swap {amount} {unit} for ≈{getAmount} {getUnit}', { amount: formatAmount(quote.pay, { decimals: payD }), unit: payU, getAmount: shortAmount(quote.receive, getD), getUnit: getL.unit }) : t('Swap {amount} {unit}', { amount: shortAmount(a.value, payD), unit: payU });
+    cta.textContent = a.value == null || a.error ? t('Swap') : quoted ? t('Swap {amount} {unit} for ≈{getAmount} {getUnit}', { amount: formatAmount(quote.pay), unit: payU, getAmount: shortAmount(quote.receive), getUnit: getL.unit }) : t('Swap {amount} {unit}', { amount: shortAmount(a.value), unit: payU });
     reason.textContent = st.off || '';
     reason.classList.toggle('hidden', !st.off);
   }
@@ -271,11 +261,10 @@ export default function swap(app) {
   // ------------------------------------------------------------ actions
   /** `percent` of what can be paid: the balance, less the network fee when paying with BEAM. */
   function useShare(percent) {
-    if (decimalsOf(draft.pay) == null) return; // nothing written as 8 that would be read with other decimals
     const tot = wallet.state.totals.get(draft.pay) || { available: 0n };
     const fee = draft.pay === 0 ? DEX_CALL_FEE : 0n;
     const base = tot.available > fee ? tot.available - fee : 0n;
-    payInput.value = toInputString(percent === 100 ? base : (base * BigInt(percent)) / 100n, decimalsOf(draft.pay));
+    payInput.value = toInputString(percent === 100 ? base : (base * BigInt(percent)) / 100n);
     share = percent;
     onInput();
   }
@@ -364,7 +353,7 @@ export default function swap(app) {
                   { class: `row${current ? ' on' : ''}`, 'data-asset-id': String(id), onclick: () => close(id) },
                   assetBadge(l),
                   h('span', { class: 'main' }, h('div', { class: 't', text: l.unit }), h('div', { class: 's', text: l.verified ? l.name : t('Not verified · {name}', { name: l.name }) })),
-                  have > 0n ? h('span', { class: 'end small', text: formatAmount(have, { decimals: l.decimals }) }) : null,
+                  have > 0n ? h('span', { class: 'end small', text: formatAmount(have) }) : null,
                 );
               })
             : [h('p', { class: 'small center pad', text: paySide ? t('Only assets this wallet holds can be paid with.') : t('Nothing matches. Try another name or number.') })]),
@@ -406,7 +395,7 @@ export default function swap(app) {
       const args = tradeArgs({ payAsset: q.payAsset, receiveAsset: q.receiveAsset, kind: q.kind, payAmount: q.pay, predictOnly: false });
       // The approve sheet repeats what the swap is sure to get: the engine's amount there can still shrink a little.
       const least = leastReceive(q, protection());
-      const intent = { action: 'swap', payAsset: q.payAsset, receiveAsset: q.receiveAsset, rows: [[t('You get at least'), `${formatAmount(least, { decimals: decimalsOf(q.receiveAsset) })} ${unit(q.receiveAsset)}`]] };
+      const intent = { action: 'swap', payAsset: q.payAsset, receiveAsset: q.receiveAsset, rows: [[t('You get at least'), `${formatAmount(least)} ${unit(q.receiveAsset)}`]] };
       const txId = await dex.transact(args, shader, { expect: swapExpectation(q, protection()), intent });
       if (!alive) return;
       app.swapDraft = null;

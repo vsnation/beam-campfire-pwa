@@ -18,7 +18,6 @@
  */
 import { h, put } from '../lib/dom.js';
 import { screen, primary, notice } from '../lib/ui.js';
-import { otherWalletsText } from '../lib/meta.js';
 import { parseAmount, formatAmount, toInputString } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
 import { v3CreationFee, createFee, cancelFee, GAS_PER_VOUCHER, V3_MAX_VOUCHERS } from '../lib/airdrop_v3.js';
@@ -39,7 +38,7 @@ export default function airdropCreate(app, p = {}) {
   // The failed batch's figures win over an older draft; used once, so coming back keeps what was typed since.
   if (p.again) {
     const a = p.again;
-    app.dropCreateDraft = { assetId: Number(a.assetId) || 0, amount: a.value != null ? toInputString(BigInt(a.value), wallet.label(Number(a.assetId) || 0).decimals) : '', count: String(a.count || '10'), gas: a.gas !== false };
+    app.dropCreateDraft = { assetId: Number(a.assetId) || 0, amount: a.value != null ? toInputString(BigInt(a.value)) : '', count: String(a.count || '10'), gas: a.gas !== false };
     p.again = null;
   }
   const draft = (app.dropCreateDraft = app.dropCreateDraft || { assetId: 0, amount: '', count: '10', gas: true });
@@ -58,8 +57,6 @@ export default function airdropCreate(app, p = {}) {
   const gasBox = h('input', { type: 'checkbox', 'data-testid': 'drop-gas', checked: draft.gas });
   const gasRow = h('label', { class: 'check-row', 'data-testid': 'drop-gas-row' }, gasBox, h('span', { text: t('Pay the claim fee for each code ({fee} BEAM per code), so people with an empty wallet can claim', { fee: formatAmount(GAS_PER_VOUCHER) }) }));
   const fieldHint = h('p', { class: 'hint', 'data-testid': 'drop-hint' });
-  // A token with its own decimals: one code's amount as BEAM's desktop wallet and explorer read it.
-  const otherLine = h('p', { class: 'hint hidden', 'data-testid': 'drop-other-wallets' });
   const summary = h('div', { class: 'card flat swap-details' });
   const notes = h('div', { class: 'swap-notes' });
   const reason = h('p', { class: 'hint center', 'data-testid': 'drop-reason', 'aria-live': 'polite' });
@@ -74,7 +71,7 @@ export default function airdropCreate(app, p = {}) {
 
   function fillAssets() {
     const list = assets();
-    put(assetSel, ...list.map((id) => h('option', { value: String(id), text: t('{unit} ({amount} available)', { unit: wallet.distinctUnit(id), amount: formatAmount(wallet.available(id), { decimals: wallet.label(id).decimals }) }) })));
+    put(assetSel, ...list.map((id) => h('option', { value: String(id), text: t('{unit} ({amount} available)', { unit: wallet.distinctUnit(id), amount: formatAmount(wallet.available(id)) }) })));
     assetSel.value = list.includes(Number(draft.assetId)) ? String(draft.assetId) : '0';
     draft.assetId = Number(assetSel.value);
   }
@@ -87,8 +84,7 @@ export default function airdropCreate(app, p = {}) {
     const typed = amount.value.trim();
     if (typed) {
       try {
-        const l = wallet.label(Number(draft.assetId));
-        value = parseAmount(typed, { decimals: l.decimals, unit: l.unit });
+        value = parseAmount(typed);
         if (value <= 0n) error = t('Each code must give more than zero.');
       } catch (e) {
         error = e.message;
@@ -122,7 +118,7 @@ export default function airdropCreate(app, p = {}) {
       const need = lock + beam;
       if (wallet.available(0) < need) return { off: t('Not enough BEAM. This needs {need} BEAM, fees included. You have {have} BEAM.', { need: formatAmount(need), have: formatAmount(wallet.available(0)) }), receive: true };
     } else {
-      if (wallet.available(id) < lock) return { off: t('Not enough {unit}. This needs {need} {unit} with the 1% fee. You have {have} {unit}.', { unit: u, need: formatAmount(lock, { decimals: wallet.label(id).decimals }), have: formatAmount(wallet.available(id), { decimals: wallet.label(id).decimals }) }) };
+      if (wallet.available(id) < lock) return { off: t('Not enough {unit}. This needs {need} {unit} with the 1% fee. You have {have} {unit}.', { unit: u, need: formatAmount(lock), have: formatAmount(wallet.available(id)) }) };
       if (wallet.available(0) < beam) {
         const fees = formatAmount(beam);
         const have = formatAmount(wallet.available(0));
@@ -140,9 +136,6 @@ export default function airdropCreate(app, p = {}) {
     gasBox.checked = draft.gas;
     const p = plan();
     fieldHint.textContent = t('Available: {amount}', { amount: amountText(id, wallet.available(id)) });
-    const other = p.value != null && !p.error ? otherWalletsText(p.value, wallet.label(id)) : null;
-    otherLine.textContent = other || '';
-    otherLine.classList.toggle('hidden', !other);
     const row = (k, v, testid, sub) => h('div', { class: 'kv' }, h('span', { class: 'k' }, k, sub ? h('div', { class: 'small', text: sub }) : null), h('span', { class: 'v', 'data-testid': testid, text: v }));
     const ok = p.total != null;
     const leaves = () => {
@@ -257,7 +250,6 @@ export default function airdropCreate(app, p = {}) {
       h('label', { class: 'field count-field' }, t('Codes'), count),
     ),
     fieldHint,
-    otherLine,
     gasRow,
     summary,
     notes,

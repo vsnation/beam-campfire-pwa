@@ -42,7 +42,7 @@ export default function hiddenTokens(app) {
           return h(
             'div',
             { class: 'row asset-row', 'data-testid': 'hidden-token-row', 'data-asset-id': String(id) },
-            h('button', { class: 'row-open', type: 'button', 'aria-label': t('Open {token}', { token: l.label }), onclick: () => app.go('token', { assetId: id }) }, assetBadge(l), h('span', { class: 'main' }, h('div', { class: 't', text: l.name }), h('div', { class: 's', text: `${tokenSubtitle(l)} · ${have > 0n ? `${formatAmount(have, { decimals: l.decimals })} ${l.pool ? 'LP' : l.symbol}` : t('none held')}` }))), // i18n-ignore: the ticker; the words are t()
+            h('button', { class: 'row-open', type: 'button', 'aria-label': t('Open {token}', { token: l.label }), onclick: () => app.go('token', { assetId: id }) }, assetBadge(l), h('span', { class: 'main' }, h('div', { class: 't', text: l.name }), h('div', { class: 's', text: `${tokenSubtitle(l)} · ${have > 0n ? `${formatAmount(have)} ${l.pool ? 'LP' : l.symbol}` : t('none held')}` }))), // i18n-ignore: the ticker; the words are t()
             h(
               'button',
               {

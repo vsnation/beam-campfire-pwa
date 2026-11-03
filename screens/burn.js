@@ -58,7 +58,7 @@ export default function burn(app, p = {}) {
     const id = current();
     if (id == null) return;
     const all = wallet.available(id) < MAX_PER_TX ? wallet.available(id) : MAX_PER_TX;
-    amount.value = toInputString(all, wallet.label(id).decimals);
+    amount.value = toInputString(all);
     draft.amount = amount.value;
     result = null;
     render();
@@ -77,9 +77,8 @@ export default function burn(app, p = {}) {
 
   function plan() {
     const id = current();
+    const r = parseUnits(amount.value);
     if (id == null) return { value: null, error: null };
-    const l = wallet.label(id);
-    const r = parseUnits(amount.value, MAX_PER_TX, { decimals: l.decimals, unit: l.unit });
     const have = wallet.available(id);
     if (r.error === 'over' || (r.value != null && r.value > have)) return { value: r.value, error: t('You have {amount}', { amount: tokenAmount(id, have) }) };
     return r;
@@ -126,7 +125,7 @@ export default function burn(app, p = {}) {
     }
     draft.assetId = id;
     const ids = burnable();
-    put(assetSel, ...ids.map((x) => h('option', { value: String(x), text: t('{unit} ({amount} available)', { unit: wallet.distinctUnit(x), amount: formatAmount(wallet.available(x), { decimals: wallet.label(x).decimals }) }) })));
+    put(assetSel, ...ids.map((x) => h('option', { value: String(x), text: t('{unit} ({amount} available)', { unit: wallet.distinctUnit(x), amount: formatAmount(wallet.available(x)) }) })));
     assetSel.value = String(id);
     assetField.classList.toggle('hidden', ids.length < 2);
     put(tokenBox, tokenTitle(id, t('You have {amount}', { amount: tokenAmount(id, wallet.available(id)) })));

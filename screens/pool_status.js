@@ -43,7 +43,7 @@ export default function poolTx(app, p) {
     const pays = moved && moved.spends.length ? moved.spends : p.pays;
     const receives = moved && moved.receives.length ? moved.receives : p.receives;
     const approx = done ? '' : '≈ ';
-    const line = (k, a, sign, testid) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), h('span', { class: 'v', 'data-testid': testid, text: `${sign}${formatAmount(a.amount, { decimals: wallet.label(a.assetId).decimals })} ${unit(a.assetId)}` }));
+    const line = (k, a, sign, testid) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), h('span', { class: 'v', 'data-testid': testid, text: `${sign}${formatAmount(a.amount)} ${unit(a.assetId)}` }));
     put(
       body,
       h('div', { class: `status-icon ${done ? 'ok' : failed ? 'bad' : 'wait'}` }, icon(done ? 'check' : failed ? 'close' : 'clock')),

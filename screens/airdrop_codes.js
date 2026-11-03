@@ -200,7 +200,7 @@ export default function airdropCodes(app, p = {}) {
   /** The codes as the desktop's CSV, to the share sheet (iPhone: Save to Files) or a download. Made on the tap, kept nowhere. */
   async function saveCsv(b) {
     try {
-      const file = csvFile(b, { formatValue: (v) => formatAmount(v, { decimals: wallet.label(b.assetId).decimals }), assetLabel: wallet.label(b.assetId).unit });
+      const file = csvFile(b, { formatValue: (v) => formatAmount(v), assetLabel: wallet.label(b.assetId).unit });
       const how = await deliverExport(file, { title: t('Airdrop codes') });
       if (how === 'cancelled') return;
       toast(how === 'shared' ? t('Shared {file}. Anyone who opens it can claim the codes: keep it private.', { file: file.name }) : t('Saved {file}. Anyone who opens it can claim the codes: keep it private.', { file: file.name }), 6000);

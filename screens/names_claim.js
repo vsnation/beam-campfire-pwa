@@ -66,7 +66,7 @@ export async function setNamesHint(app, owns) {
   }
 }
 
-const fmt = (g, id = 0) => formatAmount(g, { decimals: wallet.label(id).decimals });
+const fmt = (g) => formatAmount(g);
 const unit = (id) => wallet.label(id).unit;
 
 /** The approve sheet's words for a claim the engine built (screens/consent.js intentExtras). */
@@ -135,7 +135,7 @@ export function namesHomeLine(app) {
     const s = inbox && inbox.latest;
     if (inbox && inbox.claiming) {
       const r = inbox.claiming.receives;
-      put(el, h('div', { class: 'card names-line', 'data-testid': 'names-home-line', 'data-state': 'claiming' }, h('span', { class: 'ico' }, icon('clock')), h('span', { class: 'grow', text: t('Claim on its way: {amounts}', { amounts: [...r.keys()].map((id) => `+${fmt(r.get(id), id)} ${unit(id)}`).join(', ') }) })));
+      put(el, h('div', { class: 'card names-line', 'data-testid': 'names-home-line', 'data-state': 'claiming' }, h('span', { class: 'ico' }, icon('clock')), h('span', { class: 'grow', text: t('Claim on its way: {amounts}', { amounts: [...r.keys()].map((id) => `+${fmt(r.get(id))} ${unit(id)}`).join(', ') }) })));
       return;
     }
     const pay = namePaymentsText(s, fmt, unit);

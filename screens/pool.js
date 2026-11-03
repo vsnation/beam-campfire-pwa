@@ -19,7 +19,7 @@
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, notice, assetBadge } from '../lib/ui.js';
-import { parseAmount, formatAmount, toInputString, DECIMALS } from '../lib/amount.js';
+import { parseAmount, formatAmount, toInputString } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
 import { loadPools } from '../lib/dex_pools.js';
 import {
@@ -31,20 +31,14 @@ import { isVerified, unit, pairName, feeText, pairBadge, sideWarnings, flipButto
 import { syncReason } from '../lib/sync.js';
 import { t } from '../lib/i18n.js';
 
-const decimalsOf = (id) => wallet.label(id).decimals;
+/** An amount on the button: as the swap writes it, but a tiny one in four significant digits. */
+const btn = (g) => (BigInt(g) >= 1000000n ? shortAmount(g) : compact(g));
 
-/** An amount of `aid` on the button: as the swap writes it, but a tiny one in four significant digits. */
-const btn = (g, aid) => {
-  const d = decimalsOf(aid);
-  return BigInt(g) >= 10n ** BigInt(d ?? DECIMALS) / 100n ? shortAmount(g, d) : compact(g, d);
-};
-
-/** What was typed for token `aid`, read with its decimals; with no `aid`, pool shares (8, as the DEX makes them). */
-function parsed(text, aid = null) {
+function parsed(text) {
   const s = String(text || '').trim();
   if (!s) return { value: null, error: null };
   try {
-    const v = aid == null ? parseAmount(s, { unit: 'LP' }) : parseAmount(s, { decimals: decimalsOf(aid), unit: wallet.label(aid).unit });
+    const v = parseAmount(s);
     return v > 0n ? { value: v, error: null } : { value: null, error: t('The amount must be more than zero.') };
   } catch (e) {
     return { value: null, error: e.message };
@@ -100,8 +94,8 @@ export default function pool(app, params = {}) {
 
   // ------------------------------------------------------------ add: amounts
   function given() {
-    const v1 = parsed(in1.value, key.aid1).value;
-    const v2 = parsed(in2.value, key.aid2).value;
+    const v1 = parsed(in1.value).value;
+    const v2 = parsed(in2.value).value;
     if (empty()) return { amount1: v1, amount2: v2 };
     return draft.edited === 2 ? { amount2: v2 } : { amount1: v1 };
   }
@@ -129,7 +123,7 @@ export default function pool(app, params = {}) {
     if (!pl) return;
     const aid = side === 1 ? pl.aid1 : pl.aid2;
     const v = maxDeposit(pl, side, spendable(pl.aid1), spendable(pl.aid2));
-    (side === 1 ? in1 : in2).value = v > 0n ? toInputString(v, decimalsOf(aid)) : '';
+    (side === 1 ? in1 : in2).value = v > 0n ? toInputString(v) : '';
     if (v <= 0n) {
       result = { kind: 'info', code: 'nothing', text: aid === 0 ? t('There is no {unit} to add after the 0.011 BEAM network fee.', { unit: unit(aid) }) : t('There is no {unit} to add.', { unit: unit(aid) }) };
     }
@@ -190,8 +184,8 @@ export default function pool(app, params = {}) {
         if (!alive || mine !== seq) return;
         addQ = q;
         if (!empty()) {
-          if (draft.edited === 1) in2.value = toInputString(q.amount2, decimalsOf(key.aid2));
-          else in1.value = toInputString(q.amount1, decimalsOf(key.aid1));
+          if (draft.edited === 1) in2.value = toInputString(q.amount2);
+          else in1.value = toInputString(q.amount1);
           draft.a1 = in1.value;
           draft.a2 = in2.value;
         }
@@ -233,8 +227,8 @@ export default function pool(app, params = {}) {
       if (LIQUIDITY_FEE > beam + back) return { off: t('You need {fee} BEAM for the network fee. You have {balance} BEAM.', { fee: formatAmount(LIQUIDITY_FEE), balance: formatAmount(beam) }) };
       return { off: null };
     }
-    const p1 = parsed(in1.value, key.aid1);
-    const p2 = parsed(in2.value, key.aid2);
+    const p1 = parsed(in1.value);
+    const p2 = parsed(in2.value);
     const err = (draft.edited === 2 && !empty() ? p2.error : p1.error) || (empty() ? p2.error : null);
     if (err) return { off: err };
     if (!wantsAddQuote()) return { off: empty() ? t("Enter both amounts. They set the pool's starting price.") : t('Enter how much {unit1} or {unit2} to add.', { unit1: unit(pl.aid1), unit2: unit(pl.aid2) }) };
@@ -243,8 +237,8 @@ export default function pool(app, params = {}) {
     for (const [aid, need] of [[pl.aid1, addQ.amount1], [pl.aid2, addQ.amount2]]) {
       const tot = wallet.state.totals.get(aid) || { available: 0n, receiving: 0n };
       if (need > tot.available) {
-        if (tot.receiving > 0n && need <= tot.available + tot.receiving) return { off: t("{amount} {unit} is in a payment that hasn't finished yet; it's yours in about a minute.", { amount: formatAmount(tot.receiving, { decimals: decimalsOf(aid) }), unit: unit(aid) }) };
-        return { off: t('Not enough {unit}. You need {need}, you have {balance}.', { unit: unit(aid), need: formatAmount(need, { decimals: decimalsOf(aid) }), balance: formatAmount(tot.available, { decimals: decimalsOf(aid) }) }) };
+        if (tot.receiving > 0n && need <= tot.available + tot.receiving) return { off: t("{amount} {unit} is in a payment that hasn't finished yet; it's yours in about a minute.", { amount: formatAmount(tot.receiving), unit: unit(aid) }) };
+        return { off: t('Not enough {unit}. You need {need}, you have {balance}.', { unit: unit(aid), need: formatAmount(need), balance: formatAmount(tot.available) }) };
       }
     }
     const beamOut = (pl.aid1 === 0 ? addQ.amount1 : 0n) + LIQUIDITY_FEE;
@@ -302,8 +296,8 @@ export default function pool(app, params = {}) {
                 h(
                   'span',
                   { class: 'v', 'data-testid': 'pool-reserves' },
-                  h('span', { class: 'line', text: `${compact(pl.tok1, decimalsOf(pl.aid1))} ${unit(pl.aid1)}` }),
-                  h('span', { class: 'line', text: `${compact(pl.tok2, decimalsOf(pl.aid2))} ${unit(pl.aid2)}` }),
+                  h('span', { class: 'line', text: `${compact(pl.tok1)} ${unit(pl.aid1)}` }),
+                  h('span', { class: 'line', text: `${compact(pl.tok2)} ${unit(pl.aid2)}` }),
                   h('span', { class: 'small line', 'data-testid': 'pool-size', text: size == null ? t('No price') : t('Pool size {worth}', { worth: beamWorth(size) }) }),
                 ),
               ),
@@ -333,7 +327,7 @@ export default function pool(app, params = {}) {
           h('span', { class: 'k', text: t('Your share of the pool') }),
           h('span', { class: 'v' }, h('span', { class: 'mine', 'data-testid': 'pool-my-share', text: percentText(share.num, share.den) }), h('div', { class: 'small', 'data-testid': 'pool-my-lp', text: t('{amount} LP', { amount: formatAmount(lp) }) })),
         ),
-        kv(t('Worth about'), value == null ? t('No price yet') : beamWorth(value).replace(/^≈ /, ''), 'pool-my-value', [`${compact(est.amount1, decimalsOf(pl.aid1))} ${unit(pl.aid1)} +`, `${compact(est.amount2, decimalsOf(pl.aid2))} ${unit(pl.aid2)}`]),
+        kv(t('Worth about'), value == null ? t('No price yet') : beamWorth(value).replace(/^≈ /, ''), 'pool-my-value', [`${compact(est.amount1)} ${unit(pl.aid1)} +`, `${compact(est.amount2)} ${unit(pl.aid2)}`]),
       ),
     );
     const tab = (m, label) => h('button', { class: `choice${mode() === m ? ' on' : ''}`, type: 'button', 'aria-pressed': String(mode() === m), 'data-testid': `pool-mode-${m}`, onclick: () => setMode(m) }, label);
@@ -370,7 +364,7 @@ export default function pool(app, params = {}) {
           chip.dataset.asset = String(aid);
           chip.dataset.unit = l.unit;
         }
-        bal.textContent = t('Balance: {amount} {unit}', { amount: formatAmount(wallet.available(aid), { decimals: l.decimals }), unit: l.unit });
+        bal.textContent = t('Balance: {amount} {unit}', { amount: formatAmount(wallet.available(aid)), unit: l.unit });
       },
     };
   }
@@ -421,7 +415,7 @@ export default function pool(app, params = {}) {
       if (wdQ && !quoting) {
         const v1 = valueOf(pools, pl.aid1, wdQ.amount1, isVerified);
         const v2 = valueOf(pools, pl.aid2, wdQ.amount2, isVerified);
-        rows.push(kv(t('You get back'), [`${formatAmount(wdQ.amount1, { decimals: decimalsOf(pl.aid1) })} ${unit(pl.aid1)} +`, `${formatAmount(wdQ.amount2, { decimals: decimalsOf(pl.aid2) })} ${unit(pl.aid2)}`], 'pool-get-back', v1 == null || v2 == null ? t('No price') : beamWorth(v1 + v2)));
+        rows.push(kv(t('You get back'), [`${formatAmount(wdQ.amount1)} ${unit(pl.aid1)} +`, `${formatAmount(wdQ.amount2)} ${unit(pl.aid2)}`], 'pool-get-back', v1 == null || v2 == null ? t('No price') : beamWorth(v1 + v2)));
         rows.push(kv(t('You return'), t('{amount} LP', { amount: formatAmount(wdQ.lpBurned) }), 'pool-return-lp'));
       }
       rows.push(kv(t('Network fee'), `${formatAmount(LIQUIDITY_FEE)} BEAM`, 'pool-fee-network'));
@@ -455,15 +449,15 @@ export default function pool(app, params = {}) {
     const st = ctaState();
     cta.disabled = Boolean(st.off);
     if (mode() === 'add') {
-      const g = { a1: parsed(in1.value, key.aid1).value, a2: parsed(in2.value, key.aid2).value };
+      const g = { a1: parsed(in1.value).value, a2: parsed(in2.value).value };
       cta.textContent =
         pl && addQ && !quoting
-          ? t('Add {amount1} {unit1} + {amount2} {unit2}', { amount1: btn(addQ.amount1, pl.aid1), unit1: unit(pl.aid1), amount2: btn(addQ.amount2, pl.aid2), unit2: unit(pl.aid2) })
+          ? t('Add {amount1} {unit1} + {amount2} {unit2}', { amount1: btn(addQ.amount1), unit1: unit(pl.aid1), amount2: btn(addQ.amount2), unit2: unit(pl.aid2) })
           : pl && g.a1 && g.a2 && empty()
-            ? t('Add {amount1} {unit1} + {amount2} {unit2}', { amount1: btn(g.a1, pl.aid1), unit1: unit(pl.aid1), amount2: btn(g.a2, pl.aid2), unit2: unit(pl.aid2) })
+            ? t('Add {amount1} {unit1} + {amount2} {unit2}', { amount1: btn(g.a1), unit1: unit(pl.aid1), amount2: btn(g.a2), unit2: unit(pl.aid2) })
             : t('Add liquidity');
     } else {
-      cta.textContent = pl && wdQ && !quoting ? t('Withdraw {amount1} {unit1} + {amount2} {unit2}', { amount1: btn(wdQ.amount1, pl.aid1), unit1: unit(pl.aid1), amount2: btn(wdQ.amount2, pl.aid2), unit2: unit(pl.aid2) }) : t('Withdraw');
+      cta.textContent = pl && wdQ && !quoting ? t('Withdraw {amount1} {unit1} + {amount2} {unit2}', { amount1: btn(wdQ.amount1), unit1: unit(pl.aid1), amount2: btn(wdQ.amount2), unit2: unit(pl.aid2) }) : t('Withdraw');
     }
     // The pair in the title once the pool is known: "BEAM/FOMO pool".
     if (titleEl && pl) titleEl.textContent = t('{pair} pool', { pair: pairName(pl, '/') });

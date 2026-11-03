@@ -27,10 +27,7 @@ export const minter = () => minterFor(wallet.session);
 export const burner = () => burnFor(wallet.session);
 
 /** "1,000 MYT", every digit; the ticker as money screens write it ("PEPE #94" for an unverified one). */
-export const tokenAmount = (assetId, amount) => {
-  const l = wallet.label(assetId);
-  return `${formatAmount(amount, { decimals: l.decimals })} ${l.unit}`;
-};
+export const tokenAmount = (assetId, amount) => `${formatAmount(amount)} ${wallet.label(assetId).unit}`;
 
 /** A ceiling as people read it: "1,000,000 MYT", or "No maximum". */
 export const limitText = (assetId, limit) => (unlimited(limit) ? t('No maximum') : tokenAmount(assetId, limit));

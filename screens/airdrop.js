@@ -18,7 +18,6 @@ import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, secondary, textButton, notice, sheetPromise } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
-import { otherWalletsText } from '../lib/meta.js';
 import { wallet } from '../lib/wallet.js';
 import { walletStore } from '../lib/wallet_scope.js';
 import { codeVault, resealCodeVault, normaliseCode, formatCode, isWellFormedCode, CODE_LENGTH } from '../lib/airdrop.js';
@@ -90,11 +89,7 @@ export function resealAirdropCodes(app) {
 }
 
 /** "5 bETH" with every digit. */
-export const amountText = (assetId, amount) => {
-  const l = wallet.label(assetId);
-  // Decimals not read yet (lib/wallet.js loadAsset asks the node): no figure that could be 10^n off.
-  return l.decimals == null ? `… ${l.unit}` : `${formatAmount(amount, { decimals: l.decimals })} ${l.unit}`;
-};
+export const amountText = (assetId, amount) => `${formatAmount(amount)} ${wallet.label(assetId).unit}`;
 
 /** "The claim was not sent: {reason} Nothing left your wallet.", one whole sentence per kind. */
 function notSentText(what, reason) {
@@ -230,7 +225,6 @@ export default function airdropClaim(app) {
         row(t('Network fee'), c.codePaysFee ? t('Paid by the code') : null, `${formatAmount(c.fee)} BEAM`, 'airdrop-fee'),
         row(t('Balance change'), null, balanceChange(info), 'airdrop-net'),
       ),
-      otherWalletsText(info.value, l) ? h('p', { class: 'small', 'data-testid': 'airdrop-other-wallets', text: otherWalletsText(info.value, l) }) : null,
       info.assetId !== 0 && !l.verified ? h('p', { class: 'small', text: t("{symbol} is asset #{id}: not on Beam PWA's list of known assets.", { symbol: l.symbol, id: info.assetId }) }) : null,
       worthLess ? notice('warn', t('This code gives {amount} and claiming it costs {fee} BEAM, so your balance goes down. Claim only if you want it anyway.', { amount: amountText(0, info.value), fee: formatAmount(c.fee) })) : null,
       h('p', { class: 'small', 'data-testid': 'airdrop-bearer', text: info.contract === 'v3' ? t(BEARER_TEXT_V3.claimMessage) : t(BEARER_TEXT.claimMessage) }),

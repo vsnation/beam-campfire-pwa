@@ -39,7 +39,6 @@ export default function splitReview(app, p = {}) {
   const actions = h('div', { class: 'actions' });
   const l = wallet.label(assetId);
   const symbol = l.pool ? 'LP' : l.unit;
-  const decimals = l.decimals;
   let before = null; // this asset's coins now
   let beam = 0n;
   let plan = null;
@@ -75,7 +74,7 @@ export default function splitReview(app, p = {}) {
     }
     authing = true;
     render();
-    const ok = await confirmIdentity(app, { title: t('Confirm the split'), detail: T.authReason(plan, symbol, decimals), cta: t('Split') });
+    const ok = await confirmIdentity(app, { title: t('Confirm the split'), detail: T.authReason(plan, symbol), cta: t('Split') });
     authing = false;
     if (!ok || !alive) return render();
     busy = true;
@@ -122,9 +121,9 @@ export default function splitReview(app, p = {}) {
         ? h(
             'div',
             { class: 'card flat split-after' },
-            kv(t('Now'), tn({ one: '{amount} in {n} coin', other: '{amount} in {n} coins' }, coinsNow, { amount: `${formatAmount(before.availableTotal, { decimals })} ${symbol}` }), 'split-review-now'),
-            kv(t('New coins'), T.newCoins(plan, symbol, decimals), 'split-review-new'),
-            plan.change > 0n ? kv(t('Stays as change'), `${formatAmount(plan.change, { decimals })} ${symbol}`, 'split-review-change') : null,
+            kv(t('Now'), tn({ one: '{amount} in {n} coin', other: '{amount} in {n} coins' }, coinsNow, { amount: `${formatAmount(before.availableTotal)} ${symbol}` }), 'split-review-now'),
+            kv(t('New coins'), T.newCoins(plan, symbol), 'split-review-new'),
+            plan.change > 0n ? kv(t('Stays as change'), `${formatAmount(plan.change)} ${symbol}`, 'split-review-change') : null,
             kv(t('Network fee'), T.fee(plan), 'split-review-fee'),
             h('div', { class: 'kv total' }, h('span', { class: 'k', text: t('Leaves your wallet') }), h('span', { class: 'v', 'data-testid': 'split-review-leaves', text: T.fee(plan) })),
           )

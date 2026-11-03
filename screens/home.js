@@ -28,7 +28,7 @@
  *     balance says Safari can delete it after 7 days without a visit, and that the Home Screen app
  *     keeps its data ("Later" for a week).
  */
-import { h, fmtDate, put, amountNodes } from '../lib/dom.js';
+import { h, fmtDate, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, notice, primary, secondary } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
@@ -86,7 +86,7 @@ function contractRow(app, tx, onclick) {
   // A pool share is "LP" here, as in the token list: the title already names the pool move.
   const amt = (a, sign) => {
     const l = app.wallet.label(a.assetId);
-    return `${sign}${formatAmount(a.amount, { decimals: l.decimals })} ${l.pool ? 'LP' : l.unit}`;
+    return `${sign}${formatAmount(a.amount)} ${l.pool ? 'LP' : l.unit}`;
   };
   const title = contractLabel(tx);
   const app2 = tx.appname && tx.appname !== 'Beam PWA' && tx.appname !== title ? ` · ${tx.appname}` : '';
@@ -99,8 +99,8 @@ function contractRow(app, tx, onclick) {
     h(
       'span',
       { class: 'end' },
-      get ? h('div', { class: failed ? '' : 'in' }, amountNodes(amt(get, '+'))) : pay ? h('div', {}, amountNodes(amt(pay, '−'))) : h('div', { text: `−${formatAmount(BigInt(tx.fee || 0))} BEAM` }), // i18n-ignore: an amount and its ticker
-      get && pay ? h('div', { class: 'small' }, amountNodes(amt(pay, '−'))) : null,
+      get ? h('div', { class: failed ? '' : 'in', text: amt(get, '+') }) : pay ? h('div', { text: amt(pay, '−') }) : h('div', { text: `−${formatAmount(BigInt(tx.fee || 0))} BEAM` }), // i18n-ignore: an amount and its ticker
+      get && pay ? h('div', { class: 'small', text: amt(pay, '−') }) : null,
     ),
   );
 }
@@ -126,7 +126,7 @@ function nameTokens(app, ids, s) {
   if (!unnamed) return;
   if (allAssetsTried.session === w.session && Date.now() - allAssetsTried.at < 5 * 60000) return;
   allAssetsTried = { session: w.session, at: Date.now() };
-  w.loadAllAssets({ again: true });
+  w.loadAllAssets();
 }
 
 export function txRow(app, tx, onclick) {
@@ -141,7 +141,7 @@ export function txRow(app, tx, onclick) {
     { class: 'row', onclick, 'data-txid': tx.txId },
     h('span', { class: `ico ${failed ? 'fail' : income ? 'in' : 'out'}` }, icon(isPendingTx(tx) ? 'clock' : income ? 'receive' : 'send')),
     h('span', { class: 'main' }, h('div', { class: 't', text: txStatusText(tx) }), h('div', { class: 's', text: [fmtDate(tx.create_time), rowExtra(tx)].filter(Boolean).join(' · ') })),
-    h('span', { class: `end${failed ? '' : income ? ' in' : ' out'}` }, amountNodes(`${income ? '+' : '−'}${formatAmount(value, { decimals: label.decimals })} ${label.unit}`)),
+    h('span', { class: `end${failed ? '' : income ? ' in' : ' out'}`, text: `${income ? '+' : '−'}${formatAmount(value)} ${label.unit}` }),
   );
 }
 

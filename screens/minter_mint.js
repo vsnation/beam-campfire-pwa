@@ -33,14 +33,13 @@ export default function minterMint(app, p = {}) {
   const cta = primary(t('Mint'), mint, { disabled: true, 'data-testid': 'mint-more-cta' });
   const most = () => (token ? (token.mintable < MAX_PER_TX ? token.mintable : MAX_PER_TX) : 0n);
   const mostBtn = h('button', { class: 'btn btn-text btn-small', type: 'button', 'data-testid': 'mint-more-most', onclick: () => {
-    amount.value = toInputString(most(), wallet.label(assetId).decimals);
+    amount.value = toInputString(most());
     result = null;
     render();
   } }, t('Most'));
 
   function plan() {
-    const l = wallet.label(assetId);
-    const r = parseUnits(amount.value, MAX_PER_TX, { decimals: l.decimals, unit: l.unit });
+    const r = parseUnits(amount.value);
     if (r.error === 'over' || (r.value != null && token && r.value > most())) return { value: r.value, error: t('At most {amount}', { amount: tokenAmount(assetId, most()) }) };
     return r;
   }

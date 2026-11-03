@@ -12,8 +12,7 @@
  *     person; a name paid before says whether its owner is the same (a node could lie: audit D-1).
  */
 import { h, shorten, put } from '../lib/dom.js';
-import { screen, primary, notice, textButton, toast } from '../lib/ui.js';
-import { otherWalletsText } from '../lib/meta.js';
+import { screen, primary, notice, textButton } from '../lib/ui.js';
 import { formatAmount } from '../lib/amount.js';
 import { wallet, sendModeFor } from '../lib/wallet.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
@@ -30,12 +29,11 @@ export default function review(app, p) {
     return { el: h('div') };
   }
   const mode = sendModeFor(p.type) || sendModeFor('regular');
-  const { unit, decimals } = wallet.label(p.assetId);
-  if (typedWithOther(app, p, decimals)) return { el: h('div') };
+  const unit = wallet.label(p.assetId).unit;
   const isBeam = Number(p.assetId) === 0;
-  const total = isBeam ? `${formatAmount(p.amount + p.fee)} BEAM` : t('{amount} {unit} + {fee} BEAM fee', { amount: formatAmount(p.amount, { decimals }), unit, fee: formatAmount(p.fee) });
+  const total = isBeam ? `${formatAmount(p.amount + p.fee)} BEAM` : t('{amount} {unit} + {fee} BEAM fee', { amount: formatAmount(p.amount), unit, fee: formatAmount(p.fee) });
   const msg = h('div', { 'aria-live': 'polite' });
-  const label = t('Send {amount} {unit}', { amount: formatAmount(p.amount, { decimals }), unit });
+  const label = t('Send {amount} {unit}', { amount: formatAmount(p.amount), unit });
   const cta = primary(label, confirm, { 'data-testid': 'confirm-send' });
   const note = cleanNote(p.note);
   const contact = contactNameFor(p.address);
@@ -46,7 +44,7 @@ export default function review(app, p) {
       return;
     }
     cta.disabled = true;
-    const ok = await confirmIdentity(app, { title: t('Confirm the payment'), detail: t('{amount} {unit} to {address}', { amount: formatAmount(p.amount, { decimals }), unit, address: shorten(p.address, 10, 8) }), cta: t('Confirm') });
+    const ok = await confirmIdentity(app, { title: t('Confirm the payment'), detail: t('{amount} {unit} to {address}', { amount: formatAmount(p.amount), unit, address: shorten(p.address, 10, 8) }), cta: t('Confirm') });
     if (!ok) {
       cta.disabled = false;
       return;
@@ -66,8 +64,7 @@ export default function review(app, p) {
   const el = screen(
     { title: t('Review payment'), back: () => app.back('send'), actions: [cta, textButton(t('Change'), () => app.back('send'))] },
     h('p', { class: 'center small', text: t('You send') }),
-    h('div', { class: 'big-amount', 'data-testid': 'review-amount', text: `${formatAmount(p.amount, { decimals })} ${unit}` }),
-    otherWallets(p),
+    h('div', { class: 'big-amount', 'data-testid': 'review-amount', text: `${formatAmount(p.amount)} ${unit}` }),
     h(
       'div',
       { class: 'card' },
@@ -85,23 +82,6 @@ export default function review(app, p) {
   return { el };
 }
 
-/**
- * An amount typed with other decimals than the token has now (its metadata arrived after Send read
- * the amount) would be shown and sent as another amount: back to Send to read it again, nothing sent.
- */
-function typedWithOther(app, p, decimals) {
-  if (p.decimals === decimals) return false;
-  if (p.decimals != null) toast(t('The wallet has just read how many decimal places {unit} has. Check the amount.', { unit: wallet.label(p.assetId).unit }), 6000);
-  queueMicrotask(() => app.go('send', {}, { replace: true }));
-  return true;
-}
-
-/** Under the amount, for a token with its own decimals: what BEAM's desktop wallet and explorer would show. */
-function otherWallets(p) {
-  const text = otherWalletsText(p.amount, wallet.label(p.assetId));
-  return text ? h('p', { class: 'center small', 'data-testid': 'review-other-wallets', text }) : null;
-}
-
 export function plain(e) {
   const m = String((e && e.message) || e || '');
   if (/not enough|insufficient|Missing/i.test(m)) return t('There is not enough in the wallet for the amount and the fee.');
@@ -114,12 +94,11 @@ export function plain(e) {
 
 /** A payment to a BEAM name: the name, its owner key, and how it arrives. */
 function nameReview(app, p) {
-  const { unit, decimals } = wallet.label(p.assetId);
-  if (typedWithOther(app, p, decimals)) return { el: h('div') };
+  const unit = wallet.label(p.assetId).unit;
   const isBeam = Number(p.assetId) === 0;
-  const total = isBeam ? `${formatAmount(p.amount + p.fee)} BEAM` : t('{amount} {unit} + {fee} BEAM fee', { amount: formatAmount(p.amount, { decimals }), unit, fee: formatAmount(p.fee) });
+  const total = isBeam ? `${formatAmount(p.amount + p.fee)} BEAM` : t('{amount} {unit} + {fee} BEAM fee', { amount: formatAmount(p.amount), unit, fee: formatAmount(p.fee) });
   const msg = h('div', { 'aria-live': 'polite' });
-  const label = t('Send {amount} {unit} to {name}', { amount: formatAmount(p.amount, { decimals }), unit, name: p.name });
+  const label = t('Send {amount} {unit} to {name}', { amount: formatAmount(p.amount), unit, name: p.name });
   const cta = primary(label, confirm, { 'data-testid': 'confirm-send' });
 
   async function confirm() {
@@ -162,8 +141,7 @@ function nameReview(app, p) {
     // Sticky: the owner key's check and its history push the button down; it stays in view.
     { title: t('Review payment'), back: () => app.back('send'), actions: [cta, textButton(t('Change'), () => app.back('send'))], cls: 'plain sticky-actions' },
     h('p', { class: 'center small', text: t('You send') }),
-    h('div', { class: 'big-amount', 'data-testid': 'review-amount', text: `${formatAmount(p.amount, { decimals })} ${unit}` }),
-    otherWallets(p),
+    h('div', { class: 'big-amount', 'data-testid': 'review-amount', text: `${formatAmount(p.amount)} ${unit}` }),
     h(
       'div',
       { class: 'card' },

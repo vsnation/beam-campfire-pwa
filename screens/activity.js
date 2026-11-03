@@ -50,7 +50,7 @@ export default function activity(app, params = {}) {
       if (!tx) return [h('h2', { text: t('Payment') }), h('p', { text: t('This payment is no longer in the list.') })];
       if (isContractTx(tx)) return contractDetail(app, tx, close, rerender);
       if (isSplitTx(tx)) return splitDetail(app, tx, close, (k, v, opts = {}) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, t('{label} copied', { label: k })), text: v }) : h('span', { class: 'v', text: v })));
-      const { unit, decimals } = wallet.label(tx.asset_id || 0);
+      const unit = wallet.label(tx.asset_id || 0).unit;
       const s = Number(tx.status);
       const canCancel = !tx.income && (s === 0 || s === 1);
       const kv = (k, v, opts = {}) => h('div', { class: 'kv', 'data-testid': opts.testid }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, t('{label} copied', { label: k })), text: v }) : h('span', { class: `v${opts.mono ? ' mono' : ''}`, text: v }));
@@ -64,7 +64,7 @@ export default function activity(app, params = {}) {
           : t('It finishes while both wallets are online: keep Beam PWA open.'))));
       return [
         h('h2', { 'data-testid': 'tx-detail-title', text: txStatusText(tx) }),
-        h('div', { class: 'big-amount', text: `${tx.income ? '+' : '−'}${formatAmount(BigInt(tx.value || 0), { decimals })} ${unit}` }),
+        h('div', { class: 'big-amount', text: `${tx.income ? '+' : '−'}${formatAmount(BigInt(tx.value || 0))} ${unit}` }),
         h(
           'div',
           { class: 'card' },
@@ -131,10 +131,8 @@ function csvSheet(app) {
         } catch {
           /* one wallet */
         }
-        // Every token's decimals, asked of the node for any not read yet: an amount is never written in a guessed scale.
-        await Promise.all([...new Set(txs.map((x) => Number(x.asset_id) || 0))].filter((id) => wallet.label(id).decimals == null).map((id) => wallet.loadAsset(id)));
         // A token's unit with its number: anyone can mint a token named BEAM.
-        const text = buildCsv(txs, { unit: (id) => (id === 0 ? 'BEAM' : `${wallet.label(id).unit} #${id}`), decimals: (id) => wallet.label(id).decimals, proofs });
+        const text = buildCsv(txs, { unit: (id) => (id === 0 ? 'BEAM' : `${wallet.label(id).unit} #${id}`), proofs });
         const file = new File([text], csvFileName(new Date(), walletName), { type: 'text/csv' });
         put(
           msg,
@@ -172,10 +170,7 @@ function contractDetail(app, tx, close, rerender) {
   const msg = h('div');
   const m = contractMoves(tx);
   const kv = (k, v, opts = {}) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, t('{label} copied', { label: k })), text: v }) : h('span', { class: 'v', text: v }));
-  const amt = (a) => {
-    const l = wallet.label(a.assetId);
-    return `${formatAmount(a.amount, { decimals: l.decimals })} ${l.unit}`;
-  };
+  const amt = (a) => `${formatAmount(a.amount)} ${wallet.label(a.assetId).unit}`;
   const head = m.receives[0] ? `+${amt(m.receives[0])}` : m.spends[0] ? `−${amt(m.spends[0])}` : `−${formatAmount(BigInt(tx.fee || 0))} BEAM`;
   return [
     h('h2', { 'data-testid': 'tx-detail-title', text: contractLabel(tx) }),

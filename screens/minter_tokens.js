@@ -51,7 +51,7 @@ export default function minterTokens(app, p = {}) {
       h(
         'div',
         { class: 'token-card-foot' },
-        h('span', { class: 'small grow', 'data-testid': 'token-minted', text: unlimited(tok.limit) ? t('Minted {amount} · no maximum', { amount: tokenAmount(tok.assetId, tok.minted) }) : t('Minted {amount} of {limit}', { amount: formatAmount(tok.minted, { decimals: wallet.label(tok.assetId).decimals }), limit: limitText(tok.assetId, tok.limit) }) }),
+        h('span', { class: 'small grow', 'data-testid': 'token-minted', text: unlimited(tok.limit) ? t('Minted {amount} · no maximum', { amount: tokenAmount(tok.assetId, tok.minted) }) : t('Minted {amount} of {limit}', { amount: formatAmount(tok.minted), limit: limitText(tok.assetId, tok.limit) }) }),
         mint,
       ),
     );

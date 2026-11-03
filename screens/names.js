@@ -160,7 +160,7 @@ export default function names(app) {
           const unitName = wallet.label(price.assetId).unit;
           const why = price.assetId === 0
             ? t('Not enough {unit}. {name} costs {price}, plus the 0.011 BEAM network fee. You have {have} {unit}.', { unit: unitName, name: display(n), price: priceText(price), have: formatAmount(have) })
-            : t('Not enough {unit}. {name} costs {price}. You have {have} {unit}.', { unit: unitName, name: display(n), price: priceText(price), have: formatAmount(have, { decimals: wallet.label(price.assetId).decimals }) });
+            : t('Not enough {unit}. {name} costs {price}. You have {have} {unit}.', { unit: unitName, name: display(n), price: priceText(price), have: formatAmount(have) });
           return { off: why, receive: true, label };
         }
         if (price.assetId !== 0 && wallet.available(0) < NAME_CALL_FEE) return { off: t('You need {fee} BEAM for the network fee. You have {have} BEAM.', { fee: formatAmount(NAME_CALL_FEE), have: formatAmount(wallet.available(0)) }), receive: true, label };
@@ -335,12 +335,12 @@ export default function names(app) {
   function renderMoney() {
     if (!alive) return;
     const s = inbox.latest;
-    const fmt = (g, id = 0) => formatAmount(g, { decimals: wallet.label(id).decimals });
+    const fmt = (g) => formatAmount(g);
     const unit = (id) => wallet.label(id).unit;
     const msg = claimMsg ? h('div', { 'data-testid': 'names-claim-msg', 'data-code': claimMsg.code }, notice(claimMsg.ok ? 'success' : claimMsg.calm || claimMsg.code === 'nothing' ? 'info' : 'error', claimMsg.text)) : null;
     if (inbox.claiming) {
       const r = inbox.claiming.receives;
-      return put(moneyBox, msg || notice('info', t('Claim on its way: {amounts}. It shows in your balance once confirmed.', { amounts: [...r.keys()].map((id) => `+${fmt(r.get(id), id)} ${unit(id)}`).join(', ') })));
+      return put(moneyBox, msg || notice('info', t('Claim on its way: {amounts}. It shows in your balance once confirmed.', { amounts: [...r.keys()].map((id) => `+${fmt(r.get(id))} ${unit(id)}`).join(', ') })));
     }
     if (s && s.visibility === VISIBILITY.unsupported) {
       return put(
@@ -400,7 +400,7 @@ export default function names(app) {
       try {
         await bans().claimSaleProceeds(aid, {
           words: (b) => ({
-            rows: [[t('From'), t('A name you sold')], [t('Your balance changes by'), balanceChange(b.receives, b.fee, (g, id = 0) => formatAmount(g, { decimals: wallet.label(id).decimals }), (id) => wallet.label(id).unit)]],
+            rows: [[t('From'), t('A name you sold')], [t('Your balance changes by'), balanceChange(b.receives, b.fee, (g) => formatAmount(g), (id) => wallet.label(id).unit)]],
             notes: [aid === 0 ? t('Pays its own fee: it comes out of the BEAM you are claiming.') : t("The fee is paid from this wallet's BEAM.")],
           }),
         });

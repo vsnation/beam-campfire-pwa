@@ -16,7 +16,7 @@
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, assetBadge, primary, secondary, textButton, notice, toast } from '../lib/ui.js';
-import { formatAmount, DECIMALS } from '../lib/amount.js';
+import { formatAmount } from '../lib/amount.js';
 import { wallet } from '../lib/wallet.js';
 import { tokenSubtitle, copyWarning } from '../lib/meta.js';
 import { KINDS, tradable } from '../lib/dex.js';
@@ -48,18 +48,6 @@ export function tokenNote(l) {
   }
   if (l.verified) return t('Verified asset #{id}.', { id: l.id });
   return t('Unverified asset #{id}. Anyone can create an asset with any name; check the number with the sender.', { id: l.id });
-}
-
-/**
- * For a token whose metadata sets its own decimals (NTH_RATIO, CANDY's 1): BEAM's desktop wallet and
- * explorer read no NTH_RATIO and show every token with 8, so the same balance reads differently there
- * (12,037,557,598.5 CANDY here, 1,203.75575985 there). Said here, so neither looks wrong.
- */
-export function decimalsNote(l, held) {
-  if (l.pool || l.decimals == null || l.decimals === DECIMALS) return null;
-  const own = l.decimals === 0 ? t('{symbol} has no decimal places.', { symbol: l.label }) : tn({ one: '{token} has {n} decimal place, as its creator set it.', other: '{token} has {n} decimal places, as its creator set it.' }, l.decimals, { token: l.label });
-  if (!(held > 0n)) return own;
-  return `${own} ${t('BEAM’s desktop wallet and explorer show every token with 8 decimal places, so there this balance reads {amount}.', { amount: `${formatAmount(held)} ${l.unit}` })}`;
 }
 
 /** How many payments lib/wallet.js keeps (its tx_list count): a list this long may be cut short. */
@@ -150,7 +138,6 @@ export default function token(app, params = {}) {
     const tot = s.totals.get(id) || ZERO;
     const total = heldTotal(tot);
     const unit = l.pool ? 'LP' : l.symbol;
-    const decimals = l.decimals;
     refreshMarket();
     titleEl.textContent = tokenTitle(l);
     const warning = copyWarning(l);
@@ -158,11 +145,10 @@ export default function token(app, params = {}) {
       head,
       h('div', { class: 'token-id' }, assetBadge(l, { size: 'large' }), h('div', { class: 'main' }, h('div', { class: 't', 'data-testid': 'token-page-name', text: l.name }), h('div', { class: 's', 'data-testid': 'token-page-sub', text: sub(l) }))),
       h('div', { class: 'label', text: t('Available') }),
-      h('div', { class: 'amount', 'data-testid': 'token-available' }, s.status ? formatAmount(tot.available, { decimals }) : '—', h('span', { class: 'unit', text: unit })),
+      h('div', { class: 'amount', 'data-testid': 'token-available' }, s.status ? formatAmount(tot.available) : '—', h('span', { class: 'unit', text: unit })),
       h('div', { class: 'token-value', 'data-testid': 'token-value' }, valueLine(s, total, tot.available)),
       h('p', { class: `token-note${l.verified && !l.pool ? ' ok' : ''}`, 'data-testid': 'token-note' }, l.verified && !l.pool ? icon('check') : null, tokenNote(l)),
       warning ? h('p', { class: 'warn-line', 'data-testid': 'token-copy-warning', text: warning }) : null,
-      decimalsNote(l, tot.available) ? h('p', { class: 'small', 'data-testid': 'token-decimals', text: decimalsNote(l, tot.available) }) : null,
     );
 
     // Send with this token chosen, Receive, and Swap from it (or its pool, for a liquidity token).
@@ -194,18 +180,18 @@ export default function token(app, params = {}) {
     const buttons = has ? [sendBtn, recvBtn, third] : [recvBtn, sendBtn, third];
     let why = null;
     if (!canSend && s.sync.state !== 'synced') why = t('Sending is paused: {reason}.', { reason: syncReason(s.sync.title) });
-    else if (!has && (tot.receiving > 0n || tot.maturing > 0n)) why = t('Nothing to send yet: {amount} is still on its way to you.', { amount: `${formatAmount(tot.receiving + tot.maturing, { decimals })} ${unit}` });
+    else if (!has && (tot.receiving > 0n || tot.maturing > 0n)) why = t('Nothing to send yet: {amount} is still on its way to you.', { amount: `${formatAmount(tot.receiving + tot.maturing)} ${unit}` });
     else if (!has) why = t('This wallet has no {token} to send.', { token: l.label });
     put(actions, h('div', { class: `btn-row three${third ? '' : ' two'}` }, ...buttons.filter(Boolean)), why ? h('p', { class: 'small center', 'data-testid': 'token-why', text: why }) : null);
 
     const kv = (k, v, testid, cls = '') => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), h('span', { class: `v${cls}`, 'data-testid': testid, text: v }));
     put(
       breakdown,
-      kv(t('Available'), `${formatAmount(tot.available, { decimals })} ${unit}`, 'token-bal-available'),
-      kv(t('Incoming'), tot.receiving > 0n ? `+${formatAmount(tot.receiving, { decimals })} ${unit}` : '0', 'token-bal-incoming', tot.receiving > 0n ? ' in' : ' muted'),
-      kv(t('Outgoing'), tot.sending > 0n ? `−${formatAmount(tot.sending, { decimals })} ${unit}` : '0', 'token-bal-outgoing', tot.sending > 0n ? '' : ' muted'),
-      kv(t('Maturing'), tot.maturing > 0n ? `${formatAmount(tot.maturing, { decimals })} ${unit}` : '0', 'token-bal-maturing', tot.maturing > 0n ? '' : ' muted'),
-      privateLine(app, s, id, unit, decimals),
+      kv(t('Available'), `${formatAmount(tot.available)} ${unit}`, 'token-bal-available'),
+      kv(t('Incoming'), tot.receiving > 0n ? `+${formatAmount(tot.receiving)} ${unit}` : '0', 'token-bal-incoming', tot.receiving > 0n ? ' in' : ' muted'),
+      kv(t('Outgoing'), tot.sending > 0n ? `−${formatAmount(tot.sending)} ${unit}` : '0', 'token-bal-outgoing', tot.sending > 0n ? '' : ' muted'),
+      kv(t('Maturing'), tot.maturing > 0n ? `${formatAmount(tot.maturing)} ${unit}` : '0', 'token-bal-maturing', tot.maturing > 0n ? '' : ' muted'),
+      privateLine(app, s, id, unit),
     );
 
     const cut = s.txs.length >= RECENT;

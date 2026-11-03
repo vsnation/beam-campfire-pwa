@@ -25,26 +25,24 @@
 import { h, shorten } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { openSheet, notice, assetBadge, toast } from '../lib/ui.js';
-import { formatAmount, DECIMALS } from '../lib/amount.js';
-import { otherWalletsText } from '../lib/meta.js';
+import { formatAmount } from '../lib/amount.js';
 import { setConsentPresenter, NATIVE_APP_NAME } from '../lib/contracts.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
 import { t, tn, tk } from '../lib/i18n.js';
 import { logoMark } from '../lib/logo.js';
 
-/** "371.76" for the button; the rows above it carry every digit. `decimals`: the token's (BEAM's 8). */
-export function shortAmount(groth, decimals = DECIMALS) {
+/** "371.76" for the button; the rows above it carry every digit. */
+export function shortAmount(groth) {
   const g = BigInt(groth);
-  const coin = 10n ** BigInt(decimals ?? DECIMALS);
-  if (g >= coin) return formatAmount(g, { maxDecimals: 2, decimals });
-  if (g >= coin / 100n) return formatAmount(g, { maxDecimals: 4, decimals });
-  return formatAmount(g, { decimals });
+  if (g >= 100000000n) return formatAmount(g, { maxDecimals: 2 });
+  if (g >= 1000000n) return formatAmount(g, { maxDecimals: 4 });
+  return formatAmount(g);
 }
 
-/** The primary button's words for a request: what approving does. `decimalsOf(id)`: each token's (8 when not given). */
-export function approveLabel(req, unit, decimalsOf = () => DECIMALS) {
-  const pay = req.spends.map((a) => `${shortAmount(a.amount, decimalsOf(a.assetId))} ${unit(a.assetId)}`);
-  const get = req.receives.map((a) => `${shortAmount(a.amount, decimalsOf(a.assetId))} ${unit(a.assetId)}`);
+/** The primary button's words for a request: what approving does. */
+export function approveLabel(req, unit) {
+  const pay = req.spends.map((a) => `${shortAmount(a.amount)} ${unit(a.assetId)}`);
+  const get = req.receives.map((a) => `${shortAmount(a.amount)} ${unit(a.assetId)}`);
   if (req.kind === 'send') return t('Send {amount}', { amount: pay[0] });
   // About: BEAM may still finish an approved swap at a slightly lower price (lib/dex.js rebuildFloor).
   if (req.intent && req.intent.action === 'swap' && pay.length === 1 && get.length === 1) return t('Swap {pay} for ≈{get}', { pay: pay[0], get: get[0] });
@@ -239,28 +237,15 @@ function bridgeCard(req, b, bt) {
 function showConsent(app, req, bridge, bt) {
   const wallet = app.wallet;
   const ids = [...new Set([0, ...req.spends.map((a) => a.assetId), ...req.receives.map((a) => a.assetId)])];
+  for (const id of ids) if (id !== 0 && !wallet.assetNamed.has(id) && wallet.session) wallet.loadAsset(id);
   const unit = (id) => wallet.label(id).unit;
-  const decimalsOf = (id) => wallet.label(id).decimals;
-  // Every token's decimals are asked of the node now (lib/wallet.js loadAsset). Until they are known no
-  // amount of it is shown as fact; a token the node has no record of can still be received (shown in
-  // smallest units), never paid.
-  let asked = false;
-  let sheet = null;
-  Promise.all(ids.filter((id) => id !== 0 && !wallet.assetNamed.has(id) && wallet.session).map((id) => wallet.loadAsset(id))).then(() => {
-    asked = true;
-    if (sheet && !sheet.closed) sheet.rerender();
-  });
-  const amountText = (a, l, sign = '') =>
-    l.decimals == null
-      ? `${sign}${tn({ one: '{n} smallest unit of {unit}', other: '{n} smallest units of {unit}' }, Number(a.amount), { n: formatAmount(a.amount, { decimals: 0 }), unit: l.unit })}`
-      : `${sign}${formatAmount(a.amount, { decimals: l.decimals })} ${l.unit}`;
   let busy = false;
   const extras = intentExtras(req);
   const words = (req.native && req.intent && ROW_WORDS[req.intent.action]) || null;
   let acked = !extras.ack;
   // Not enough: what is missing, what there is, and where to add it; three sentences, each whole.
   const shortText = (short, native) => {
-    const amount = `${formatAmount(short.need, { decimals: decimalsOf(short.assetId) })} ${unit(short.assetId)}`;
+    const amount = `${formatAmount(short.need)} ${unit(short.assetId)}`;
     const need =
       short.includesFee && !req.spends.some((a) => a.assetId === 0)
         ? t('You need {amount} for the network fee.', { amount })
@@ -268,7 +253,7 @@ function showConsent(app, req, bridge, bt) {
           ? t('You need {amount}, including the {fee} BEAM network fee.', { amount, fee: formatAmount(req.fee) })
           : t('You need {amount}.', { amount });
     const add = native ? t('Add {unit} to this wallet, then try again.', { unit: unit(short.assetId) }) : t('Add {unit} to this wallet (Receive on the Wallet tab), then try again.', { unit: unit(short.assetId) });
-    return `${need} ${t('You have {amount}.', { amount: formatAmount(short.have, { decimals: decimalsOf(short.assetId) }) })} ${add}`;
+    return `${need} ${t('You have {amount}.', { amount: formatAmount(short.have) })} ${add}`;
   };
   const cantSpendText = (native) => {
     const now = req.fee > 0n ? t("The wallet can't spend this much right now (the {fee} BEAM network fee included).", { fee: formatAmount(req.fee) }) : t("The wallet can't spend this much right now.");
@@ -277,13 +262,10 @@ function showConsent(app, req, bridge, bt) {
   };
 
   return new Promise((resolve) => {
-    sheet = openSheet(
+    const sheet = openSheet(
       (close, rerender) => {
         const native = req.native && req.appName === NATIVE_APP_NAME;
-        // A token whose metadata has not arrived has no known decimals: its amount could read 10^n off.
-        // Not approvable until it has, unless the node has no record of it and it only arrives.
-        const reading = bridge ? null : ids.find((id) => decimalsOf(id) == null && !(asked && !req.spends.some((a) => a.assetId === id)));
-        const label = bridge ? bridge.label : ids.some((id) => decimalsOf(id) == null) ? t('Approve') : approveLabel(req, unit, decimalsOf);
+        const label = bridge ? bridge.label : approveLabel(req, unit);
         // The engine's isEnough counts what a call spends, not its network fee: a claim that only
         // brings tokens in reads as enough on a wallet with no BEAM, and would fail once approved.
         // For the wallet's own features this wallet's balance must cover the fee as well.
@@ -296,7 +278,7 @@ function showConsent(app, req, bridge, bt) {
             'div',
             { class: 'kv consent-row' },
             h('span', { class: 'k', text: k }),
-            h('span', { class: 'v asset-v' }, assetBadge(l, { size: 'small' }), h('span', { 'data-testid': testid, text: amountText(a, l, sign) })),
+            h('span', { class: 'v asset-v' }, assetBadge(l, { size: 'small' }), h('span', { 'data-testid': testid, text: `${sign}${formatAmount(a.amount)} ${l.unit}` })),
           );
         };
         const beamOut = req.spends.filter((a) => a.assetId === 0).reduce((s, a) => s + a.amount, 0n) + req.fee;
@@ -305,16 +287,12 @@ function showConsent(app, req, bridge, bt) {
         const notListed = bridge ? [] : [...req.spends, ...req.receives].filter((a) => a.assetId !== 0 && !wallet.label(a.assetId).verified);
 
         const approve = async () => {
-          if (busy || !acked || reading != null) return;
+          if (busy || !acked) return;
           busy = true;
-          const shown = labels();
           const ok = await confirmIdentity(app, { title: t('Confirm it is you'), detail: label, cta: t('Confirm') });
           busy = false;
-          // A token's name or decimals changed under Face ID: what was confirmed is not what is shown now.
-          if (ok && labels() !== shown) return rerender();
           if (ok) close(true);
         };
-        const otherWallets = bridge ? [] : [...req.spends, ...req.receives].map((a) => otherWalletsText(a.amount, wallet.label(a.assetId))).filter(Boolean);
 
         return h(
           'div',
@@ -345,7 +323,6 @@ function showConsent(app, req, bridge, bt) {
                 showTotal ? h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Total BEAM out') }), h('span', { class: 'v', 'data-testid': 'consent-total', text: `${formatAmount(beamOut)} BEAM` })) : null, // i18n-ignore: an amount and its ticker
                 ...extras.rows.map(([k, v], i) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), h('span', { class: 'v', 'data-testid': `consent-extra-${i}`, text: v }))),
               ),
-          ...otherWallets.map((text, i) => h('p', { class: 'small', 'data-testid': `consent-other-wallets-${i}`, text })),
           extras.warn ? h('div', { 'data-testid': 'consent-warn' }, notice('warn', extras.warn)) : null,
           extras.ack && enough
             ? h(
@@ -358,7 +335,7 @@ function showConsent(app, req, bridge, bt) {
                   onchange: (e) => {
                     acked = e.target.checked;
                     const b = e.target.closest('.consent').querySelector('[data-testid="consent-approve"]');
-                    if (b) b.disabled = !acked || reading != null;
+                    if (b) b.disabled = !acked;
                   },
                 }),
                 h('span', { text: extras.ack }),
@@ -370,7 +347,6 @@ function showConsent(app, req, bridge, bt) {
           ...(extras.notes || []).map((note, i) => h('p', { class: 'small', 'data-testid': `consent-note-${i}`, text: note })),
           !native && req.comment ? h('p', { class: 'small', text: t('The app describes it as: “{comment}”', { comment: req.comment }) }) : null,
           notListed.length ? h('p', { class: 'small', 'data-testid': 'consent-unlisted', text: t("{assets}: not on Beam PWA's list of known assets. Check the number if the name matters to you.", { assets: notListed.map((a) => t('{symbol} is asset #{id}', { symbol: wallet.label(a.assetId).symbol, id: a.assetId })).join('; ') }) }) : null,
-          reading != null ? h('p', { class: 'small', 'data-testid': 'consent-reading', text: t('The wallet is still reading {symbol} from the network. Try again in a moment.', { symbol: unit(reading) }) }) : null,
           !native ? notice('warn', t('Only approve if you trust {name}. Approving lets it move what is listed above.', { name: req.appName })) : null,
           enough
             ? null
@@ -387,7 +363,7 @@ function showConsent(app, req, bridge, bt) {
             'div',
             // A move's sheet is long: its button stays in sight.
             { class: bridge ? 'actions sheet-actions' : 'actions' },
-            enough ? h('button', { class: 'btn btn-primary wrap', 'data-testid': 'consent-approve', onclick: approve, disabled: !acked || reading != null }, label) : null,
+            enough ? h('button', { class: 'btn btn-primary wrap', 'data-testid': 'consent-approve', onclick: approve, disabled: !acked }, label) : null,
             // The wallet's own swap: the way out of "not enough" is one tap away. (A dApp stays open; its text says where.)
             !enough && native
               ? h(
@@ -410,7 +386,7 @@ function showConsent(app, req, bridge, bt) {
       { dismissable: false, label: title(req, bridge) },
     );
 
-    const labels = () => ids.map((id) => `${wallet.label(id).unit}:${wallet.label(id).decimals}`).join('|');
+    const labels = () => ids.map((id) => wallet.label(id).unit).join('|');
     let seen = labels();
     const off = wallet.onChange(() => {
       const now = labels();

@@ -40,12 +40,12 @@ export default function txStatus(app, p) {
     const s = tx ? Number(tx.status) : 0;
     const done = s === 3;
     const failed = s === 4 || s === 2;
-    const { unit, decimals } = wallet.label(p.assetId || 0);
+    const unit = wallet.label(p.assetId || 0).unit;
     const title = tx ? txStatusText(tx) : t('Sending');
     put(body, 
       h('div', { class: `status-icon ${done ? 'ok' : failed ? 'bad' : 'wait'}` }, icon(done ? 'check' : failed ? 'close' : 'clock')),
       h('h2', { class: 'title center', 'data-testid': 'tx-title', 'data-status': String(s), text: done ? t('Payment sent') : failed ? (s === 2 ? t('Payment cancelled') : t('Payment failed')) : title }),
-      h('div', { class: 'big-amount', text: `${formatAmount(p.amount, { decimals })} ${unit}` }),
+      h('div', { class: 'big-amount', text: `${formatAmount(p.amount)} ${unit}` }),
       h(
         'div',
         { class: 'card' },
@@ -124,19 +124,19 @@ function swapStatus(app, p) {
     const paid = moved && moved.spends.find((r) => r.assetId === p.pay.assetId);
     const payAmt = paid ? paid.amount : p.pay.amount;
     const getAmt = got ? got.amount : p.receive.amount;
-    const { unit: payU, decimals: payD } = wallet.label(p.pay.assetId);
-    const { unit: getU, decimals: getD } = wallet.label(p.receive.assetId);
+    const payU = wallet.label(p.pay.assetId).unit;
+    const getU = wallet.label(p.receive.assetId).unit;
     const approx = done && got ? '' : '≈ ';
     put(
       body,
       h('div', { class: `status-icon ${done ? 'ok' : failed ? 'bad' : 'wait'}` }, icon(done ? 'check' : failed ? 'close' : 'swap')),
       h('h2', { class: 'title center', 'data-testid': 'tx-title', 'data-status': String(s), text: done ? t('Swap complete') : failed ? (s === 2 ? t('Swap cancelled') : t('Swap failed')) : t('Swapping') }),
-      h('div', { class: 'big-amount swap-amounts' }, h('span', { text: `${formatAmount(payAmt, { decimals: payD })} ${payU}` }), h('span', { class: 'arrow', text: '→' }), h('span', { text: `${approx}${formatAmount(getAmt, { decimals: getD })} ${getU}` })),
+      h('div', { class: 'big-amount swap-amounts' }, h('span', { text: `${formatAmount(payAmt)} ${payU}` }), h('span', { class: 'arrow', text: '→' }), h('span', { text: `${approx}${formatAmount(getAmt)} ${getU}` })),
       h(
         'div',
         { class: 'card' },
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: t('You pay') }), h('span', { class: 'v', text: `${formatAmount(payAmt, { decimals: payD })} ${payU}` })),
-        h('div', { class: 'kv' }, h('span', { class: 'k', text: done ? t('You got') : t('You get') }), h('span', { class: 'v', 'data-testid': 'tx-receive', text: `${approx}${formatAmount(getAmt, { decimals: getD })} ${getU}` })),
+        h('div', { class: 'kv' }, h('span', { class: 'k', text: t('You pay') }), h('span', { class: 'v', text: `${formatAmount(payAmt)} ${payU}` })),
+        h('div', { class: 'kv' }, h('span', { class: 'k', text: done ? t('You got') : t('You get') }), h('span', { class: 'v', 'data-testid': 'tx-receive', text: `${approx}${formatAmount(getAmt)} ${getU}` })),
         h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Network fee') }), h('span', { class: 'v', text: `${formatAmount(tx && tx.fee != null ? BigInt(tx.fee) : p.fee)} BEAM` })), // i18n-ignore: an amount and its ticker
         tx && tx.kernel && /[1-9a-f]/.test(tx.kernel)
           ? h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Kernel ID') }), h('button', { class: 'v mono btn-text', 'data-testid': 'tx-kernel', onclick: () => copyText(tx.kernel, t('{label} copied', { label: t('Kernel ID') })), text: shorten(tx.kernel, 10, 8) }))

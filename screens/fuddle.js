@@ -22,7 +22,7 @@ const PREFERRED_LENGTH = 5;
 
 const unit = (asset) => wallet.label(asset).unit;
 /** "1.12 BEAM", every digit. */
-const amt = (asset, groth) => `${formatAmount(groth, { decimals: wallet.label(asset).decimals })} ${unit(asset)}`;
+const amt = (asset, groth) => `${formatAmount(groth)} ${unit(asset)}`;
 /** "2 FOMO + 0.12 BEAM": the tournament asset's part, then BEAM's (merged when the asset is BEAM). */
 function amounts(asset, assetAmount, beam) {
   if (asset === 0) return amt(0, BigInt(assetAmount) + BigInt(beam));

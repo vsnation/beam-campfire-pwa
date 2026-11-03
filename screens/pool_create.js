@@ -166,7 +166,7 @@ export default function poolCreate(app, params = {}) {
                     { class: `row${current ? ' on' : ''}`, type: 'button', 'data-asset-id': String(id), onclick: () => close(id) },
                     assetBadge(l),
                     h('span', { class: 'main' }, h('div', { class: 't', text: l.unit }), h('div', { class: 's', text: l.verified ? l.name : tokenSubtitle(l) })),
-                    have(id) > 0n ? h('span', { class: 'end small', text: formatAmount(have(id), { decimals: wallet.label(id).decimals }) }) : null,
+                    have(id) > 0n ? h('span', { class: 'end small', text: formatAmount(have(id)) }) : null,
                   );
                 })
               : [h('p', { class: 'small center pad', text: t('Nothing matches. Try another name or number.') })]),

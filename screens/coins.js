@@ -106,7 +106,7 @@ export default function coins(app, params = {}) {
               { class: `row${id === assetId ? ' on' : ''}`, 'data-asset-id': String(id), onclick: () => close(id) },
               assetBadge(l),
               h('span', { class: 'main' }, h('div', { class: 't', text: l.unit }), h('div', { class: 's', text: l.verified ? l.name : t('Not verified · {name}', { name: l.name }) })),
-              h('span', { class: 'end small', text: formatAmount(s.availableTotal, { decimals: l.decimals }) }),
+              h('span', { class: 'end small', text: formatAmount(s.availableTotal) }),
             );
           }),
         ),
@@ -144,8 +144,7 @@ export default function coins(app, params = {}) {
       return;
     }
 
-    // Its decimals, for how many whole units the advice counts (lib/coins.js countBySize).
-    const sum = { ...summary(), decimals: wallet.label(assetId).decimals };
+    const sum = summary();
     const p = plan();
     const issue = fundsIssue(p);
     const blocked = stateIssue(s);
@@ -158,7 +157,7 @@ export default function coins(app, params = {}) {
       many ? 'button' : 'div',
       { class: `card row split-asset${many ? ' tap' : ''}`, type: many ? 'button' : null, 'data-testid': 'split-asset', onclick: many ? pickAsset : null },
       assetBadge(l),
-      h('span', { class: 'main' }, h('div', { class: 't', text: l.pool ? l.name : l.unit }), h('div', { class: 's wrap', 'data-testid': 'split-now', text: T.now(sum, symbol, l.decimals) })),
+      h('span', { class: 'main' }, h('div', { class: 't', text: l.pool ? l.name : l.unit }), h('div', { class: 's wrap', 'data-testid': 'split-now', text: T.now(sum, symbol) })),
       many ? h('span', { class: 'chev' }, icon('down')) : null,
     );
 
@@ -193,16 +192,16 @@ export default function coins(app, params = {}) {
             h(
               'div',
               { class: 'card flat split-after' },
-              kv(t('You will have'), T.newCoins(p, symbol, l.decimals), 'split-new-coins'),
+              kv(t('You will have'), T.newCoins(p, symbol), 'split-new-coins'),
               kv(t('Network fee'), T.fee(p), 'split-fee'),
-              p.change > 0n ? kv(t('Stays as change'), `${formatAmount(p.change, { decimals: l.decimals })} ${symbol}`, 'split-change') : null,
+              p.change > 0n ? kv(t('Stays as change'), `${formatAmount(p.change)} ${symbol}`, 'split-change') : null,
             ),
           ]
         : null,
       blocked ? h('p', { class: 'hint center', 'data-testid': 'split-blocked', text: blocked }) : null,
       cta,
     );
-    put(listBox, ...coinList(sum, symbol, height, l.decimals));
+    put(listBox, ...coinList(sum, symbol, height));
   }
 
   const kv = (k, v, testid) => h('div', { class: 'kv' }, h('span', { class: 'k', text: k }), h('span', { class: 'v', 'data-testid': testid, text: v }));

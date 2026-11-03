@@ -11,7 +11,7 @@ import { t, tn } from '../lib/i18n.js';
 /** A name expiring within this many days asks to be renewed (kNamesRenewSoonDays). */
 export const RENEW_SOON_DAYS = 30;
 
-export const priceText = (p) => `${formatAmount(p.amount, { decimals: wallet.label(p.assetId).decimals })} ${wallet.label(p.assetId).unit}`;
+export const priceText = (p) => `${formatAmount(p.amount)} ${wallet.label(p.assetId).unit}`;
 
 /** Whole days from block `from` to block `to` (a block a minute). */
 export const daysBetween = (from, to) => Math.floor(((to - from) * BLOCK_SECONDS) / 86400);

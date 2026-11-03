@@ -42,18 +42,18 @@ export function privateCoins(assetId) {
 }
 
 /** The parts of a "maturing" amount for a one-line summary: regular coins, then private ones. */
-export function maturingParts(tot, { withPrivate = true, decimals } = {}) {
+export function maturingParts(tot, { withPrivate = true } = {}) {
   if (!tot || !(tot.maturing > 0n)) return [];
   const mp = tot.maturingMp || 0n;
   const regular = tot.maturing - mp;
   const out = [];
-  if (regular > 0n) out.push(t('{amount} maturing', { amount: formatAmount(regular, { decimals }) }));
-  if (withPrivate && mp > 0n) out.push(t('{amount} private, not yet spendable', { amount: formatAmount(mp, { decimals }) }));
+  if (regular > 0n) out.push(t('{amount} maturing', { amount: formatAmount(regular) }));
+  if (withPrivate && mp > 0n) out.push(t('{amount} private, not yet spendable', { amount: formatAmount(mp) }));
   return out;
 }
 
 /** Under a balance: a private amount BEAM still holds back, and when it can be spent. One tap shows each coin. */
-export function privateLine(app, s, assetId = 0, unit = null, decimals = wallet.label(assetId).decimals) {
+export function privateLine(app, s, assetId = 0, unit = null) {
   const tot = s.totals.get(Number(assetId));
   if (!tot || !(tot.maturingMp > 0n)) return null;
   const coins = privateCoins(assetId);
@@ -63,7 +63,7 @@ export function privateLine(app, s, assetId = 0, unit = null, decimals = wallet.
     'button',
     { class: 'private-line', type: 'button', 'data-testid': 'private-maturing', onclick: () => app.go('coins', { assetId: Number(assetId) }) },
     icon('shield'),
-    h('span', { text: privateBalanceText(tot.maturingMp, u, coins, height, decimals) }),
+    h('span', { text: privateBalanceText(tot.maturingMp, u, coins, height) }),
     icon('chevron'),
   );
 }
@@ -72,23 +72,23 @@ export function privateLine(app, s, assetId = 0, unit = null, decimals = wallet.
 
 /** A split in Activity, on Home and on a token's page: what was split, and the fee (all that left). */
 export function splitRow(app, tx, onclick) {
-  const { unit, decimals } = wallet.label(tx.asset_id || 0);
+  const unit = wallet.label(tx.asset_id || 0).unit;
   const failed = Number(tx.status) === 4 || Number(tx.status) === 2;
   return h(
     'button',
     { class: 'row', onclick, 'data-txid': tx.txId, 'data-split': '1' },
     h('span', { class: `ico ${failed ? 'fail' : 'swap'}` }, icon(isPendingTx(tx) ? 'clock' : 'coins')),
-    h('span', { class: 'main' }, h('div', { class: 't', text: splitStatusText(tx) }), h('div', { class: 's', text: `${fmtDate(tx.create_time)} · ${formatAmount(BigInt(tx.value || 0), { decimals })} ${unit}` })),
+    h('span', { class: 'main' }, h('div', { class: 't', text: splitStatusText(tx) }), h('div', { class: 's', text: `${fmtDate(tx.create_time)} · ${formatAmount(BigInt(tx.value || 0))} ${unit}` })),
     h('span', { class: 'end', text: `−${formatAmount(BigInt(tx.fee || 0))} BEAM` }), // i18n-ignore: an amount and the ticker
   );
 }
 
 /** A split's details (Activity's sheet). */
 export function splitDetail(app, tx, close, kv) {
-  const { unit, decimals } = wallet.label(tx.asset_id || 0);
+  const unit = wallet.label(tx.asset_id || 0).unit;
   return [
     h('h2', { 'data-testid': 'tx-detail-title', text: splitStatusText(tx) }),
-    h('div', { class: 'big-amount', text: `${formatAmount(BigInt(tx.value || 0), { decimals })} ${unit}` }),
+    h('div', { class: 'big-amount', text: `${formatAmount(BigInt(tx.value || 0))} ${unit}` }),
     h(
       'div',
       { class: 'card' },
@@ -107,7 +107,7 @@ export function splitDetail(app, tx, close, kv) {
 // ---------------------------------------------------------------- one asset's coins
 
 /** Each coin of one asset: what it holds, its kind (private, change), and whether it can be spent now. */
-export function coinList(summary, symbol, height, decimals) {
+export function coinList(summary, symbol, height) {
   const rows = [...summary.available, ...summary.locked];
   const anyPrivate = rows.some((c) => c.shielded);
   return [
@@ -126,7 +126,7 @@ export function coinList(summary, symbol, height, decimals) {
               h(
                 'span',
                 { class: 'main' },
-                h('div', { class: 't' }, h('span', { text: `${c.exact ? '' : '≈ '}${formatAmount(c.amount, { decimals })} ${symbol}` }), kind ? h('span', { class: `tag coin-tag${c.shielded ? ' private' : ''}`, text: kind }) : null),
+                h('div', { class: 't' }, h('span', { text: `${c.exact ? '' : '≈ '}${formatAmount(c.amount)} ${symbol}` }), kind ? h('span', { class: `tag coin-tag${c.shielded ? ' private' : ''}`, text: kind }) : null),
                 h('div', { class: 's wrap', 'data-testid': 'coin-status', text: coinStatusText(c, height) }),
               ),
             );

@@ -12,7 +12,6 @@
 import { h, put } from '../lib/dom.js';
 import { screen, notice } from '../lib/ui.js';
 import { formatAmount, parseAmount } from '../lib/amount.js';
-import { otherWalletsText } from '../lib/meta.js';
 import { wallet } from '../lib/wallet.js';
 import { display, dateOf, STATUS, NAME_CALL_FEE } from '../lib/bans.js';
 import { bans, day, nameProblemText } from './names.js';
@@ -26,7 +25,6 @@ export default function nameSell(app, params = {}) {
   let res = null;
   let myKey = null;
   let amount = null;
-  let amountDecimals = null; // the decimals `amount` was read with
   let amountError = null;
   let assetId = 0;
   let busy = false;
@@ -52,9 +50,7 @@ export default function nameSell(app, params = {}) {
     const typed = input.value.trim();
     if (typed) {
       try {
-        const l = wallet.label(assetId);
-        amountDecimals = l.decimals;
-        amount = parseAmount(typed, { decimals: l.decimals, unit: l.unit });
+        amount = parseAmount(typed);
         if (amount === 0n) {
           amount = null;
           amountError = t('The price must be more than zero.');
@@ -66,7 +62,7 @@ export default function nameSell(app, params = {}) {
     render();
   }
 
-  const priceText = () => (amount == null ? '' : `${formatAmount(amount, { decimals: wallet.label(assetId).decimals })} ${wallet.label(assetId).unit}`);
+  const priceText = () => (amount == null ? '' : `${formatAmount(amount)} ${wallet.label(assetId).unit}`);
 
   function ctaState() {
     if (busy) return t('Building the listing…');
@@ -93,8 +89,7 @@ export default function nameSell(app, params = {}) {
     put(
       detail,
       amountError ? h('p', { class: 'hint bad', 'data-testid': 'sell-amount-error', text: amountError }) : null,
-      amount != null && otherWalletsText(amount, wallet.label(assetId)) ? h('p', { class: 'hint', 'data-testid': 'sell-other-wallets', text: otherWalletsText(amount, wallet.label(assetId)) }) : null,
-      h('div', { class: 'card flat swap-details' }, kv(t('The buyer gets'), until ? t('{name} until about {date}', { name, date: until }) : name, 'sell-buyer-gets'), kv(t('To list it'), t('{fee} BEAM network fee', { fee: formatAmount(NAME_CALL_FEE) }), 'sell-fee'), res && res.domain && res.domain.salePrice ? kv(t('Listed now at'), `${formatAmount(res.domain.salePrice.amount, { decimals: wallet.label(res.domain.salePrice.assetId).decimals })} ${wallet.label(res.domain.salePrice.assetId).unit}`, 'sell-now') : null),
+      h('div', { class: 'card flat swap-details' }, kv(t('The buyer gets'), until ? t('{name} until about {date}', { name, date: until }) : name, 'sell-buyer-gets'), kv(t('To list it'), t('{fee} BEAM network fee', { fee: formatAmount(NAME_CALL_FEE) }), 'sell-fee'), res && res.domain && res.domain.salePrice ? kv(t('Listed now at'), `${formatAmount(res.domain.salePrice.amount)} ${wallet.label(res.domain.salePrice.assetId).unit}`, 'sell-now') : null),
       h('p', { class: 'small', text: t('You can stop selling at any time until someone buys it.') }),
       msg ? h('div', { 'data-testid': 'sell-msg', 'data-code': msg.code }, notice(msg.kind, msg.text)) : null,
     );
@@ -102,8 +97,6 @@ export default function nameSell(app, params = {}) {
 
   async function list() {
     if (ctaState() || busy) return;
-    // The token's decimals changed since the price was read: read it again, list nothing yet.
-    if (wallet.label(assetId).decimals !== amountDecimals) return readAmount();
     busy = true;
     msg = null;
     render();
@@ -113,7 +106,7 @@ export default function nameSell(app, params = {}) {
       const until = res && res.domain ? day(dateOf(res.domain.expireHeight, res)) : null;
       await bans().setPrice(name, aid, price, {
         words: {
-          rows: [[t('Name'), display(name)], [t('Price'), `${formatAmount(price, { decimals: wallet.label(aid).decimals })} ${wallet.label(aid).unit}`], until ? [t('The buyer gets'), t('{name} until about {date}', { name, date: until })] : null].filter(Boolean),
+          rows: [[t('Name'), display(name)], [t('Price'), `${formatAmount(price)} ${wallet.label(aid).unit}`], until ? [t('The buyer gets'), t('{name} until about {date}', { name, date: until })] : null].filter(Boolean),
           notes: [t('Anyone can buy {name} at this price at any moment, without asking you. The payment waits for you under BEAM names, where you claim it.', { name })],
         },
       });
@@ -121,7 +114,7 @@ export default function nameSell(app, params = {}) {
       pending.set(name, { kind: 'sell', at: Date.now(), assetId: aid, amount: price });
       busy = false;
       wallet.refreshTxs();
-      app.go('nameDetail', { name, listed: `${formatAmount(price, { decimals: wallet.label(aid).decimals })} ${wallet.label(aid).unit}` }, { replace: true });
+      app.go('nameDetail', { name, listed: `${formatAmount(price)} ${wallet.label(aid).unit}` }, { replace: true });
       return;
     } catch (e) {
       if (!alive) return;
