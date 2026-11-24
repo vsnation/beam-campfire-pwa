@@ -1,6 +1,6 @@
 {
  "app": "beam-campfire-pwa",
- "version": "0.2.23",
+ "version": "0.2.24",
  "files": [
   {
    "path": "app.js",
@@ -604,8 +604,8 @@
   },
   {
    "path": "lib/engine.js",
-   "sha256": "40fee8b546377114e6cb464ca5939c0dd1dfe50085ecbe6a11346b1f6833be63",
-   "size": 39357
+   "sha256": "dc675f257bbdb89e66f8b9b6850923d7aff16832b30a6e96bfda386b7fb2eb29",
+   "size": 39379
   },
   {
    "path": "lib/envelope.js",
@@ -1059,7 +1059,7 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "a9f3214c27e5f374f26eb0f412b71f5e64207c6135e504177048ede4295e701c",
+   "sha256": "4f22a91cf7b4d39523e3e3df8f37ac925e9bde28a7028a7d3ff22d8b7afb20fe",
    "size": 1276
   },
   {
@@ -1734,13 +1734,13 @@
   },
   {
    "path": "vendor/engine/wasm-client.js",
-   "sha256": "b3d47b7ce7a18a6400de02f103e2982dd511ce2e5f3815a8e9cd1661d7ab97f0",
+   "sha256": "e7883c5eda7bcbbff7f98e875e06acfb2a93e7b495861df0174987b053fe5cc1",
    "size": 262725
   },
   {
    "path": "vendor/engine/wasm-client.wasm",
-   "sha256": "a0410ea3ab28486847e48434ba68125c09bf1986acb801daec82fc5a5d3f482b",
-   "size": 5840077
+   "sha256": "b635aaf8e81d0d3a29153a0633a2ea378753c72fcb9a8634b7e57a1286e2f394",
+   "size": 5857872
   },
   {
    "path": "vendor/engine/wasm-client.worker.js",
